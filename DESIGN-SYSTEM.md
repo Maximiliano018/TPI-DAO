@@ -60,13 +60,27 @@ Paleta sobria: primario **azul petróleo**, neutros fríos y cuatro colores sem�
 | Información | `#E3F0FB` | `#1A5C99` | En tránsito, Solicitado, En envío |
 
 ### Mapeo de estados a color
+Los estados son los de [ARCHITECTURE.md §4.4](ARCHITECTURE.md#44-máquinas-de-estado). Las condiciones derivadas (no son estados guardados) se muestran como un badge adicional junto al estado.
+
 | Entidad | Estado → variante |
 |---|---|
-| Remito | Generado/Empaquetado → neutral · En tránsito → info · Recibido → éxito · Extraviado → error · Cancelado → neutral |
-| Préstamo | Solicitado/En envío → info · Activo → primario · Vencido → error · Devuelto → éxito · Cancelado → neutral |
-| Ejemplar | Disponible → éxito · Reservado → advertencia · Prestado → primario · En tránsito → info · Baja → error |
-| Socio | Habilitado → éxito · Inhabilitado → error |
+| Remito | Generado / Empaquetado → neutral · En tránsito → info · Recibido → éxito · Extraviado → error · Cancelado → neutral |
+| Remito (revisión) | Conforme → éxito · Dañado → advertencia · Destruido → error |
+| Préstamo | En envío → info · Listo para retiro → advertencia · Activo → primario · Devuelto → éxito · Cancelado → neutral |
+| Ejemplar | Disponible → éxito · Reservado → advertencia · Pendiente de despacho → info · En tránsito → info · Prestado → primario · En revisión → advertencia · Baja → error |
+| Reserva | Pendiente → neutral · Asignada → advertencia · Cumplida → éxito · Vencida → error · Cancelada → neutral |
+| Multa | Pendiente → error · Saldada → éxito |
+| Socio | Habilitado → éxito · Inhabilitado → error · Baja → neutral |
 | Sede | Activa → éxito · Baja → neutral |
+
+**Condiciones derivadas** (badge adicional):
+
+| Condición | Se muestra sobre | Variante |
+|---|---|---|
+| Vencido | Préstamo activo con la fecha de vencimiento pasada | error |
+| Retiro vencido | Préstamo listo para retiro con el plazo de retiro pasado | error |
+| Demorado | Remito en tránsito más días que `dias_max_transito` | advertencia |
+| Consulta en sala | Ejemplar no prestable | neutral |
 
 ### Tema oscuro
 Se redefinen los **tokens semánticos** (`--surface`, `--text`, `--border`, etc.) bajo `prefers-color-scheme: dark` y `[data-theme="dark"]`; los componentes solo usan tokens semánticos, por lo que no cambian.
@@ -230,7 +244,7 @@ Componentes base en `frontend/src/components/`. Cada uno documenta variantes, es
 | **Stepper / Timeline** | **Trazabilidad del remito**: línea de tiempo con `MovimientoRemito` (estado, fecha, responsable) |
 | **StatCard** | Cifra + etiqueta para el tablero de reportes |
 
-Componentes específicos del dominio (en `features/`, construidos sobre los core): `RemitoTimeline`, `EjemplarEstadoBadge`, `SocioHabilitacionBadge`, `DisponibilidadPorSede`.
+Componentes específicos del dominio (en `features/`, construidos sobre los core): `RemitoTimeline`, `EstadoBadge` (recibe entidad y estado, y aplica el mapeo de §3), `CondicionBadge` (vencido, retiro vencido, demorado, consulta en sala), `DisponibilidadPorSede`, `ColaReservas`.
 
 ### Layout
 - Escritorio: sidebar fija (240 px) + área de contenido con ancho máximo de 1280 px.
