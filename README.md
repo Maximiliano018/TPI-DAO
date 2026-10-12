@@ -10,15 +10,27 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (`pip install uv`) y Node.js 20+. u
 ```bash
 cd backend
 uv sync                                      # instala dependencias en .venv
+uv run biblioteca crear-base --demo          # crea biblioteca.db con datos de ejemplo
 uv run uvicorn biblioteca.main:app --reload  # http://localhost:8000/docs
 ```
+
+Base de datos (SQLite, archivo `backend/biblioteca.db`):
+
+```bash
+uv run biblioteca crear-base [--demo]               # migraciones + datos iniciales
+uv run biblioteca seed [--demo]                     # solo datos iniciales (idempotente)
+uv run biblioteca reset-base --confirmar [--demo]   # borra la base y la recrea (desarrollo)
+```
+
+Después de un `git pull` que traiga migraciones nuevas, alcanza con `uv run biblioteca crear-base`.
 
 Otros comandos:
 
 ```bash
 uv run pytest                                # tests
 uv run ruff check . && uv run ruff format .  # lint y formato
-uv run alembic revision --autogenerate -m "mensaje"   # nueva migración
+uv run mypy src tests                        # tipos
+uv run alembic revision --autogenerate -m "mensaje"   # nueva migración (tras cambiar tables.py)
 uv run alembic upgrade head                           # aplicar migraciones
 uv add <paquete>                             # agregar una dependencia
 ```
