@@ -3,24 +3,26 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from biblioteca.api.deps import Actor, get_auth_service
+from biblioteca.api.deps import Actor, Hasher, Tokens, Uow
 from biblioteca.api.schemas.auth import TokenSalida, UsuarioActualSalida
-from biblioteca.application.services.auth_service import AuthService
+from biblioteca.application.services.auth import iniciar_sesion
 
 router = APIRouter(prefix="/auth", tags=["autenticación"])
 
 
-@router.post("/login")
+@router.post("/login", response_model=TokenSalida)
 def login(
     formulario: Annotated[OAuth2PasswordRequestForm, Depends()],
-    auth: Annotated[AuthService, Depends(get_auth_service)],
+    uow: Uow,
+    hasher: Hasher,
+    tokens: Tokens,
 ) -> TokenSalida:
     """Inicia sesión con usuario y contraseña (form-data) y devuelve un JWT."""
-    emitido = auth.login(formulario.username, formulario.password)
+    emitido = iniciar_sesion(uow, hasher, tokens, formulario.username, formulario.password)
     return TokenSalida(access_token=emitido.token, expira_en=emitido.expira_en)
 
 
-@router.get("/yo")
+@router.get("/yo", response_model=UsuarioActualSalida)
 def yo(actor: Actor) -> UsuarioActualSalida:
     """Datos del usuario de la sesión actual."""
     return UsuarioActualSalida(

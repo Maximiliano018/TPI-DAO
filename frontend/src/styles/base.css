@@ -17,6 +17,7 @@ h1,
 h2,
 h3 {
   margin: 0;
+  font-family: var(--font-titulo);
   font-weight: 600;
 }
 
@@ -24,17 +25,7 @@ a {
   color: var(--accent);
 }
 
-a:hover {
-  color: var(--accent-hover);
-}
-
 :focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
-}
-
-code,
-.mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
 }

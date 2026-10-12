@@ -11,10 +11,6 @@ class DomainError(Exception):
         self.mensaje = mensaje
 
 
-class DatoInvalido(DomainError):
-    codigo = "DATO_INVALIDO"
-
-
 class NoEncontrado(DomainError):
     codigo = "NO_ENCONTRADO"
 
@@ -27,8 +23,19 @@ class TransicionInvalida(DomainError):
     codigo = "TRANSICION_INVALIDA"
 
 
+class DatoInvalido(DomainError):
+    codigo = "DATO_INVALIDO"
+
+
+class IsbnInvalido(DatoInvalido):
+    codigo = "ISBN_INVALIDO"
+
+
 class ConflictoDeConcurrencia(DomainError):
     codigo = "CONFLICTO_DE_CONCURRENCIA"
+
+
+# ----------------------------------------------------------------- Autenticación y permisos
 
 
 class CredencialesInvalidas(DomainError):
@@ -41,6 +48,18 @@ class NoAutenticado(DomainError):
 
 class AccesoDenegado(DomainError):
     codigo = "ACCESO_DENEGADO"
+
+
+# ---------------------------------------------------------------------------- Catálogo
+
+
+class LibroConHistorial(DomainError):
+    """El libro tiene ejemplares o reservas: no se borra para no perder su historial."""
+
+    codigo = "LIBRO_CON_HISTORIAL"
+
+
+# ------------------------------------------------------------------------------- Sedes
 
 
 class SedeDadaDeBaja(DomainError):

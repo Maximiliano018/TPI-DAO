@@ -2,7 +2,8 @@
 
 - `cargar_datos_iniciales`: parámetros del sistema y categorías. Es idempotente:
   solo agrega lo que falta y nunca pisa un valor que el ADMIN ya cambió.
-- `cargar_demo`: sedes, libros, ejemplares y socios de ejemplo, para desarrollo.
+- `cargar_demo`: sedes, libros, ejemplares y socios de ejemplo, para desarrollo, más la
+  circulación de ejemplo (préstamos, envíos, reservas y multas) de `seed_circulacion.py`.
 
 El primer ADMIN se crea cuando exista el módulo de autenticación (hash argon2).
 """
@@ -13,8 +14,8 @@ from typing import NamedTuple
 from sqlalchemy import func, insert, select
 from sqlalchemy.engine import Connection
 
+from biblioteca.domain.entities.isbn import digito_verificador_isbn13
 from biblioteca.domain.enums import TipoParametro
-from biblioteca.domain.valores import digito_verificador_isbn13
 from biblioteca.infrastructure.db.insercion import insertar
 from biblioteca.infrastructure.db.secuencias import (
     SECUENCIA_SOCIO,
@@ -22,6 +23,7 @@ from biblioteca.infrastructure.db.secuencias import (
     secuencia_inventario,
     siguiente_valor,
 )
+from biblioteca.infrastructure.db.seed_circulacion import cargar_circulacion_demo
 from biblioteca.infrastructure.db.tables import (
     autor,
     categoria,
@@ -251,4 +253,6 @@ def cargar_demo(conn: Connection) -> bool:
                 fecha_inhabilitacion=datetime.now(UTC) if inhabilitado else None,
             )
         )
+
+    cargar_circulacion_demo(conn)
     return True

@@ -1,23 +1,7 @@
 import pytest
 
 from biblioteca.domain.errors import DatoInvalido
-from biblioteca.domain.valores import Dni, Isbn, texto_opcional, texto_requerido
-
-
-class TestIsbn:
-    def test_acepta_isbn13_con_guiones(self) -> None:
-        assert Isbn.desde_texto("978-0-306-40615-7").valor == "9780306406157"
-
-    def test_convierte_isbn10_a_isbn13(self) -> None:
-        assert Isbn.desde_texto("0-306-40615-2").valor == "9780306406157"
-
-    def test_acepta_isbn10_con_x_como_verificador(self) -> None:
-        assert Isbn.desde_texto("0-8044-2957-X").valor == "9780804429573"
-
-    @pytest.mark.parametrize("texto", ["9780306406158", "0306406153", "123", "97803064061AB"])
-    def test_rechaza_isbn_invalidos(self, texto: str) -> None:
-        with pytest.raises(DatoInvalido):
-            Isbn.desde_texto(texto)
+from biblioteca.domain.valores import Dni, texto_opcional, texto_requerido
 
 
 class TestDni:

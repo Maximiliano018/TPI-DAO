@@ -15,14 +15,14 @@ from pathlib import Path
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
 
-from biblioteca.application.services.usuario_service import UsuarioService
+from biblioteca.application.services.usuarios import registrar_admin
 from biblioteca.config import settings
 from biblioteca.domain.errors import DomainError
 from biblioteca.infrastructure.db.migraciones import aplicar_migraciones
 from biblioteca.infrastructure.db.seed import cargar_datos_iniciales, cargar_demo
 from biblioteca.infrastructure.db.session import SessionLocal, engine
+from biblioteca.infrastructure.repositories.unidad_de_trabajo import SqlUnidadDeTrabajo
 from biblioteca.infrastructure.security import HasherArgon2
-from biblioteca.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 # Para scripts y CI: si está definida, crear-admin no pide la contraseña por consola.
 VARIABLE_CONTRASENA_ADMIN = "BIBLIOTECA_ADMIN_PASSWORD"
@@ -78,11 +78,14 @@ def _crear_admin(username: str, nombre: str) -> None:
         raise SystemExit(
             "La base no tiene el esquema creado. Ejecutar primero: biblioteca crear-base"
         )
-    servicio = UsuarioService(SqlAlchemyUnitOfWork(SessionLocal), HasherArgon2())
-    try:
-        usuario = servicio.registrar_admin(username, nombre, _pedir_contrasena())
-    except DomainError as error:
-        raise SystemExit(error.mensaje) from error
+    contrasena = _pedir_contrasena()
+    with SessionLocal() as session:
+        try:
+            usuario = registrar_admin(
+                SqlUnidadDeTrabajo(session), HasherArgon2(), username, nombre, contrasena
+            )
+        except DomainError as error:
+            raise SystemExit(error.mensaje) from error
     print(f"Usuario ADMIN '{usuario.username}' creado.")
 
 

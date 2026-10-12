@@ -14,6 +14,7 @@ from biblioteca.domain.errors import (
     CredencialesInvalidas,
     DomainError,
     DuplicadoError,
+    LibroConHistorial,
     NoAutenticado,
     NoEncontrado,
     SedeConActividadAbierta,
@@ -32,6 +33,7 @@ _STATUS_POR_ERROR: dict[type[DomainError], int] = {
     DuplicadoError: 409,
     TransicionInvalida: 409,
     ConflictoDeConcurrencia: 409,
+    LibroConHistorial: 409,
     SedeConActividadAbierta: 409,
     SedeDadaDeBaja: 409,
 }
@@ -43,6 +45,7 @@ def _respuesta(
     cuerpo: dict[str, object] = {"codigo": codigo, "mensaje": mensaje}
     if detalle is not None:
         cuerpo["detalle"] = detalle
+    # 401 indica al cliente cómo autenticarse (RFC 7235).
     headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
     return JSONResponse(status_code=status, content=jsonable_encoder(cuerpo), headers=headers)
 
@@ -58,7 +61,17 @@ def registrar_manejadores(app: FastAPI) -> None:
 
     @app.exception_handler(RequestValidationError)
     async def _manejar_validacion(_request: Request, exc: RequestValidationError) -> JSONResponse:
-        return _respuesta(422, "VALIDACION", "Los datos enviados no son válidos", exc.errors())
+        """Datos con forma inválida (campo faltante, tipo incorrecto): mismo formato de error."""
+        errores = exc.errors()
+        primero = errores[0] if errores else {}
+        campo = ".".join(str(p) for p in primero.get("loc", ()) if p != "body")
+        mensaje = f"{campo}: {primero.get('msg', 'dato inválido')}" if campo else "Datos inválidos"
+        return _respuesta(
+            422,
+            "DATOS_INVALIDOS",
+            mensaje,
+            [{"campo": e.get("loc"), "mensaje": e.get("msg")} for e in errores],
+        )
 
     @app.exception_handler(IntegrityError)
     async def _manejar_integridad(_request: Request, exc: IntegrityError) -> JSONResponse:

@@ -39,20 +39,19 @@ TPI-DAO/
 │   ├── migrations/
 │   ├── src/biblioteca/
 │   │   ├── domain/                # Núcleo: sin dependencias de FastAPI ni SQLAlchemy
-│   │   │   ├── entities/          # Sede, Usuario (hechas); Socio, Libro, Ejemplar, Prestamo, ...
+│   │   │   ├── entities/          # Sede, Usuario, Libro, Isbn (hechas); Socio, Ejemplar, Prestamo, ...
 │   │   │   ├── states/            # Patrón State: estados de Remito (una clase por estado)
 │   │   │   ├── policies/          # Patrón Strategy: PoliticaMulta
 │   │   │   ├── events/            # Eventos de dominio (para Observer)
 │   │   │   ├── enums.py           # EstadoEjemplar, EstadoPrestamo, CondicionFisica, Rol, ...
-│   │   │   ├── valores.py         # Objetos valor: Isbn, Dni, normalización de textos
+│   │   │   ├── valores.py         # Objetos valor: Dni, normalización de textos
 │   │   │   ├── clock.py           # Puerto Reloj: "hoy" y "ahora" inyectables (tests)
-│   │   │   ├── repositories.py    # Interfaces (puertos) de repositorio
+│   │   │   ├── repositories.py    # Puertos: repositorios y UnidadDeTrabajo
 │   │   │   └── errors.py          # Excepciones de dominio (cada una con su `codigo`)
 │   │   ├── application/           # Casos de uso / servicios de aplicación
-│   │   │   ├── services/          # SedeService, AuthService, UsuarioService, ...
-│   │   │   ├── unit_of_work.py    # Puerto de la Unidad de Trabajo
-│   │   │   ├── paginacion.py      # Pagina[T] para listados
-│   │   │   ├── reports/           # Consultas de reportes
+│   │   │   ├── services/          # Casos de uso y consultas por módulo: sedes, auth, catalogo, ...
+│   │   │   ├── parametros.py      # Lectura de parámetros del sistema
+│   │   │   ├── reports/           # Reportes R1–R6 (solo lectura)
 │   │   │   └── security/          # actor.py (UsuarioActual), autorizacion.py, puertos.py
 │   │   ├── infrastructure/
 │   │   │   ├── db/
@@ -64,21 +63,20 @@ TPI-DAO/
 │   │   │   │   ├── secuencias.py  # Numeración de socios, inventario y remitos
 │   │   │   │   ├── insercion.py   # Helper de inserción que devuelve el id
 │   │   │   │   └── seed.py        # Parámetros, categorías y datos de demo
-│   │   │   ├── repositories/      # Implementaciones SQLAlchemy de los repositorios
-│   │   │   ├── unit_of_work.py    # SqlAlchemyUnitOfWork
+│   │   │   ├── repositories/      # libros, sedes, usuarios y SqlUnidadDeTrabajo
 │   │   │   ├── reloj.py           # RelojSistema (zona horaria de la red)
 │   │   │   ├── security.py        # HasherArgon2, TokensJwt
 │   │   │   └── notifications/     # Observers concretos (email simulado)
 │   │   ├── api/
-│   │   │   ├── routers/           # health, auth, sedes (hechos); socios, libros, prestamos, ...
-│   │   │   ├── schemas/           # DTOs Pydantic (entrada y salida) y paginación
-│   │   │   ├── deps.py            # Composición: UoW, reloj, servicios, usuario actual, roles
+│   │   │   ├── routers/           # health, auth, organizacion, catalogo, circulacion, logistica, reportes
+│   │   │   ├── schemas/           # DTOs Pydantic de entrada (`...In`) y salida (`...Out`)
+│   │   │   ├── deps.py            # Db, Uow, Ahora, Pagina, usuario actual, Actor, Admin
 │   │   │   └── errors.py          # Traducción de errores a HTTP con cuerpo uniforme
 │   │   ├── cli.py                 # crear-base, seed, reset-base, crear-admin (ver §5.6)
 │   │   ├── config.py              # Variables de entorno BIBLIOTECA_*
 │   │   └── main.py
 │   └── tests/
-│       ├── conftest.py            # Base migrada por sesión, copia por test, UoW real
+│       ├── conftest.py            # Base migrada por sesión, copia por test, fábrica de UoW
 │       ├── apoyo.py               # Dobles: RelojFijo, HasherDePrueba
 │       ├── datos.py               # Inserciones mínimas válidas para armar escenarios
 │       ├── unit/                  # Dominio y seguridad (sin BD ni HTTP)
@@ -936,7 +934,7 @@ Los parámetros que fijan una fecha se **aplican al momento del evento** y el re
 - **Alembic** con `render_as_batch=True` (SQLite recrea la tabla para los `ALTER` que no soporta) y una **convención de nombres** de restricciones en el `MetaData` (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`), necesaria para que el modo batch pueda identificarlas. Los tipos propios se escriben en las migraciones como su tipo SQL base (`render_item` en `migrations/env.py`), para que una migración no dependa de código que puede cambiar.
 - **Migración inicial:** `migrations/versions/a7d690d41038_esquema_inicial.py`. Un test (`alembic check`) falla si `tables.py` cambia sin su migración, y otro verifica que la migración se puede revertir y reaplicar.
 - **`seed.py`** carga parámetros (§5.5) y categorías básicas de forma idempotente (no pisa valores que el ADMIN cambió). Con `--demo` carga 3 sedes con horarios, 8 libros con ISBN ficticios válidos, 15 ejemplares (uno de consulta en sala) y 5 socios (uno inhabilitado), solo si la base no tiene sedes.
-- **Primer ADMIN:** `uv run biblioteca crear-admin --username admin --nombre "Nombre Apellido"`. Pide la contraseña por consola, o la toma de `BIBLIOTECA_ADMIN_PASSWORD` si está definida (scripts).
+- **Primer ADMIN:** `uv run biblioteca crear-admin --username jefe --nombre "Nombre Apellido"`. Los usuarios de la demo no tienen contraseña utilizable (solo dan trazabilidad), así que el nombre debe ser otro. Pide la contraseña por consola, o la toma de `BIBLIOTECA_ADMIN_PASSWORD` si está definida (scripts).
 - **CLI** (`backend/src/biblioteca/cli.py`), desde `backend/`:
 
 | Comando | Qué hace |
@@ -1014,7 +1012,7 @@ El BIBLIOTECARIO también puede operar remitos para que una sede chica funcione 
 | Usuario opera solo en su sede | `application/security` | `AccesoDenegado` |
 | Cambio de estado concurrente | Repositorio (actualización condicional) | `ConflictoDeConcurrencia` |
 
-Los errores de dominio se traducen en `api/errors.py` a HTTP (`401` sin sesión o credenciales inválidas; `403` permisos; `404` no encontrado; `409` conflicto de estado, duplicado o concurrencia; `422` datos inválidos) con un cuerpo uniforme `{codigo, mensaje, detalle?}`. Los errores de formato de FastAPI usan el mismo cuerpo (`codigo: VALIDACION`, con los campos en `detalle`), y un `IntegrityError` que se escape del dominio responde 409 `CONFLICTO_DE_DATOS` sin exponer el SQL.
+Los errores de dominio se traducen en `api/errors.py` a HTTP (`401` sin sesión o credenciales inválidas; `403` permisos; `404` no encontrado; `409` conflicto de estado, duplicado o concurrencia; `422` datos inválidos) con un cuerpo uniforme `{codigo, mensaje, detalle?}`. Los errores de formato de FastAPI usan el mismo cuerpo (`codigo: DATOS_INVALIDOS`, con el primer error en `mensaje` y la lista `{campo, mensaje}` en `detalle`), y un `IntegrityError` que se escape del dominio responde 409 `CONFLICTO_DE_DATOS` sin exponer el SQL.
 
 ### 7.2 Flujo: préstamo inter-sedes
 
@@ -1105,27 +1103,34 @@ Se implementan R1–R4 como mínimo; R5 y R6 alimentan la pantalla de disponibil
 
 ### Receta: agregar un módulo nuevo
 
-`Sede` es el ejemplo de referencia de punta a punta. Para un módulo nuevo (por ejemplo, `Socio`), copiar su estructura:
+Cada módulo separa **casos de uso** (modifican datos) de **consultas** (solo lectura), en el mismo archivo `application/services/<modulo>.py`:
+
+- **Caso de uso:** función que recibe la `UnidadDeTrabajo` (y el actor, el `ahora`, etc.), verifica permisos, carga entidades con los repositorios, **delega la regla en la entidad** y termina con `uow.confirmar()`.
+- **Consulta:** función que recibe la `Session` y consulta las tablas directamente, devolviendo diccionarios con la forma que necesita la pantalla. No pasa por entidades.
+
+Ejemplos de referencia: `sedes.py` (ABM con entidad mapeada, permisos y baja con regla) y `catalogo.py` (alta y baja de libros con repositorio en SQLAlchemy Core).
 
 | Paso | Archivo | Referencia |
 |---|---|---|
-| 1. Entidad con sus reglas e invariantes; sin imports de FastAPI ni SQLAlchemy | `domain/entities/<entidad>.py` | `domain/entities/sede.py` |
-| 2. Puerto del repositorio | `domain/repositories.py` | `SedeRepository` |
-| 3. Mapeo de la entidad sobre su tabla | `infrastructure/db/mappers.py` | `configurar_mapeos()` |
-| 4. Repositorio SQLAlchemy | `infrastructure/repositories/<entidad>_repository.py` | `sede_repository.py` |
-| 5. Exponer el repositorio en la Unidad de Trabajo (puerto e implementación) | `application/unit_of_work.py`, `infrastructure/unit_of_work.py` | `sedes` |
-| 6. Servicio: permisos, UoW, delegar en la entidad, `commit()` | `application/services/<entidad>_service.py` | `sede_service.py` |
-| 7. Errores nuevos con su `codigo` y su status HTTP | `domain/errors.py`, `api/errors.py` | `SedeConActividadAbierta` |
-| 8. DTOs de entrada y salida | `api/schemas/<recurso>.py` | `schemas/sedes.py` |
-| 9. Dependencia del servicio y router delgado | `api/deps.py`, `api/routers/<recurso>.py`, `main.py` | `get_sede_service`, `routers/sedes.py` |
-| 10. Tests: unitarios de la entidad, integración del repositorio, API de permisos y errores | `tests/unit`, `tests/integration`, `tests/api` | `test_sede.py`, `test_repositorios.py`, `test_sedes.py` |
+| 1. Entidad con sus reglas e invariantes; sin imports de FastAPI ni SQLAlchemy | `domain/entities/<entidad>.py` | `sede.py`, `libro.py` |
+| 2. Puerto del repositorio y su propiedad en `UnidadDeTrabajo` | `domain/repositories.py` | `SedeRepository` |
+| 3. Mapeo de la entidad sobre su tabla (si se usa el ORM) | `infrastructure/db/mappers.py` | `configurar_mapeos()` |
+| 4. Repositorio SQLAlchemy y alta en `SqlUnidadDeTrabajo` | `infrastructure/repositories/<modulo>.py`, `unidad_de_trabajo.py` | `sedes.py`, `libros.py` |
+| 5. Casos de uso y consultas | `application/services/<modulo>.py` | `sedes.py` |
+| 6. Errores nuevos con su `codigo` y su status HTTP | `domain/errors.py`, `api/errors.py` | `SedeConActividadAbierta` |
+| 7. DTOs `...In` y `...Out` | `api/schemas/<area>.py` | `organizacion.py` |
+| 8. Endpoints delgados: `Uow` para comandos, `Db` para consultas, `Admin`/`Actor` para permisos | `api/routers/<area>.py` | `organizacion.py` |
+| 9. Tests: entidad (unit), repositorio (integration), endpoint con permisos y errores (api) | `tests/unit`, `tests/integration`, `tests/api` | `test_sede.py`, `test_repositorios.py`, `test_sedes.py` |
 
-Reglas que no se negocian: la regla de negocio vive en la entidad; el servicio solo orquesta; el router no decide nada; "hoy" y "ahora" salen del `Reloj`; cada caso de uso es un bloque `with self.uow:` con un único `commit()`.
+Reglas que no se negocian: la regla de negocio vive en la entidad; el caso de uso solo orquesta y confirma una vez; el router no decide nada; "ahora" sale de la dependencia `Ahora` (y del `Reloj`), nunca de `datetime.now()`.
+
+Tests de API: `cliente` y `cliente_escritura` trabajan sobre la base de demostración; `cliente_limpio` sobre una base vacía con reloj fijo, y las fixtures `admin` y `bibliotecario` devuelven el header de una sesión iniciada.
 
 ### API REST
 - Recursos en plural y minúsculas: `/sedes`, `/socios`, `/prestamos`, `/remitos`.
 - Acciones de ciclo de vida como subrecursos `POST`: `/remitos/{id}/despachar`, `/prestamos/{id}/entregar`.
-- Prefijo `/api/v1`. Paginación con `?limite=50&desde=0` (dependencia `paginacion`); la respuesta es `{items, total, limite, desde}`.
+- Prefijo `/api/v1`. Los listados devuelven una lista; los que pueden crecer se paginan con `?limit=100&offset=0` (dependencia `Pagina`).
+- **Permisos:** hasta que el front tenga login, las consultas son públicas; los comandos exigen sesión y rol (`Admin`, `Actor`).
 - JSON en `snake_case`, con los mismos nombres que el dominio.
 - Formato de error uniforme `{codigo, mensaje, detalle?}`.
 

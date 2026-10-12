@@ -28,5 +28,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
     )
   }
 
+  // 204 (por ejemplo, al eliminar): no hay cuerpo.
+  if (respuesta.status === 204) return undefined as T
   return (await respuesta.json()) as T
 }
