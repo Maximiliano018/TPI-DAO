@@ -1,27 +1,40 @@
 from logging.config import fileConfig
+from typing import Any, Literal
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from biblioteca.config import settings
-from biblioteca.infrastructure.db.session import Base
+from biblioteca.infrastructure.db.tables import metadata
+from biblioteca.infrastructure.db.tipos import FechaHoraUTC
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
 # La URL de la base sale de biblioteca.config (y del .env), no de alembic.ini.
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Si quien invoca a Alembic ya fijó una URL (CLI de tests, por ejemplo), se respeta.
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Metadata de los modelos ORM para `alembic revision --autogenerate`.
-# Cuando existan modelos, importarlos acá para que se registren en Base, ej.:
-# from biblioteca.infrastructure.db import models  # noqa: F401
-target_metadata = Base.metadata
+# Metadata del esquema (SQLAlchemy Core) para `alembic revision --autogenerate`.
+target_metadata = metadata
+
+
+def render_item(type_: str, obj: Any, autogen_context: Any) -> str | Literal[False]:
+    """Escribe los tipos propios como su tipo SQL base.
+
+    Así las migraciones no importan código de la aplicación, que puede cambiar después.
+    """
+    if type_ == "type" and isinstance(obj, FechaHoraUTC):
+        return "sa.DateTime()"
+    return False
+
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -48,6 +61,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         render_as_batch=True,
+        render_item=render_item,
     )
 
     with context.begin_transaction():
@@ -73,6 +87,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             # SQLite casi no soporta ALTER TABLE: "batch" recrea la tabla al modificarla.
             render_as_batch=True,
+            render_item=render_item,
         )
 
         with context.begin_transaction():

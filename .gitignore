@@ -3,6 +3,8 @@
 
 # Base de datos SQLite local y dependencias del front
 *.db
+*.db-wal
+*.db-shm
 node_modules/
 
 # Byte-compiled / optimized / DLL files
