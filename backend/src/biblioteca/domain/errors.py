@@ -21,3 +21,17 @@ class DuplicadoError(DomainError):
 
 class TransicionInvalida(DomainError):
     codigo = "TRANSICION_INVALIDA"
+
+
+class DatoInvalido(DomainError):
+    codigo = "DATO_INVALIDO"
+
+
+class IsbnInvalido(DatoInvalido):
+    codigo = "ISBN_INVALIDO"
+
+
+class LibroConHistorial(DomainError):
+    """El libro tiene ejemplares o reservas: no se borra para no perder su historial."""
+
+    codigo = "LIBRO_CON_HISTORIAL"
