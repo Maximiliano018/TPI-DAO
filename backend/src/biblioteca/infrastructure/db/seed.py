@@ -14,6 +14,7 @@ from sqlalchemy import func, insert, select
 from sqlalchemy.engine import Connection
 
 from biblioteca.domain.enums import TipoParametro
+from biblioteca.domain.valores import digito_verificador_isbn13
 from biblioteca.infrastructure.db.insercion import insertar
 from biblioteca.infrastructure.db.secuencias import (
     SECUENCIA_SOCIO,
@@ -166,10 +167,10 @@ _SOCIOS_DEMO = (
 )
 
 
-def isbn13_con_verificador(base_12_digitos: str) -> str:
-    """Completa un ISBN-13 con su dígito verificador (pesos alternados 1 y 3)."""
-    suma = sum(int(d) * (1 if i % 2 == 0 else 3) for i, d in enumerate(base_12_digitos))
-    return base_12_digitos + str((10 - suma % 10) % 10)
+def _isbn_ficticio(n: int) -> str:
+    """ISBN con prefijo 978-0-00000 y dígito verificador válido (no corresponde a un libro real)."""
+    base = f"97800000{n:04d}"
+    return base + digito_verificador_isbn13(base)
 
 
 def _normalizar_nombre(nombre: str) -> str:
@@ -202,11 +203,10 @@ def cargar_demo(conn: Connection) -> bool:
     }
     ids_autor: dict[str, int] = {}
     for n, datos in enumerate(_LIBROS_DEMO, start=1):
-        # ISBN ficticios (prefijo 978-0-00000) con dígito verificador válido.
         libro_id = insertar(
             conn,
             libro,
-            isbn=isbn13_con_verificador(f"97800000{n:04d}"),
+            isbn=_isbn_ficticio(n),
             titulo=datos.titulo,
             anio_publicacion=datos.anio,
             categoria_id=ids_categoria[datos.categoria],

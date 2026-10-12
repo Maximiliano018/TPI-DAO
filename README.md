@@ -11,6 +11,7 @@ Requisitos: [uv](https://docs.astral.sh/uv/) (`pip install uv`) y Node.js 20+. u
 cd backend
 uv sync                                      # instala dependencias en .venv
 uv run biblioteca crear-base --demo          # crea biblioteca.db con datos de ejemplo
+uv run biblioteca crear-admin --username admin --nombre "Nombre Apellido"   # pide la contraseña
 uv run uvicorn biblioteca.main:app --reload  # http://localhost:8000/docs
 ```
 
@@ -23,6 +24,8 @@ uv run biblioteca reset-base --confirmar [--demo]   # borra la base y la recrea 
 ```
 
 Después de un `git pull` que traiga migraciones nuevas, alcanza con `uv run biblioteca crear-base`.
+
+Para probar la API desde Swagger (`/docs`): botón **Authorize**, usuario y contraseña del ADMIN. La configuración opcional (secreto de sesión, base, zona horaria) está en `backend/.env.example`.
 
 Otros comandos:
 

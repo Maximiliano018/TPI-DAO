@@ -25,9 +25,8 @@ from biblioteca.domain.enums import (
     TipoNotificacion,
 )
 from biblioteca.infrastructure.db import tables as t
-
-from . import datos
-from .datos import AHORA, HOY
+from tests import datos
+from tests.datos import AHORA, HOY
 
 
 class Escenario(NamedTuple):

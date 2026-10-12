@@ -4,18 +4,28 @@ Uso (desde backend/):
     uv run biblioteca crear-base           # migraciones + datos iniciales
     uv run biblioteca seed [--demo]        # datos iniciales (y de ejemplo)
     uv run biblioteca reset-base --confirmar [--demo]   # solo desarrollo, borra la base SQLite
+    uv run biblioteca crear-admin --username admin --nombre "Nombre Apellido"
 """
 
 import argparse
+import getpass
+import os
 from pathlib import Path
 
 from sqlalchemy import inspect
 from sqlalchemy.engine import make_url
 
+from biblioteca.application.services.usuario_service import UsuarioService
 from biblioteca.config import settings
+from biblioteca.domain.errors import DomainError
 from biblioteca.infrastructure.db.migraciones import aplicar_migraciones
 from biblioteca.infrastructure.db.seed import cargar_datos_iniciales, cargar_demo
-from biblioteca.infrastructure.db.session import engine
+from biblioteca.infrastructure.db.session import SessionLocal, engine
+from biblioteca.infrastructure.security import HasherArgon2
+from biblioteca.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
+
+# Para scripts y CI: si está definida, crear-admin no pide la contraseña por consola.
+VARIABLE_CONTRASENA_ADMIN = "BIBLIOTECA_ADMIN_PASSWORD"
 
 
 def _seed(demo: bool) -> None:
@@ -54,6 +64,28 @@ def _reset_base(confirmar: bool, demo: bool) -> None:
     _crear_base(demo)
 
 
+def _pedir_contrasena() -> str:
+    if contrasena := os.environ.get(VARIABLE_CONTRASENA_ADMIN):
+        return contrasena
+    contrasena = getpass.getpass("Contraseña: ")
+    if contrasena != getpass.getpass("Repetir contraseña: "):
+        raise SystemExit("Las contraseñas no coinciden.")
+    return contrasena
+
+
+def _crear_admin(username: str, nombre: str) -> None:
+    if not inspect(engine).has_table("usuario"):
+        raise SystemExit(
+            "La base no tiene el esquema creado. Ejecutar primero: biblioteca crear-base"
+        )
+    servicio = UsuarioService(SqlAlchemyUnitOfWork(SessionLocal), HasherArgon2())
+    try:
+        usuario = servicio.registrar_admin(username, nombre, _pedir_contrasena())
+    except DomainError as error:
+        raise SystemExit(error.mensaje) from error
+    print(f"Usuario ADMIN '{usuario.username}' creado.")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(prog="biblioteca", description=__doc__.splitlines()[0])
     comandos = parser.add_subparsers(dest="comando", required=True)
@@ -68,6 +100,10 @@ def main() -> None:
     reset.add_argument("--confirmar", action="store_true", help="Confirma el borrado")
     reset.add_argument("--demo", action="store_true", help="Carga también datos de ejemplo")
 
+    admin = comandos.add_parser("crear-admin", help="Crea un usuario ADMIN")
+    admin.add_argument("--username", required=True)
+    admin.add_argument("--nombre", required=True, help="Nombre completo")
+
     args = parser.parse_args()
     if args.comando == "crear-base":
         _crear_base(args.demo)
@@ -75,6 +111,8 @@ def main() -> None:
         _seed(args.demo)
     elif args.comando == "reset-base":
         _reset_base(args.confirmar, args.demo)
+    elif args.comando == "crear-admin":
+        _crear_admin(args.username, args.nombre)
 
 
 if __name__ == "__main__":

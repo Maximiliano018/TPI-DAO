@@ -6,7 +6,7 @@ from sqlalchemy import engine_from_config, pool
 
 from biblioteca.config import settings
 from biblioteca.infrastructure.db.tables import metadata
-from biblioteca.infrastructure.db.tipos import FechaHoraUTC
+from biblioteca.infrastructure.db.tipos import FechaHoraUTC, TextoEnum
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -33,6 +33,8 @@ def render_item(type_: str, obj: Any, autogen_context: Any) -> str | Literal[Fal
     """
     if type_ == "type" and isinstance(obj, FechaHoraUTC):
         return "sa.DateTime()"
+    if type_ == "type" and isinstance(obj, TextoEnum):
+        return f"sa.String(length={obj.impl.length})"
     return False
 
 

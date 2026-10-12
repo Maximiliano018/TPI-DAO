@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import sessionmaker
 
 from biblioteca.infrastructure.db.migraciones import aplicar_migraciones
 from biblioteca.infrastructure.db.session import crear_engine
+from biblioteca.infrastructure.unit_of_work import SqlAlchemyUnitOfWork
 
 
 @pytest.fixture(scope="session")
@@ -25,3 +27,9 @@ def engine(base_migrada: Path, tmp_path: Path) -> Iterator[Engine]:
     engine = crear_engine(f"sqlite:///{ruta}")
     yield engine
     engine.dispose()
+
+
+@pytest.fixture
+def uow(engine: Engine) -> SqlAlchemyUnitOfWork:
+    """Unidad de Trabajo real sobre la base del test."""
+    return SqlAlchemyUnitOfWork(sessionmaker(bind=engine, autoflush=False, expire_on_commit=False))
