@@ -1,0 +1,12 @@
+.grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.angosta {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.ancha {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+}

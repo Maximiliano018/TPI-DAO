@@ -1,0 +1,50 @@
+/* Estilos chicos que comparten varias pantallas. */
+
+/* Segunda línea gris dentro de una celda (ej.: código de inventario debajo del título). */
+.sub {
+  display: block;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sinCorte {
+  white-space: nowrap;
+}
+
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4);
+}
+
+.badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.acciones {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+/* Dos columnas: la de la izquierda más ancha (listado + detalle). */
+.listadoDetalle {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .listadoDetalle {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
