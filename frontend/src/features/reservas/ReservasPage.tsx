@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useReservas } from '../../api/consultas'
+import { useOperaEnSede } from '../../auth/contexto'
 import { Button } from '../../components/Button/Button'
 import { Card } from '../../components/Card/Card'
 import { claseControl } from '../../components/Field/control'
@@ -12,6 +13,8 @@ import { EstadoBadge } from '../comun/EstadoBadge'
 import { fecha, fechaHora } from '../comun/formato'
 
 export function ReservasPage() {
+  // Cada reserva la gestiona su sede de retiro (ARCHITECTURE.md §6.1).
+  const operaEn = useOperaEnSede()
   const [soloAbiertas, setSoloAbiertas] = useState(true)
   const reservas = useReservas(soloAbiertas)
 
@@ -77,7 +80,8 @@ export function ReservasPage() {
                 {
                   titulo: '',
                   celda: (r) =>
-                    (r.estado === 'PENDIENTE' || r.estado === 'ASIGNADA') && (
+                    (r.estado === 'PENDIENTE' || r.estado === 'ASIGNADA') &&
+                    operaEn(r.sede_id) && (
                       <Button tamano="chico" variante="ghost">Cancelar</Button>
                     ),
                 },

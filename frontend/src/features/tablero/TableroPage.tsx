@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiFetch } from '../../api/client'
 import { useTablero } from '../../api/consultas'
+import { useTieneRol } from '../../auth/contexto'
+import { ATENCION } from '../../auth/permisos'
 import { Badge } from '../../components/Badge/Badge'
 import { Card } from '../../components/Card/Card'
 import { Grid } from '../../components/Grid/Grid'
@@ -9,27 +11,41 @@ import { Resultado } from '../../components/Resultado/Resultado'
 import { StatCard } from '../../components/StatCard/StatCard'
 import { Table } from '../../components/Table/Table'
 import comun from '../comun/comun.module.css'
+import { useAlcance } from '../comun/alcance'
 import { EstadoBadge } from '../comun/EstadoBadge'
 import { dias, fecha, fechaHora, pesos } from '../comun/formato'
 import styles from './TableroPage.module.css'
 
 export function TableroPage() {
   const tablero = useTablero()
+  const alcance = useAlcance()
+  // Logística ve solo lo logístico; la circulación (préstamos, reservas, multas) es de atención.
+  const veCirculacion = useTieneRol(...ATENCION)
 
   return (
     <>
-      <PageHeader titulo="Tablero" descripcion="Resumen de la actividad de la red de bibliotecas." />
+      <PageHeader titulo="Tablero" descripcion={`Resumen de la actividad de ${alcance}.`} />
 
       <Resultado consulta={tablero}>
         {(t) => (
           <>
             <Grid>
-              <StatCard etiqueta="Préstamos activos" valor={String(t.prestamos_activos)} />
-              <StatCard etiqueta="Préstamos vencidos" valor={String(t.prestamos_vencidos)} />
+              {veCirculacion && (
+                <>
+                  <StatCard etiqueta="Préstamos activos" valor={String(t.prestamos_activos)} />
+                  <StatCard etiqueta="Préstamos vencidos" valor={String(t.prestamos_vencidos)} />
+                </>
+              )}
               <StatCard etiqueta="Material en tránsito" valor={String(t.remitos_en_transito)} />
-              <StatCard etiqueta="Listos para retiro" valor={String(t.listos_para_retiro)} />
-              <StatCard etiqueta="Reservas en espera" valor={String(t.reservas_pendientes)} />
-              <StatCard etiqueta="Multas pendientes" valor={pesos(t.multas_pendientes_monto)} />
+              {veCirculacion ? (
+                <>
+                  <StatCard etiqueta="Listos para retiro" valor={String(t.listos_para_retiro)} />
+                  <StatCard etiqueta="Reservas en espera" valor={String(t.reservas_pendientes)} />
+                  <StatCard etiqueta="Multas pendientes" valor={pesos(t.multas_pendientes_monto)} />
+                </>
+              ) : (
+                <StatCard etiqueta="Envíos demorados" valor={String(t.remitos_demorados)} />
+              )}
             </Grid>
 
             {t.remitos_demorados > 0 && (
@@ -40,34 +56,36 @@ export function TableroPage() {
             )}
 
             <Grid columna="ancha">
-              <Card titulo="Vencimientos" descripcion="Vencidos y que vencen en los próximos 7 días" sinRelleno>
-                <Table
-                  filas={t.proximos_vencimientos}
-                  clave={(v) => v.id}
-                  vacio="No hay vencimientos próximos."
-                  columnas={[
-                    {
-                      titulo: 'Socio',
-                      celda: (v) => (
-                        <>
-                          {v.socio}
-                          <span className={comun.sub}>{v.titulo}</span>
-                        </>
-                      ),
-                    },
-                    { titulo: 'Vence', celda: (v) => fecha(v.fecha_vencimiento) },
-                    {
-                      titulo: 'Situación',
-                      celda: (v) =>
-                        v.dias_restantes < 0 ? (
-                          <Badge variante="peligro">Vencido hace {dias(-v.dias_restantes)}</Badge>
-                        ) : (
-                          <Badge variante="advertencia">Faltan {dias(v.dias_restantes)}</Badge>
+              {veCirculacion && (
+                <Card titulo="Vencimientos" descripcion="Vencidos y que vencen en los próximos 7 días" sinRelleno>
+                  <Table
+                    filas={t.proximos_vencimientos}
+                    clave={(v) => v.id}
+                    vacio="No hay vencimientos próximos."
+                    columnas={[
+                      {
+                        titulo: 'Socio',
+                        celda: (v) => (
+                          <>
+                            {v.socio}
+                            <span className={comun.sub}>{v.titulo}</span>
+                          </>
                         ),
-                    },
-                  ]}
-                />
-              </Card>
+                      },
+                      { titulo: 'Vence', celda: (v) => fecha(v.fecha_vencimiento) },
+                      {
+                        titulo: 'Situación',
+                        celda: (v) =>
+                          v.dias_restantes < 0 ? (
+                            <Badge variante="peligro">Vencido hace {dias(-v.dias_restantes)}</Badge>
+                          ) : (
+                            <Badge variante="advertencia">Faltan {dias(v.dias_restantes)}</Badge>
+                          ),
+                      },
+                    ]}
+                  />
+                </Card>
+              )}
 
               <Card titulo="Últimos movimientos de remitos" sinRelleno>
                 <Table

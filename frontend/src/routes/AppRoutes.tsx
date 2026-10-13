@@ -1,4 +1,10 @@
-import { Route, Routes } from 'react-router'
+import type { ReactNode } from 'react'
+import { Navigate, Route, Routes } from 'react-router'
+import { ConPermiso } from '../auth/ConPermiso'
+import { LoginPage } from '../auth/LoginPage'
+import { SECCIONES } from '../auth/permisos'
+import { RutaProtegida } from '../auth/RutaProtegida'
+import { SinPermisoPage } from '../auth/SinPermisoPage'
 import { AppShell } from '../components/AppShell/AppShell'
 import { CatalogoPage } from '../features/catalogo/CatalogoPage'
 import { DevolucionesPage } from '../features/devoluciones/DevolucionesPage'
@@ -11,22 +17,41 @@ import { SedesPage } from '../features/sedes/SedesPage'
 import { SociosPage } from '../features/socios/SociosPage'
 import { TableroPage } from '../features/tablero/TableroPage'
 
+// Pantalla de cada sección. Qué rol ve cada una se define en auth/permisos.ts.
+const PANTALLAS: Record<string, ReactNode> = {
+  '/': <TableroPage />,
+  '/prestamos': <PrestamosPage />,
+  '/envios': <EnviosPage />,
+  '/reservas': <ReservasPage />,
+  '/devoluciones': <DevolucionesPage />,
+  '/disponibilidad': <DisponibilidadPage />,
+  '/sedes': <SedesPage />,
+  '/socios': <SociosPage />,
+  '/catalogo': <CatalogoPage />,
+  '/reportes': <ReportesPage />,
+}
+
 export function AppRoutes() {
   return (
     <Routes>
-      {/* AppShell dibuja el menú y la barra; cada ruta hija se muestra en su <Outlet /> */}
-      <Route element={<AppShell />}>
-        <Route path="/" element={<TableroPage />} />
-        <Route path="/prestamos" element={<PrestamosPage />} />
-        <Route path="/envios" element={<EnviosPage />} />
-        <Route path="/reservas" element={<ReservasPage />} />
-        <Route path="/devoluciones" element={<DevolucionesPage />} />
-        <Route path="/disponibilidad" element={<DisponibilidadPage />} />
-        <Route path="/sedes" element={<SedesPage />} />
-        <Route path="/socios" element={<SociosPage />} />
-        <Route path="/catalogo" element={<CatalogoPage />} />
-        <Route path="/reportes" element={<ReportesPage />} />
+      <Route path="/login" element={<LoginPage />} />
+
+      {/* Todo lo demás exige sesión. AppShell dibuja el menú; cada ruta se muestra en su <Outlet />.
+          Una sección que el rol no puede ver lleva a /sin-permiso. */}
+      <Route element={<RutaProtegida />}>
+        <Route element={<AppShell />}>
+          {SECCIONES.map((seccion) => (
+            <Route
+              key={seccion.ruta}
+              path={seccion.ruta}
+              element={<ConPermiso seccion={seccion}>{PANTALLAS[seccion.ruta]}</ConPermiso>}
+            />
+          ))}
+          <Route path="/sin-permiso" element={<SinPermisoPage />} />
+        </Route>
       </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

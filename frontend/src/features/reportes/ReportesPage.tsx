@@ -5,6 +5,8 @@ import {
   useMovimientoSedes,
   useVencidosMultas,
 } from '../../api/consultas'
+import { useTieneRol } from '../../auth/contexto'
+import { ATENCION } from '../../auth/permisos'
 import { Badge } from '../../components/Badge/Badge'
 import { Card } from '../../components/Card/Card'
 import { claseControl } from '../../components/Field/control'
@@ -14,16 +16,23 @@ import { PageHeader } from '../../components/PageHeader/PageHeader'
 import { Resultado } from '../../components/Resultado/Resultado'
 import { StatCard } from '../../components/StatCard/StatCard'
 import { Table } from '../../components/Table/Table'
+import { useAlcance } from '../comun/alcance'
 import comun from '../comun/comun.module.css'
 import { dias, fecha, numero, plural, pesos } from '../comun/formato'
 import styles from './ReportesPage.module.css'
 
 export function ReportesPage() {
   const [periodo, setPeriodo] = useState({ desde: '', hasta: '' })
+  const alcance = useAlcance()
+  // Logística ve los reportes logísticos (R1, R2); los de préstamos (R3, R4) son de atención.
+  const veCirculacion = useTieneRol(...ATENCION)
 
   return (
     <>
-      <PageHeader titulo="Reportes" descripcion="Indicadores de préstamos y logística de la red." />
+      <PageHeader
+        titulo="Reportes"
+        descripcion={`Indicadores de ${veCirculacion ? 'préstamos y ' : ''}logística de ${alcance}.`}
+      />
 
       <div className={comun.filtros}>
         <Field etiqueta="Desde">
@@ -42,15 +51,19 @@ export function ReportesPage() {
             onChange={(e) => setPeriodo({ ...periodo, hasta: e.target.value })}
           />
         </Field>
-        <span className={comun.sub}>El período aplica a los tres primeros reportes.</span>
+        <span className={comun.sub}>
+          {veCirculacion
+            ? 'El período aplica a los tres primeros reportes.'
+            : 'El período aplica a los dos reportes.'}
+        </span>
       </div>
 
       <MovimientoEntreSedes periodo={periodo} />
       <Grid columna="ancha">
         <EnviosExitosos periodo={periodo} />
-        <LibrosMasSolicitados periodo={periodo} />
+        {veCirculacion && <LibrosMasSolicitados periodo={periodo} />}
       </Grid>
-      <VencidosYMultas />
+      {veCirculacion && <VencidosYMultas />}
     </>
   )
 }

@@ -1,25 +1,60 @@
+import { useState } from 'react'
 import { useSedes } from '../../api/consultas'
 import type { Sede } from '../../api/tipos'
+import { useTieneRol } from '../../auth/contexto'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Card } from '../../components/Card/Card'
 import { Grid } from '../../components/Grid/Grid'
+import { Modal } from '../../components/Modal/Modal'
 import { PageHeader } from '../../components/PageHeader/PageHeader'
 import { Resultado } from '../../components/Resultado/Resultado'
 import comun from '../comun/comun.module.css'
-import { diaSemana, hora } from '../comun/formato'
+import { diaSemana, fechaHora, hora } from '../comun/formato'
+import { CambiarEstadoSede } from './CambiarEstadoSede'
+import { HorariosForm } from './HorariosForm'
+import { SedeForm } from './SedeForm'
 import styles from './SedesPage.module.css'
+
+type Dialogo =
+  | { tipo: 'nueva' }
+  | { tipo: 'editar' | 'horarios' | 'estado'; sede: Sede }
+  | null
+
+function tituloDe(dialogo: Dialogo): string {
+  if (!dialogo) return ''
+  if (dialogo.tipo === 'nueva') return 'Nueva sede'
+  const { nombre, activa } = dialogo.sede
+  if (dialogo.tipo === 'editar') return `Editar ${nombre}`
+  if (dialogo.tipo === 'horarios') return `Horarios de ${nombre}`
+  return activa ? 'Dar de baja la sede' : 'Reactivar la sede'
+}
 
 export function SedesPage() {
   const sedes = useSedes()
+  // El ABM de sedes es del ADMIN; el resto del personal solo consulta.
+  const esAdmin = useTieneRol('ADMIN')
+  const [dialogo, setDialogo] = useState<Dialogo>(null)
+  const cerrar = () => setDialogo(null)
 
   return (
     <>
       <PageHeader
         titulo="Sedes"
         descripcion="Sedes de la red: dirección, contacto, horarios y estado."
-        acciones={<Button>Nueva sede</Button>}
+        acciones={
+          esAdmin && <Button onClick={() => setDialogo({ tipo: 'nueva' })}>Nueva sede</Button>
+        }
       />
+
+      <Modal abierto={dialogo !== null} titulo={tituloDe(dialogo)} alCerrar={cerrar}>
+        {dialogo?.tipo === 'nueva' && <SedeForm alTerminar={cerrar} />}
+        {dialogo?.tipo === 'editar' && <SedeForm sede={dialogo.sede} alTerminar={cerrar} />}
+        {dialogo?.tipo === 'horarios' && <HorariosForm sede={dialogo.sede} alTerminar={cerrar} />}
+        {dialogo?.tipo === 'estado' && (
+          <CambiarEstadoSede sede={dialogo.sede} alTerminar={cerrar} />
+        )}
+      </Modal>
 
       <Resultado consulta={sedes}>
         {(lista) => (
@@ -43,8 +78,15 @@ export function SedesPage() {
                   <dd>{[s.telefono, s.email].filter(Boolean).join(' · ') || '—'}</dd>
                   <dt>Ejemplares</dt>
                   <dd>{s.cantidad_ejemplares}</dd>
+                  {!s.activa && (
+                    <>
+                      <dt>Baja</dt>
+                      <dd>{fechaHora(s.fecha_baja)}</dd>
+                    </>
+                  )}
                   <dt>Horarios</dt>
                   <dd>
+                    {s.horarios.length === 0 && '—'}
                     {agruparHorarios(s).map((linea) => (
                       <span key={linea} className={styles.horario}>
                         {linea}
@@ -52,12 +94,31 @@ export function SedesPage() {
                     ))}
                   </dd>
                 </dl>
-                <div className={styles.botones}>
-                  <Button tamano="chico" variante="secondary">Editar</Button>
-                  <Button tamano="chico" variante="ghost">
-                    {s.activa ? 'Dar de baja' : 'Reactivar'}
-                  </Button>
-                </div>
+                {esAdmin && (
+                  <div className={styles.botones}>
+                    <Button
+                      tamano="chico"
+                      variante="secondary"
+                      onClick={() => setDialogo({ tipo: 'editar', sede: s })}
+                    >
+                      Editar
+                    </Button>
+                    <Button
+                      tamano="chico"
+                      variante="secondary"
+                      onClick={() => setDialogo({ tipo: 'horarios', sede: s })}
+                    >
+                      Horarios
+                    </Button>
+                    <Button
+                      tamano="chico"
+                      variante="ghost"
+                      onClick={() => setDialogo({ tipo: 'estado', sede: s })}
+                    >
+                      {s.activa ? 'Dar de baja' : 'Reactivar'}
+                    </Button>
+                  </div>
+                )}
               </Card>
             ))}
           </Grid>

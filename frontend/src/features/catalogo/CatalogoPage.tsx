@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useEjemplares, useLibros } from '../../api/consultas'
 import type { Libro } from '../../api/tipos'
+import { ATENCION } from '../../auth/permisos'
+import { useTieneRol } from '../../auth/contexto'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Card } from '../../components/Card/Card'
@@ -20,6 +22,7 @@ export function CatalogoPage() {
   const [seleccionado, setSeleccionado] = useState<Libro | null>(null)
   const [modal, setModal] = useState<'nuevo' | 'eliminar' | null>(null)
   const libros = useLibros(buscar)
+  const mantieneCatalogo = useTieneRol(...ATENCION)
 
   return (
     <>
@@ -27,10 +30,12 @@ export function CatalogoPage() {
         titulo="Catálogo"
         descripcion="Libros (obras) de la red y sus ejemplares físicos en cada sede. Elegí un libro para ver sus ejemplares."
         acciones={
-          <>
-            <Button variante="secondary">Nuevo ejemplar</Button>
-            <Button onClick={() => setModal('nuevo')}>Nuevo libro</Button>
-          </>
+          mantieneCatalogo && (
+            <>
+              <Button variante="secondary">Nuevo ejemplar</Button>
+              <Button onClick={() => setModal('nuevo')}>Nuevo libro</Button>
+            </>
+          )
         }
       />
 
@@ -107,7 +112,8 @@ export function CatalogoPage() {
           descripcion={seleccionado?.titulo}
           sinRelleno={Boolean(seleccionado)}
           acciones={
-            seleccionado && (
+            seleccionado &&
+            mantieneCatalogo && (
               <Button tamano="chico" variante="ghost" onClick={() => setModal('eliminar')}>
                 Eliminar libro
               </Button>

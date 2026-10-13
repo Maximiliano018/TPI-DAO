@@ -21,6 +21,25 @@ export type EstadoRemito =
 export type ResultadoRevision = 'CONFORME' | 'DANADO' | 'DESTRUIDO'
 export type EstadoMulta = 'PENDIENTE' | 'SALDADA'
 
+export type Rol = 'ADMIN' | 'BIBLIOTECARIO' | 'LOGISTICA'
+
+export type UsuarioActual = {
+  id: number
+  username: string
+  nombre_completo: string
+  rol: Rol
+  sede_id: number | null
+}
+
+export type TokenSesion = {
+  access_token: string
+  token_type: string
+  expira_en: string
+}
+
+/** Franja de atención. Las horas viajan como "HH:MM" o "HH:MM:SS". */
+export type Franja = { dia_semana: number; hora_apertura: string; hora_cierre: string }
+
 export type Sede = {
   id: number
   codigo: string
@@ -30,9 +49,21 @@ export type Sede = {
   telefono: string | null
   email: string | null
   activa: boolean
+  fecha_baja: string | null
   cantidad_ejemplares: number
-  horarios: { dia_semana: number; hora_apertura: string; hora_cierre: string }[]
+  horarios: Franja[]
 }
+
+/** Datos editables de una sede (el código no cambia después del alta). */
+export type DatosSede = {
+  nombre: string
+  direccion: string
+  localidad: string
+  telefono: string | null
+  email: string | null
+}
+
+export type NuevaSede = DatosSede & { codigo: string }
 
 export type Socio = {
   id: number
@@ -115,7 +146,9 @@ export type Prestamo = {
   numero_socio: number
   titulo: string
   codigo_inventario: string
+  sede_origen_id: number
   sede_origen: string
+  sede_destino_id: number
   sede_destino: string
   fecha_solicitud: string
   fecha_limite_retiro: string | null
@@ -137,7 +170,9 @@ export type Remito = {
   socio: string | null
   codigo_inventario: string
   titulo: string
+  sede_origen_id: number
   sede_origen: string
+  sede_destino_id: number
   sede_destino: string
   fecha_generacion: string
   fecha_despacho: string | null
@@ -162,6 +197,7 @@ export type Reserva = {
   estado: EstadoReserva
   socio: string
   titulo: string
+  sede_id: number
   sede: string
   fecha_solicitud: string
   fecha_asignacion: string | null
