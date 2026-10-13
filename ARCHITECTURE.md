@@ -934,7 +934,8 @@ Los parámetros que fijan una fecha se **aplican al momento del evento** y el re
 - **Alembic** con `render_as_batch=True` (SQLite recrea la tabla para los `ALTER` que no soporta) y una **convención de nombres** de restricciones en el `MetaData` (`pk_`, `fk_`, `uq_`, `ck_`, `ix_`), necesaria para que el modo batch pueda identificarlas. Los tipos propios se escriben en las migraciones como su tipo SQL base (`render_item` en `migrations/env.py`), para que una migración no dependa de código que puede cambiar.
 - **Migración inicial:** `migrations/versions/a7d690d41038_esquema_inicial.py`. Un test (`alembic check`) falla si `tables.py` cambia sin su migración, y otro verifica que la migración se puede revertir y reaplicar.
 - **`seed.py`** carga parámetros (§5.5) y categorías básicas de forma idempotente (no pisa valores que el ADMIN cambió). Con `--demo` carga 3 sedes con horarios, 8 libros con ISBN ficticios válidos, 15 ejemplares (uno de consulta en sala) y 5 socios (uno inhabilitado), solo si la base no tiene sedes.
-- **Primer ADMIN:** `uv run biblioteca crear-admin --username jefe --nombre "Nombre Apellido"`. Los usuarios de la demo no tienen contraseña utilizable (solo dan trazabilidad), así que el nombre debe ser otro. Pide la contraseña por consola, o la toma de `BIBLIOTECA_ADMIN_PASSWORD` si está definida (scripts).
+- **Usuarios de la demo:** `admin` (ADMIN), `bib.central`, `bib.norte`, `bib.sur` (BIBLIOTECARIO) y `log.central` (LOGISTICA), todos con la contraseña `demo1234` (`CONTRASENA_DEMO` en `seed_circulacion.py`). Solo existen en bases creadas con `--demo`.
+- **Primer ADMIN de una base real:** `uv run biblioteca crear-admin --username jefe --nombre "Nombre Apellido"`. Pide la contraseña por consola, o la toma de `BIBLIOTECA_ADMIN_PASSWORD` si está definida (scripts).
 - **CLI** (`backend/src/biblioteca/cli.py`), desde `backend/`:
 
 | Comando | Qué hace |
@@ -951,7 +952,25 @@ Los parámetros que fijan una fecha se **aplican al momento del evento** y el re
 
 ### 6.1 Roles
 
-Un usuario tiene **un solo rol** y, salvo ADMIN, **una sola sede**.
+Un usuario tiene **un solo rol** y, salvo ADMIN, **una sola sede**. Cada rol tiene tres límites:
+
+1. **Qué secciones ve** (menú y rutas). Una sección no permitida lleva a la página "Acceso restringido".
+2. **Qué datos ve:** el ADMIN, los de toda la red; BIBLIOTECARIO y LOGISTICA, los que **involucran a su sede** (como origen, destino o sede de retiro). El catálogo, la disponibilidad, las sedes y los socios son de toda la red.
+3. **Qué acciones puede hacer:** según el rol y, sobre un recurso concreto, según la sede de ese recurso.
+
+**Secciones y datos**
+
+| Sección | ADMIN | BIBLIOTECARIO | LOGISTICA |
+|---|---|---|---|
+| Tablero | Toda la red | Su sede | Su sede, solo lo logístico |
+| Préstamos, Reservas, Devoluciones | Toda la red | Su sede | — (acceso restringido) |
+| Envíos | Toda la red | Su sede | Su sede |
+| Disponibilidad, Catálogo, Sedes | Toda la red | Toda la red | Toda la red |
+| Socios | Toda la red | Toda la red | — (acceso restringido) |
+| Reportes R1 y R2 (logísticos) | Toda la red | Su sede | Su sede |
+| Reportes R3 y R4 (préstamos) | Toda la red | Su sede | — (no se muestran) |
+
+**Acciones**
 
 | Acción | ADMIN | BIBLIOTECARIO | LOGISTICA |
 |---|---|---|---|
@@ -961,18 +980,25 @@ Un usuario tiene **un solo rol** y, salvo ADMIN, **una sola sede**.
 | ABM de libros, autores y categorías (catálogo de red) | ✅ | ✅ | – |
 | Alta, baja y revisión de ejemplares | ✅ | ✅ su sede | – |
 | ABM de socios, inhabilitar y habilitar | ✅ | ✅ | – |
-| Registrar préstamos, entregas y cancelaciones | ✅ | ✅ sede destino | – |
-| Registrar devoluciones | ✅ | ✅ sede destino | – |
-| Reservas | ✅ | ✅ sede de retiro | – |
+| Registrar préstamos, entregas y devoluciones | ✅ | ✅ sede destino | – |
+| Reservas (alta y cancelación) | ✅ | ✅ sede de retiro | – |
 | Saldar multas | ✅ | ✅ | – |
 | Empaquetar, despachar, cancelar remitos | ✅ | ✅ sede origen | ✅ sede origen |
 | Recibir remitos | ✅ | ✅ sede destino | ✅ sede destino |
 | Marcar remito extraviado | ✅ | ✅ origen o destino | ✅ origen o destino |
-| Consultar catálogo y disponibilidad | ✅ | ✅ | ✅ |
-| Reportes | ✅ toda la red | ✅ su sede | ✅ su sede (logísticos) |
 | Generar avisos de vencimiento | ✅ | ✅ su sede | – |
 
 El BIBLIOTECARIO también puede operar remitos para que una sede chica funcione con una sola persona; LOGISTICA queda para personal dedicado solo a envíos.
+
+**Dónde se aplica**
+
+| Capa | Mecanismo |
+|---|---|
+| API: sección | Cada router exige sesión; circulación, socios, R3 y R4 exigen `ADMIN` o `BIBLIOTECARIO` (`ROLES_ATENCION`, `requiere_rol`) |
+| API: datos | La dependencia `Alcance` da la sede del usuario (`None` para el ADMIN) y cada consulta filtra con `involucra_sede(...)` (`application/alcance.py`). Un recurso de otra sede responde 404, sin revelar que existe |
+| API: acciones | El caso de uso verifica el rol (`exigir_rol`) y, sobre un recurso, la sede (`exigir_sede`) |
+| Front: secciones | `auth/permisos.ts` es la única definición: de ahí salen el menú y la protección de rutas (`ConPermiso` → `/sin-permiso`) |
+| Front: acciones | `useTieneRol(...)` y `useOperaEnSede(...)` ocultan los botones que el usuario no puede usar. Es presentación: si alguien llama a la API igual, el backend responde 403 |
 
 ### 6.2 Autenticación
 
@@ -982,6 +1008,12 @@ El BIBLIOTECARIO también puede operar remitos para que una sede chica funcione 
 - En cada request el backend recarga el usuario y **rechaza el token si fue desactivado**, lo que permite revocar el acceso sin lista negra de tokens. El cierre de sesión descarta el token en el cliente.
 - Contraseña incorrecta y usuario inexistente responden igual (401 `CREDENCIALES_INVALIDAS`) y tardan lo mismo: con un usuario inexistente se verifica igual contra un hash ficticio.
 - Contraseñas con argon2 (`pwdlib`), mínimo 8 caracteres. Sin recuperación por email: el ADMIN resetea la contraseña (fase 2).
+
+**En el frontend** (`frontend/src/auth/`):
+- `/login` es la única pantalla pública; el resto pasa por `RutaProtegida`. Al abrir la app, un token guardado se valida contra `/auth/yo` antes de mostrar nada.
+- El token se guarda en `localStorage` con su vencimiento y `apiFetch` lo lee y lo envía en cada pedido (no se copia en memoria: si se borra del navegador o se cierra la sesión en otra pestaña, deja de usarse). Cualquier 401 que no sea del propio login (token vencido, revocado o borrado) cierra la sesión y vuelve al login **recordando la pantalla**; un cierre de sesión voluntario no la recuerda, para que el próximo usuario empiece en el tablero.
+- Al cerrar sesión se vacía la caché de TanStack Query: los datos del usuario anterior no se ven en la siguiente sesión.
+- `useTieneRol(...)` oculta las acciones que el usuario no puede hacer (por ejemplo, el ABM de sedes fuera del ADMIN). Es solo presentación: la autorización real es del backend.
 
 ### 6.3 Autorización
 
@@ -1124,13 +1156,13 @@ Ejemplos de referencia: `sedes.py` (ABM con entidad mapeada, permisos y baja con
 
 Reglas que no se negocian: la regla de negocio vive en la entidad; el caso de uso solo orquesta y confirma una vez; el router no decide nada; "ahora" sale de la dependencia `Ahora` (y del `Reloj`), nunca de `datetime.now()`.
 
-Tests de API: `cliente` y `cliente_escritura` trabajan sobre la base de demostración; `cliente_limpio` sobre una base vacía con reloj fijo, y las fixtures `admin` y `bibliotecario` devuelven el header de una sesión iniciada.
+Tests de API: `cliente` y `cliente_escritura` trabajan sobre la base de demostración con sesión de `admin`; `cliente_limpio` sobre una base vacía con reloj fijo, y las fixtures `admin` y `bibliotecario` devuelven el header de una sesión iniciada.
 
 ### API REST
 - Recursos en plural y minúsculas: `/sedes`, `/socios`, `/prestamos`, `/remitos`.
 - Acciones de ciclo de vida como subrecursos `POST`: `/remitos/{id}/despachar`, `/prestamos/{id}/entregar`.
 - Prefijo `/api/v1`. Los listados devuelven una lista; los que pueden crecer se paginan con `?limit=100&offset=0` (dependencia `Pagina`).
-- **Permisos:** hasta que el front tenga login, las consultas son públicas; los comandos exigen sesión y rol (`Admin`, `Actor`).
+- **Permisos:** toda la API exige sesión salvo `/health` y `/auth/login` (cada router declara `dependencies=[Depends(usuario_actual)]`); los comandos exigen además el rol (`Admin`, `Catalogador`).
 - JSON en `snake_case`, con los mismos nombres que el dominio.
 - Formato de error uniforme `{codigo, mensaje, detalle?}`.
 
