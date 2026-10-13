@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePrestamos } from '../../api/consultas'
+import { useOperaEnSede } from '../../auth/contexto'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Card } from '../../components/Card/Card'
@@ -13,6 +14,8 @@ import { EstadoBadge } from '../comun/EstadoBadge'
 import { dias, fecha } from '../comun/formato'
 
 export function PrestamosPage() {
+  // Entregar y devolver se registran en la sede destino (ARCHITECTURE.md §6.1).
+  const operaEn = useOperaEnSede()
   const [soloAbiertos, setSoloAbiertos] = useState(true)
   const prestamos = usePrestamos(soloAbiertos)
 
@@ -107,7 +110,7 @@ export function PrestamosPage() {
                 {
                   titulo: '',
                   celda: (p) =>
-                    p.estado === 'LISTO_PARA_RETIRO' ? (
+                    !operaEn(p.sede_destino_id) ? null : p.estado === 'LISTO_PARA_RETIRO' ? (
                       <Button tamano="chico" variante="secondary">Entregar</Button>
                     ) : p.estado === 'ACTIVO' ? (
                       <Button tamano="chico" variante="secondary">Devolver</Button>

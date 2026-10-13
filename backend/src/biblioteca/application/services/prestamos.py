@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.domain.enums import ESTADOS_PRESTAMO_ABIERTOS, EstadoPrestamo
 from biblioteca.infrastructure.db.tables import ejemplar, libro, prestamo, sede, socio
 
@@ -20,7 +21,10 @@ def listar_prestamos(
     solo_abiertos: bool,
     limit: int,
     offset: int,
+    *,
+    sede_id: int | None,
 ) -> list[dict[str, Any]]:
+    """Con `sede_id`, solo los préstamos donde la sede es origen o destino."""
     consulta = (
         select(
             prestamo.c.id,
@@ -46,6 +50,7 @@ def listar_prestamos(
         .join(libro, ejemplar.c.libro_id == libro.c.id)
         .join(origen, prestamo.c.sede_origen_id == origen.c.id)
         .join(destino, prestamo.c.sede_destino_id == destino.c.id)
+        .where(*involucra_sede(sede_id, prestamo.c.sede_origen_id, prestamo.c.sede_destino_id))
         .order_by(prestamo.c.fecha_solicitud.desc())
         .limit(limit)
         .offset(offset)

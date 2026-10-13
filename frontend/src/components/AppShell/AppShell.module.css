@@ -113,6 +113,49 @@
   box-shadow: 0 3px 0 rgb(0 0 0 / 0.25);
 }
 
+/* ---------- Usuario de la sesión (al pie de la biblioteca) ---------- */
+.usuario {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: var(--space-4);
+  border-top: 1px solid rgb(255 255 255 / 0.15);
+  color: #FFFFFF;
+}
+
+.usuarioNombre {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.usuarioDetalle {
+  color: rgb(255 255 255 / 0.65);
+  font-size: var(--text-xs);
+}
+
+.salir {
+  align-self: flex-start;
+  margin-top: var(--space-2);
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgb(255 255 255 / 0.85);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.salir:hover {
+  color: #FFFFFF;
+}
+
+.salir:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 /* ---------- Contenido ---------- */
 .contenido {
   display: grid;
@@ -152,6 +195,19 @@
   .estanteNombre,
   .repisa {
     display: none;
+  }
+
+  .usuario {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2);
+    margin-top: 0;
+    padding-top: var(--space-2);
+  }
+
+  .salir {
+    margin: 0 0 0 auto;
   }
 
   .libro {

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRemitos } from '../../api/consultas'
 import type { EstadoRemito, Remito } from '../../api/tipos'
+import { useOperaEnSede } from '../../auth/contexto'
 import { Badge } from '../../components/Badge/Badge'
 import { Button } from '../../components/Button/Button'
 import { Card } from '../../components/Card/Card'
@@ -23,6 +24,10 @@ const SIGUIENTE_ACCION: Partial<Record<EstadoRemito, string>> = {
 }
 
 export function EnviosPage() {
+  // Empaquetar y despachar los hace la sede origen; recibir, la destino (ARCHITECTURE.md §6.1).
+  const operaEn = useOperaEnSede()
+  const puedeAvanzar = (r: Remito) =>
+    r.estado === 'EN_TRANSITO' ? operaEn(r.sede_destino_id) : operaEn(r.sede_origen_id)
   const [estado, setEstado] = useState('')
   const [seleccionado, setSeleccionado] = useState<Remito | null>(null)
   const remitos = useRemitos(estado)
@@ -101,7 +106,8 @@ export function EnviosPage() {
                   {
                     titulo: '',
                     celda: (r) =>
-                      SIGUIENTE_ACCION[r.estado] && (
+                      SIGUIENTE_ACCION[r.estado] &&
+                      puedeAvanzar(r) && (
                         <Button tamano="chico" variante="secondary" onClick={(e) => e.stopPropagation()}>
                           {SIGUIENTE_ACCION[r.estado]}
                         </Button>

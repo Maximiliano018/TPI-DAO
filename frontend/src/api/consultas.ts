@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiFetch } from './client'
 import type {
   Categoria,
+  DatosSede,
+  Franja,
+  NuevaSede,
   NuevoLibro,
   DisponibilidadLibro,
   Devolucion,
@@ -78,3 +81,27 @@ export const useCrearLibro = () =>
 
 export const useEliminarLibro = () =>
   useCambio((libroId: number) => apiFetch<void>(`/libros/${libroId}`, { method: 'DELETE' }))
+
+// ------------------------------------------------------------------ Sedes (solo ADMIN)
+
+const jsonPost = (body: unknown): RequestInit => ({ method: 'POST', body: JSON.stringify(body) })
+const jsonPut = (body: unknown): RequestInit => ({ method: 'PUT', body: JSON.stringify(body) })
+
+export const useCrearSede = () =>
+  useCambio((sede: NuevaSede) => apiFetch<Sede>('/sedes', jsonPost(sede)))
+
+export const useActualizarSede = () =>
+  useCambio(({ id, datos }: { id: number; datos: DatosSede }) =>
+    apiFetch<Sede>(`/sedes/${id}`, jsonPut(datos)),
+  )
+
+export const useDefinirHorarios = () =>
+  useCambio(({ id, franjas }: { id: number; franjas: Franja[] }) =>
+    apiFetch<Sede>(`/sedes/${id}/horarios`, jsonPut(franjas)),
+  )
+
+/** Da de baja o reactiva, según el estado actual de la sede. */
+export const useCambiarEstadoSede = () =>
+  useCambio((sede: Sede) =>
+    apiFetch<Sede>(`/sedes/${sede.id}/${sede.activa ? 'baja' : 'reactivar'}`, { method: 'POST' }),
+  )

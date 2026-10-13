@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.infrastructure.db.tables import (
     devolucion,
     ejemplar,
@@ -17,7 +18,10 @@ from biblioteca.infrastructure.db.tables import (
 )
 
 
-def listar_devoluciones(db: Session, limit: int, offset: int) -> list[dict[str, Any]]:
+def listar_devoluciones(
+    db: Session, limit: int, offset: int, *, sede_id: int | None
+) -> list[dict[str, Any]]:
+    """Con `sede_id`, solo las de préstamos donde la sede es origen o destino."""
     consulta = (
         select(
             devolucion.c.id,
@@ -43,6 +47,7 @@ def listar_devoluciones(db: Session, limit: int, offset: int) -> list[dict[str, 
         .join(sede, prestamo.c.sede_destino_id == sede.c.id)
         .join(usuario, devolucion.c.registrado_por == usuario.c.id)
         .outerjoin(multa, multa.c.prestamo_id == prestamo.c.id)
+        .where(*involucra_sede(sede_id, prestamo.c.sede_origen_id, prestamo.c.sede_destino_id))
         .order_by(devolucion.c.fecha_hora.desc())
         .limit(limit)
         .offset(offset)

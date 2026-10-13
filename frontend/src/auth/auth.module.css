@@ -1,0 +1,81 @@
+.pantalla {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: var(--space-4);
+  background: var(--color-marino);
+}
+
+.tarjeta {
+  display: grid;
+  gap: var(--space-4);
+  width: min(380px, 100%);
+  padding: var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}
+
+/* Los campos ocupan todo el ancho de la tarjeta. */
+.tarjeta label {
+  display: flex;
+  min-width: 0;
+}
+
+.tarjeta input {
+  width: 100%;
+}
+
+.marca {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+}
+
+.titulo {
+  margin: 0;
+  font-family: var(--font-titulo);
+  font-size: var(--text-xl);
+}
+
+.subtitulo {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--danger-bg);
+  color: var(--danger-fg);
+  font-size: var(--text-sm);
+}
+
+.validando {
+  padding: var(--space-6);
+  color: var(--text-muted);
+}
+
+.sinPermiso {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.sinPermiso p {
+  margin: 0;
+}
+
+.candado {
+  font-size: var(--text-3xl);
+}
+
+.ayuda {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

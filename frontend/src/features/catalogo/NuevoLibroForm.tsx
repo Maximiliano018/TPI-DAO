@@ -3,7 +3,7 @@ import { useCategorias, useCrearLibro } from '../../api/consultas'
 import { Button } from '../../components/Button/Button'
 import { claseControl } from '../../components/Field/control'
 import { Field } from '../../components/Field/Field'
-import styles from './formulario.module.css'
+import styles from '../comun/formulario.module.css'
 
 type Props = {
   alTerminar: (libroId?: number) => void

@@ -14,7 +14,9 @@ class RemitoOut(BaseModel):
     socio: str | None
     codigo_inventario: str
     titulo: str
+    sede_origen_id: int
     sede_origen: str
+    sede_destino_id: int
     sede_destino: str
     fecha_generacion: datetime
     fecha_despacho: datetime | None

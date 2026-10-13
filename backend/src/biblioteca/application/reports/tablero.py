@@ -3,9 +3,10 @@
 from datetime import datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.application.parametros import parametro_entero
 from biblioteca.domain.enums import EstadoMulta, EstadoPrestamo, EstadoRemito, EstadoReserva
 from biblioteca.infrastructure.db.tables import (
@@ -24,27 +25,44 @@ from biblioteca.infrastructure.db.tables import (
 DIAS_PROXIMOS_VENCIMIENTOS = 7
 
 
-def resumen(db: Session, ahora: datetime) -> dict[str, Any]:
+def resumen(db: Session, ahora: datetime, *, sede_id: int | None) -> dict[str, Any]:
+    """Con `sede_id`, todo lo que involucra a la sede (como origen, destino o retiro)."""
     hoy = ahora.date()
+    de_la_sede_prestamo = involucra_sede(
+        sede_id, prestamo.c.sede_origen_id, prestamo.c.sede_destino_id
+    )
+    de_la_sede_remito = involucra_sede(sede_id, remito.c.sede_origen_id, remito.c.sede_destino_id)
 
     prestamos_por_estado = {
         e: n
-        for e, n in db.execute(select(prestamo.c.estado, func.count()).group_by(prestamo.c.estado))
+        for e, n in db.execute(
+            select(prestamo.c.estado, func.count())
+            .where(*de_la_sede_prestamo)
+            .group_by(prestamo.c.estado)
+        )
     }
     reservas_por_estado = {
         e: n
-        for e, n in db.execute(select(reserva.c.estado, func.count()).group_by(reserva.c.estado))
+        for e, n in db.execute(
+            select(reserva.c.estado, func.count())
+            .where(*involucra_sede(sede_id, reserva.c.sede_id))
+            .group_by(reserva.c.estado)
+        )
     }
     vencidos = db.execute(
         select(func.count()).where(
-            prestamo.c.estado == EstadoPrestamo.ACTIVO, prestamo.c.fecha_vencimiento < hoy
+            prestamo.c.estado == EstadoPrestamo.ACTIVO,
+            prestamo.c.fecha_vencimiento < hoy,
+            *de_la_sede_prestamo,
         )
     ).scalar_one()
 
     dias_max_transito = parametro_entero(db, "dias_max_transito")
     despachos = (
         db.execute(
-            select(remito.c.fecha_despacho).where(remito.c.estado == EstadoRemito.EN_TRANSITO)
+            select(remito.c.fecha_despacho).where(
+                remito.c.estado == EstadoRemito.EN_TRANSITO, *de_la_sede_remito
+            )
         )
         .scalars()
         .all()
@@ -52,9 +70,9 @@ def resumen(db: Session, ahora: datetime) -> dict[str, Any]:
     demorados = sum(1 for d in despachos if (ahora - d).days > dias_max_transito)
 
     multas_pendientes = db.execute(
-        select(func.count(), func.coalesce(func.sum(multa.c.monto), 0)).where(
-            multa.c.estado == EstadoMulta.PENDIENTE
-        )
+        select(func.count(), func.coalesce(func.sum(multa.c.monto), 0))
+        .select_from(multa.join(prestamo, multa.c.prestamo_id == prestamo.c.id))
+        .where(multa.c.estado == EstadoMulta.PENDIENTE, *de_la_sede_prestamo)
     ).one()
 
     return {
@@ -68,12 +86,14 @@ def resumen(db: Session, ahora: datetime) -> dict[str, Any]:
         "reservas_asignadas": reservas_por_estado.get(EstadoReserva.ASIGNADA, 0),
         "multas_pendientes": multas_pendientes[0],
         "multas_pendientes_monto": multas_pendientes[1],
-        "proximos_vencimientos": _proximos_vencimientos(db, ahora),
-        "ultimos_movimientos": _ultimos_movimientos(db),
+        "proximos_vencimientos": _proximos_vencimientos(db, ahora, de_la_sede_prestamo),
+        "ultimos_movimientos": _ultimos_movimientos(db, de_la_sede_remito),
     }
 
 
-def _proximos_vencimientos(db: Session, ahora: datetime) -> list[dict[str, Any]]:
+def _proximos_vencimientos(
+    db: Session, ahora: datetime, filtro_sede: list[ColumnElement[bool]]
+) -> list[dict[str, Any]]:
     """Préstamos activos vencidos o que vencen en los próximos días."""
     hoy = ahora.date()
     consulta = (
@@ -91,6 +111,7 @@ def _proximos_vencimientos(db: Session, ahora: datetime) -> list[dict[str, Any]]
         .where(
             prestamo.c.estado == EstadoPrestamo.ACTIVO,
             prestamo.c.fecha_vencimiento <= hoy + timedelta(DIAS_PROXIMOS_VENCIMIENTOS),
+            *filtro_sede,
         )
         .order_by(prestamo.c.fecha_vencimiento)
     )
@@ -102,7 +123,9 @@ def _proximos_vencimientos(db: Session, ahora: datetime) -> list[dict[str, Any]]
     return resultado
 
 
-def _ultimos_movimientos(db: Session, cantidad: int = 8) -> list[dict[str, Any]]:
+def _ultimos_movimientos(
+    db: Session, filtro_sede: list[ColumnElement[bool]], cantidad: int = 8
+) -> list[dict[str, Any]]:
     consulta = (
         select(
             movimiento_remito.c.id,
@@ -117,6 +140,7 @@ def _ultimos_movimientos(db: Session, cantidad: int = 8) -> list[dict[str, Any]]
         .join(ejemplar, remito.c.ejemplar_id == ejemplar.c.id)
         .join(libro, ejemplar.c.libro_id == libro.c.id)
         .join(usuario, movimiento_remito.c.usuario_id == usuario.c.id)
+        .where(*filtro_sede)
         .order_by(movimiento_remito.c.fecha_hora.desc(), movimiento_remito.c.id.desc())
         .limit(cantidad)
     )

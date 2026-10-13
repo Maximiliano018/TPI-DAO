@@ -1,7 +1,7 @@
 import { useEliminarLibro } from '../../api/consultas'
 import type { Libro } from '../../api/tipos'
 import { Button } from '../../components/Button/Button'
-import styles from './formulario.module.css'
+import styles from '../comun/formulario.module.css'
 
 type Props = {
   libro: Libro

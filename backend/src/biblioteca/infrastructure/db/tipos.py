@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
+from enum import StrEnum
 
-from sqlalchemy import DateTime
+from sqlalchemy import DateTime, String
 from sqlalchemy.engine import Dialect
 from sqlalchemy.types import TypeDecorator
 
@@ -26,3 +27,27 @@ class FechaHoraUTC(TypeDecorator[datetime]):
         if value is None:
             return None
         return value.replace(tzinfo=UTC)
+
+
+class TextoEnum[E: StrEnum](TypeDecorator[E]):
+    """Columna de texto que se lee como la enumeración del dominio.
+
+    En la base es un VARCHAR común (los valores válidos los restringe un CHECK). Al
+    escribir acepta la enumeración o su texto; un texto inválido llega a la base y lo
+    rechaza el CHECK, que es la red de seguridad.
+    """
+
+    impl = String
+    cache_ok = True
+
+    def __init__(self, enum: type[E], largo: int) -> None:
+        super().__init__(largo)
+        self.enum = enum
+
+    def process_bind_param(self, value: E | str | None, dialect: Dialect) -> str | None:
+        if value is None:
+            return None
+        return value.value if isinstance(value, self.enum) else str(value)
+
+    def process_result_value(self, value: str | None, dialect: Dialect) -> E | None:
+        return None if value is None else self.enum(value)

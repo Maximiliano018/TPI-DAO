@@ -24,6 +24,22 @@ uv run biblioteca reset-base --confirmar [--demo]   # borra la base y la recrea 
 
 Después de un `git pull` que traiga migraciones nuevas, alcanza con `uv run biblioteca crear-base`.
 
+### Usuarios de la demo
+
+`crear-base --demo` crea un usuario por rol (y un bibliotecario por sede). **Todos tienen la contraseña `demo1234`**. Son solo para desarrollo y presentación.
+
+| Usuario | Rol | Sede | Qué puede hacer |
+|---|---|---|---|
+| `admin` | ADMIN | Toda la red | Todo: ABM de sedes, catálogo, reportes de la red |
+| `bib.central` | BIBLIOTECARIO | Sede Central | Consultas y catálogo; operaciones de su sede |
+| `bib.norte` | BIBLIOTECARIO | Sede Norte | Ídem, en la Sede Norte |
+| `bib.sur` | BIBLIOTECARIO | Sede Sur | Ídem, en la Sede Sur |
+| `log.central` | LOGISTICA | Sede Central | Consultas y envíos de su sede |
+
+En una base real (sin `--demo`), el primer ADMIN se crea con `uv run biblioteca crear-admin --username jefe --nombre "Nombre Apellido"` (pide la contraseña).
+
+Toda la API exige sesión salvo `/health` y `/auth/login`. Para probarla desde Swagger (`/docs`): botón **Authorize** con alguno de los usuarios de arriba. La configuración opcional (secreto de sesión, base, zona horaria) está en `backend/.env.example`. La configuración opcional (secreto de sesión, base, zona horaria) está en `backend/.env.example`.
+
 Otros comandos:
 
 ```bash

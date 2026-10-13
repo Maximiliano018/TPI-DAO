@@ -31,7 +31,40 @@ class IsbnInvalido(DatoInvalido):
     codigo = "ISBN_INVALIDO"
 
 
+class ConflictoDeConcurrencia(DomainError):
+    codigo = "CONFLICTO_DE_CONCURRENCIA"
+
+
+# ----------------------------------------------------------------- Autenticación y permisos
+
+
+class CredencialesInvalidas(DomainError):
+    codigo = "CREDENCIALES_INVALIDAS"
+
+
+class NoAutenticado(DomainError):
+    codigo = "NO_AUTENTICADO"
+
+
+class AccesoDenegado(DomainError):
+    codigo = "ACCESO_DENEGADO"
+
+
+# ---------------------------------------------------------------------------- Catálogo
+
+
 class LibroConHistorial(DomainError):
     """El libro tiene ejemplares o reservas: no se borra para no perder su historial."""
 
     codigo = "LIBRO_CON_HISTORIAL"
+
+
+# ------------------------------------------------------------------------------- Sedes
+
+
+class SedeDadaDeBaja(DomainError):
+    codigo = "SEDE_DADA_DE_BAJA"
+
+
+class SedeConActividadAbierta(DomainError):
+    codigo = "SEDE_CON_ACTIVIDAD_ABIERTA"

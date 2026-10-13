@@ -11,13 +11,15 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.application.reports.comun import filtro_periodo
 from biblioteca.infrastructure.db.tables import ejemplar, libro, prestamo
 
 
 def libros_mas_solicitados(
-    db: Session, desde: date | None, hasta: date | None, limite: int
+    db: Session, desde: date | None, hasta: date | None, limite: int, *, sede_id: int | None
 ) -> list[dict[str, Any]]:
+    """Con `sede_id`, solo los pedidos donde la sede presta o recibe el libro."""
     solicitudes = func.count(prestamo.c.id)
     consulta = (
         select(
@@ -33,6 +35,7 @@ def libros_mas_solicitados(
         .where(
             prestamo.c.sede_origen_id != prestamo.c.sede_destino_id,
             *filtro_periodo(prestamo.c.fecha_solicitud, desde, hasta),
+            *involucra_sede(sede_id, prestamo.c.sede_origen_id, prestamo.c.sede_destino_id),
         )
         .group_by(libro.c.id)
         .order_by(solicitudes.desc(), libro.c.titulo)

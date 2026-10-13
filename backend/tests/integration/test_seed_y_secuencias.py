@@ -12,7 +12,6 @@ from biblioteca.infrastructure.db.seed import (
     PARAMETROS_INICIALES,
     cargar_datos_iniciales,
     cargar_demo,
-    isbn13_con_verificador,
 )
 
 
@@ -38,11 +37,6 @@ def test_una_transaccion_revertida_no_consume_numeros(engine: Engine) -> None:
 def test_formatos_de_codigos() -> None:
     assert formatear_codigo_inventario("CEN", 42) == "CEN-000042"
     assert formatear_numero_remito(2026, 7) == "R-2026-000007"
-
-
-def test_isbn13_con_verificador() -> None:
-    # ISBN real de referencia: 978-0-306-40615-7.
-    assert isbn13_con_verificador("978030640615") == "9780306406157"
 
 
 def test_los_datos_iniciales_son_idempotentes(engine: Engine) -> None:

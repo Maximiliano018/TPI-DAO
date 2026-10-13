@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import ColumnElement, and_, func, select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.application.reports.comun import contar_si, filtro_periodo
 from biblioteca.domain.enums import EstadoRemito, ResultadoRevision
 from biblioteca.infrastructure.db.tables import remito, sede
@@ -24,7 +25,10 @@ def _tasa(exitosos: int, total: int) -> float | None:
     return round(100 * exitosos / total, 1) if total else None
 
 
-def envios_exitosos(db: Session, desde: date | None, hasta: date | None) -> dict[str, Any]:
+def envios_exitosos(
+    db: Session, desde: date | None, hasta: date | None, *, sede_id: int | None
+) -> dict[str, Any]:
+    """Con `sede_id`, solo los envíos que salen de la sede o llegan a ella."""
     consulta = (
         select(
             sede.c.id.label("sede_id"),
@@ -39,6 +43,7 @@ def envios_exitosos(db: Session, desde: date | None, hasta: date | None) -> dict
         .where(
             remito.c.estado.in_((EstadoRemito.RECIBIDO, EstadoRemito.EXTRAVIADO)),
             *filtro_periodo(remito.c.fecha_generacion, desde, hasta),
+            *involucra_sede(sede_id, remito.c.sede_origen_id, remito.c.sede_destino_id),
         )
         .group_by(sede.c.id)
         .order_by(sede.c.nombre)
