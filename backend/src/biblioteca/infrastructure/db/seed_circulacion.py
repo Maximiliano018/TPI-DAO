@@ -50,10 +50,13 @@ from biblioteca.infrastructure.db.tables import (
     socio,
     usuario,
 )
+from biblioteca.infrastructure.security import HasherArgon2
 
-# Hash imposible de verificar: estos usuarios no pueden iniciar sesión.
-CLAVE_INUTILIZABLE = "!demo-sin-acceso"
+# Contraseña de TODOS los usuarios de la demo, documentada en el README. Solo para
+# desarrollo y presentación: una base real no se crea con `--demo`.
+CONTRASENA_DEMO = "demo1234"
 
+# Un usuario por rol (y un bibliotecario por sede, para probar la regla de sede).
 _USUARIOS_DEMO = (
     ("admin", "Administración de la red", Rol.ADMIN, None),
     ("bib.central", "Laura Medina", Rol.BIBLIOTECARIO, "CEN"),
@@ -95,13 +98,15 @@ class _Demo:
     # ------------------------------------------------------------------ altas
 
     def crear_usuarios(self) -> None:
+        # Un solo hash para todos: argon2 es lento a propósito y la contraseña es la misma.
+        password_hash = HasherArgon2().hashear(CONTRASENA_DEMO)
         for username, nombre, rol, codigo_sede in _USUARIOS_DEMO:
             self.usuarios[username] = insertar(
                 self.conn,
                 usuario,
                 username=username,
                 nombre_completo=nombre,
-                password_hash=CLAVE_INUTILIZABLE,
+                password_hash=password_hash,
                 rol=rol,
                 sede_id=self.sedes[codigo_sede] if codigo_sede else None,
             )

@@ -45,11 +45,11 @@ class TestPermisos:
         assert respuesta.status_code == 401
         assert respuesta.json()["codigo"] == "NO_AUTENTICADO"
 
-    def test_la_consulta_de_sedes_no_requiere_sesion(
-        self, cliente_limpio: TestClient, sede_id: int
+    def test_consultar_sedes_requiere_sesion(
+        self, cliente_limpio: TestClient, bibliotecario: dict[str, str], sede_id: int
     ) -> None:
-        # Hasta que el front tenga login, las consultas son públicas.
-        respuesta = cliente_limpio.get(URL)
+        assert cliente_limpio.get(URL).status_code == 401
+        respuesta = cliente_limpio.get(URL, headers=bibliotecario)
         assert respuesta.status_code == 200
         assert [s["id"] for s in respuesta.json()] == [sede_id]
 
@@ -96,8 +96,8 @@ class TestAltaYModificacion:
         assert respuesta.json()["nombre"] == "Sede Norte II"
         assert respuesta.json()["telefono"] is None
 
-    def test_sede_inexistente(self, cliente_limpio: TestClient) -> None:
-        respuesta = cliente_limpio.get(f"{URL}/999")
+    def test_sede_inexistente(self, cliente_limpio: TestClient, admin: dict[str, str]) -> None:
+        respuesta = cliente_limpio.get(f"{URL}/999", headers=admin)
         assert respuesta.status_code == 404
         assert respuesta.json()["codigo"] == "NO_ENCONTRADO"
 

@@ -1,8 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
-from biblioteca.api.deps import Admin, Ahora, Db, Pagina, Uow
+from biblioteca.api.deps import Admin, AdminOBibliotecario, Ahora, Db, Pagina, Uow, usuario_actual
 from biblioteca.api.schemas.organizacion import (
     DatosSedeIn,
     HorarioIn,
@@ -21,10 +21,11 @@ from biblioteca.application.services.sedes import (
 )
 from biblioteca.application.services.socios import listar_socios
 
-router = APIRouter(tags=["organización"])
+# Toda la sección exige sesión; los comandos piden además un rol.
+router = APIRouter(tags=["organización"], dependencies=[Depends(usuario_actual)])
 
 # ------------------------------------------------------------------------------- Sedes
-# Las consultas son públicas por ahora (el front todavía no tiene login); el ABM es del ADMIN.
+# Las sedes las consulta todo el personal; el ABM es del ADMIN.
 
 
 @router.get("/sedes", response_model=list[SedeOut])
@@ -77,6 +78,8 @@ def post_reactivar_sede(uow: Uow, db: Db, actor: Admin, sede_id: int) -> dict[st
 
 
 @router.get("/socios", response_model=list[SocioOut])
-def get_socios(db: Db, pagina: Pagina, buscar: str | None = None) -> list[dict[str, Any]]:
-    """Busca por DNI, número de socio, nombre o apellido."""
+def get_socios(
+    db: Db, pagina: Pagina, _actor: AdminOBibliotecario, buscar: str | None = None
+) -> list[dict[str, Any]]:
+    """Busca por DNI, número de socio, nombre o apellido. Los socios son de toda la red."""
     return listar_socios(db, buscar, pagina.limit, pagina.offset)

@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.domain.enums import EstadoMulta, EstadoPrestamo
 from biblioteca.infrastructure.db.tables import ejemplar, libro, multa, prestamo, sede, socio
 
@@ -21,7 +22,10 @@ def _sumar_monto(estado: EstadoMulta) -> Any:
     return func.coalesce(func.sum(case((multa.c.estado == estado, multa.c.monto), else_=0)), 0)
 
 
-def vencidos_y_multas(db: Session, hoy: date) -> dict[str, Any]:
+def vencidos_y_multas(db: Session, hoy: date, *, sede_id: int | None) -> dict[str, Any]:
+    """Con `sede_id`, solo los préstamos (y sus multas) donde la sede es origen o destino."""
+    de_la_sede = involucra_sede(sede_id, prestamo.c.sede_origen_id, prestamo.c.sede_destino_id)
+
     consulta_vencidos = (
         select(
             prestamo.c.id,
@@ -37,7 +41,11 @@ def vencidos_y_multas(db: Session, hoy: date) -> dict[str, Any]:
         .join(ejemplar, prestamo.c.ejemplar_id == ejemplar.c.id)
         .join(libro, ejemplar.c.libro_id == libro.c.id)
         .join(sede, prestamo.c.sede_destino_id == sede.c.id)
-        .where(prestamo.c.estado == EstadoPrestamo.ACTIVO, prestamo.c.fecha_vencimiento < hoy)
+        .where(
+            prestamo.c.estado == EstadoPrestamo.ACTIVO,
+            prestamo.c.fecha_vencimiento < hoy,
+            *de_la_sede,
+        )
         .order_by(prestamo.c.fecha_vencimiento)
     )
     vencidos = []
@@ -58,6 +66,7 @@ def vencidos_y_multas(db: Session, hoy: date) -> dict[str, Any]:
         for fila in db.execute(
             select(socio.c.id.label("socio_id"), _nombre_socio, *columnas_multas)
             .select_from(multas_de_prestamos.join(socio, prestamo.c.socio_id == socio.c.id))
+            .where(*de_la_sede)
             .group_by(socio.c.id)
             .order_by(_sumar_monto(EstadoMulta.PENDIENTE).desc(), socio.c.apellido)
         ).mappings()
@@ -67,6 +76,7 @@ def vencidos_y_multas(db: Session, hoy: date) -> dict[str, Any]:
         for fila in db.execute(
             select(sede.c.id.label("sede_id"), sede.c.nombre.label("sede"), *columnas_multas)
             .select_from(multas_de_prestamos.join(sede, prestamo.c.sede_destino_id == sede.c.id))
+            .where(*de_la_sede)
             .group_by(sede.c.id)
             .order_by(sede.c.nombre)
         ).mappings()

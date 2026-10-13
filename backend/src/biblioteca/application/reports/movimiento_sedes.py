@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.application.reports.comun import contar_si, filtro_periodo
 from biblioteca.domain.enums import ESTADOS_REMITO_NO_FINALES, EstadoRemito
 from biblioteca.infrastructure.db.tables import remito, sede
@@ -21,10 +22,14 @@ destino = sede.alias("destino")
 _SEGUNDOS_POR_DIA = 86_400
 
 
-def movimiento_entre_sedes(db: Session, desde: date | None, hasta: date | None) -> dict[str, Any]:
+def movimiento_entre_sedes(
+    db: Session, desde: date | None, hasta: date | None, *, sede_id: int | None
+) -> dict[str, Any]:
+    """Con `sede_id`, solo las rutas que salen de la sede o llegan a ella."""
     filtros = [
         remito.c.estado != EstadoRemito.CANCELADO,
         *filtro_periodo(remito.c.fecha_generacion, desde, hasta),
+        *involucra_sede(sede_id, remito.c.sede_origen_id, remito.c.sede_destino_id),
     ]
 
     consulta = (

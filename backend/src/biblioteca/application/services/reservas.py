@@ -5,13 +5,15 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.domain.enums import ESTADOS_RESERVA_ABIERTOS, EstadoReserva
 from biblioteca.infrastructure.db.tables import ejemplar, libro, reserva, sede, socio
 
 
 def listar_reservas(
-    db: Session, estado: EstadoReserva | None, solo_abiertas: bool
+    db: Session, estado: EstadoReserva | None, solo_abiertas: bool, *, sede_id: int | None
 ) -> list[dict[str, Any]]:
+    """Con `sede_id`, solo las reservas cuya sede de retiro es esa."""
     consulta = (
         select(
             reserva.c.id,
@@ -31,6 +33,7 @@ def listar_reservas(
         .join(libro, reserva.c.libro_id == libro.c.id)
         .join(sede, reserva.c.sede_id == sede.c.id)
         .outerjoin(ejemplar, reserva.c.ejemplar_asignado_id == ejemplar.c.id)
+        .where(*involucra_sede(sede_id, reserva.c.sede_id))
         .order_by(reserva.c.fecha_solicitud)
     )
     if estado is not None:

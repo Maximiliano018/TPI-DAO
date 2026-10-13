@@ -15,6 +15,7 @@ from biblioteca.domain.entities.usuario import Usuario
 from biblioteca.domain.enums import Rol
 from biblioteca.infrastructure.db.migraciones import aplicar_migraciones
 from biblioteca.infrastructure.db.seed import cargar_datos_iniciales, cargar_demo
+from biblioteca.infrastructure.db.seed_circulacion import CONTRASENA_DEMO
 from biblioteca.infrastructure.db.session import crear_engine
 from biblioteca.infrastructure.repositories.unidad_de_trabajo import SqlUnidadDeTrabajo
 from biblioteca.main import app
@@ -73,17 +74,20 @@ def _cliente_sobre(
 
 @pytest.fixture(scope="session")
 def cliente(base_demo: Path) -> Iterator[TestClient]:
-    """Para consultas: comparte una sola base de demostración."""
+    """Para consultas: comparte una sola base de demostración, con sesión de ADMIN."""
     with _cliente_sobre(base_demo) as c:
+        c.headers.update(login(c, "admin", CONTRASENA_DEMO))
         yield c
 
 
 @pytest.fixture
 def cliente_escritura(base_demo: Path, tmp_path: Path) -> Iterator[TestClient]:
-    """Para tests que modifican datos: cada uno trabaja sobre su propia copia de la demo."""
+    """Para tests que modifican datos: cada uno trabaja sobre su propia copia de la demo,
+    con sesión de ADMIN."""
     copia = tmp_path / "demo.db"
     shutil.copy(base_demo, copia)
     with _cliente_sobre(copia) as c:
+        c.headers.update(login(c, "admin", CONTRASENA_DEMO))
         yield c
 
 
@@ -126,10 +130,10 @@ def crear_usuario(
     return crear
 
 
-def login(cliente: TestClient, username: str) -> dict[str, str]:
+def login(cliente: TestClient, username: str, contrasena: str = CONTRASENA) -> dict[str, str]:
     """Inicia sesión y devuelve el header de autorización."""
     respuesta = cliente.post(
-        "/api/v1/auth/login", data={"username": username, "password": CONTRASENA}
+        "/api/v1/auth/login", data={"username": username, "password": contrasena}
     )
     assert respuesta.status_code == 200, respuesta.text
     return {"Authorization": f"Bearer {respuesta.json()['access_token']}"}

@@ -1,8 +1,8 @@
 from typing import Any
 
-from fastapi import APIRouter, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
-from biblioteca.api.deps import Db, Uow
+from biblioteca.api.deps import AdminOBibliotecario, Db, Uow, usuario_actual
 from biblioteca.api.schemas.catalogo import (
     CategoriaOut,
     CreadoOut,
@@ -22,7 +22,8 @@ from biblioteca.application.services.catalogo import (
 )
 from biblioteca.domain.enums import EstadoEjemplar
 
-router = APIRouter(tags=["catálogo"])
+# Toda la sección exige sesión; los comandos piden además un rol.
+router = APIRouter(tags=["catálogo"], dependencies=[Depends(usuario_actual)])
 
 
 @router.get("/libros", response_model=list[LibroOut])
@@ -32,13 +33,13 @@ def get_libros(db: Db, buscar: str | None = None) -> list[dict[str, Any]]:
 
 
 @router.post("/libros", response_model=CreadoOut, status_code=status.HTTP_201_CREATED)
-def post_libro(uow: Uow, datos: LibroIn) -> dict[str, int]:
+def post_libro(uow: Uow, _actor: AdminOBibliotecario, datos: LibroIn) -> dict[str, int]:
     """Alta de libro. 409 si el ISBN ya existe; 422 si el ISBN no es válido."""
     return {"id": registrar_libro(uow, DatosLibro(**datos.model_dump()))}
 
 
 @router.delete("/libros/{libro_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_libro(uow: Uow, libro_id: int) -> Response:
+def delete_libro(uow: Uow, _actor: AdminOBibliotecario, libro_id: int) -> Response:
     """Solo para libros sin ejemplares ni reservas (409 si tienen historial)."""
     eliminar_libro(uow, libro_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

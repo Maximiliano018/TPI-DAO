@@ -16,6 +16,7 @@ from fastapi import Depends, Query
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import sede_de_alcance
 from biblioteca.application.security.actor import UsuarioActual
 from biblioteca.application.security.autorizacion import exigir_rol
 from biblioteca.application.security.puertos import HasherContrasenas, ServicioTokens
@@ -124,5 +125,17 @@ def requiere_rol(*roles: Rol) -> Callable[[UsuarioActual], UsuarioActual]:
     return dependencia
 
 
+# Roles por sección (ARCHITECTURE.md §6.1). La API exige el rol; el front solo oculta.
+ROLES_ATENCION = (Rol.ADMIN, Rol.BIBLIOTECARIO)  # circulación, socios, catálogo, R3 y R4
+
 Actor = Annotated[UsuarioActual, Depends(usuario_actual)]
 Admin = Annotated[UsuarioActual, Depends(requiere_rol(Rol.ADMIN))]
+AdminOBibliotecario = Annotated[UsuarioActual, Depends(requiere_rol(*ROLES_ATENCION))]
+
+
+def get_alcance(actor: Actor) -> int | None:
+    """Sede cuyos datos ve el usuario: `None` (toda la red) para el ADMIN."""
+    return sede_de_alcance(actor)
+
+
+Alcance = Annotated[int | None, Depends(get_alcance)]

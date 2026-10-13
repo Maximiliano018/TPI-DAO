@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from biblioteca.application.alcance import involucra_sede
 from biblioteca.application.parametros import parametro_entero
 from biblioteca.domain.enums import EstadoRemito, Sentido
 from biblioteca.domain.errors import NoEncontrado
@@ -31,7 +32,10 @@ def listar_remitos(
     sentido: Sentido | None,
     limit: int,
     offset: int,
+    *,
+    sede_id: int | None,
 ) -> list[dict[str, Any]]:
+    """Con `sede_id`, solo los remitos que salen de la sede o llegan a ella."""
     dias_max_transito = parametro_entero(db, "dias_max_transito")
     consulta = (
         select(
@@ -47,7 +51,9 @@ def listar_remitos(
             remito.c.prestamo_id,
             ejemplar.c.codigo_inventario,
             libro.c.titulo,
+            remito.c.sede_origen_id,
             origen.c.nombre.label("sede_origen"),
+            remito.c.sede_destino_id,
             destino.c.nombre.label("sede_destino"),
             (socio.c.apellido + ", " + socio.c.nombre).label("socio"),
         )
@@ -57,6 +63,7 @@ def listar_remitos(
         .join(destino, remito.c.sede_destino_id == destino.c.id)
         .outerjoin(prestamo, remito.c.prestamo_id == prestamo.c.id)
         .outerjoin(socio, prestamo.c.socio_id == socio.c.id)
+        .where(*involucra_sede(sede_id, remito.c.sede_origen_id, remito.c.sede_destino_id))
         .order_by(remito.c.fecha_generacion.desc())
         .limit(limit)
         .offset(offset)
@@ -77,9 +84,19 @@ def listar_remitos(
     return resultado
 
 
-def movimientos_de_remito(db: Session, remito_id: int) -> list[dict[str, Any]]:
-    """Historial de estados del remito: es su trazabilidad a lo largo del trayecto."""
-    existe = db.execute(select(remito.c.id).where(remito.c.id == remito_id)).scalar()
+def movimientos_de_remito(
+    db: Session, remito_id: int, *, sede_id: int | None
+) -> list[dict[str, Any]]:
+    """Historial de estados del remito: es su trazabilidad a lo largo del trayecto.
+
+    Un remito de otra sede responde como inexistente: no se revela que existe.
+    """
+    existe = db.execute(
+        select(remito.c.id).where(
+            remito.c.id == remito_id,
+            *involucra_sede(sede_id, remito.c.sede_origen_id, remito.c.sede_destino_id),
+        )
+    ).scalar()
     if existe is None:
         raise NoEncontrado(f"No existe el remito {remito_id}")
 
