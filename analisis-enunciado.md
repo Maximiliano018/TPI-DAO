@@ -1,12 +1,10 @@
 # Análisis del dominio: Sistema de Préstamos Interbibliotecarios
 
-> Análisis inicial del enunciado. Las decisiones de diseño vigentes están en [ARCHITECTURE.md](ARCHITECTURE.md) y las dudas abiertas en [pendientes.md](pendientes.md).
-
 ## Objetivo
 
 Reemplazar la gestión manual de una **red de bibliotecas públicas** por un sistema que controle préstamos, devoluciones y disponibilidad. El rasgo distintivo es el **préstamo interbibliotecario**. Un socio puede pedir un ejemplar que está físicamente en otra sede, y el sistema debe gestionar su traslado logístico con trazabilidad.
 
-En esta versión lo usa solo el personal (operación, logística y administración); los socios consultan, piden préstamos y reservan a través de él. Si los socios deben tener acceso propio está pendiente (PENDIENTE-3).
+El sistema sirve a dos tipos de usuario: el personal (operación y administración) y los socios (consulta y reservas).
 
 ## Alcance
 
@@ -23,75 +21,80 @@ En esta versión lo usa solo el personal (operación, logística y administraci�
 | 7 | Reservas | Cola o espera sobre material no disponible |
 | 8 | Devoluciones | Registro del estado físico del material |
 
-**Opcional (extensiones):** se implementan **notificaciones** (simuladas) y **revisión de estado de recepción** (conforme, dañado, destruido, extraviado). El inventario usa códigos de texto únicos, sin códigos de barra. Historial de lecturas y recomendaciones quedan fuera de esta versión.
+**Opcional (extensiones):** notificaciones, historial de lecturas, recomendaciones, inventario por códigos y revisión de recepción (extravío, daño, destrucción).
 
 **Fuera de alcance (implícito):** adquisiciones, catalogación bibliográfica avanzada (MARC), pagos de multas y logística externa real.
 
-## Entidades del dominio
+## Entidades candidatas
 
-El modelo completo, con atributos, relaciones y diagramas, está en [ARCHITECTURE.md §4](ARCHITECTURE.md#4-modelo-de-dominio) y el esquema de la base en [§5](ARCHITECTURE.md#5-base-de-datos).
-
-- **Sede** y **HorarioSede**: código, nombre, dirección, contacto, horarios por día (admite horario cortado), activa/baja.
-- **Socio**: datos personales, número de socio, DNI, habilitación manual con motivo, baja lógica.
-- **Libro**, **Autor**, **Categoria**: obra del catálogo de la red, identificada por ISBN-13.
-- **Ejemplar**: código de inventario, libro, sede propietaria, situación (`estado`), condición física, si es prestable o de consulta en sala, motivo de baja.
-- **Prestamo**: socio, ejemplar, sede origen y destino, fechas de solicitud, límite de retiro, inicio y vencimiento, estado, motivo de cancelación.
-- **Devolucion**: préstamo, fecha, condición física del material, observación.
-- **Multa**: préstamo, días de atraso, monto (solo por atraso).
-- **Reserva**: socio, libro, sede de retiro, ejemplar asignado, fecha límite, estado.
-- **Remito** y **MovimientoRemito**: traslado de un ejemplar en un viaje (ida o vuelta), con revisión de recepción e historial inmutable de estados.
-- **Notificacion**: avisos simulados a los socios.
-- **Usuario** y **Parametro**: personal del sistema (con rol y sede) y configuración editable por el ADMIN.
+- **Sede**: nombre, dirección, contacto, horarios, activa/baja.
+- **Socio**: datos personales, número de socio, estado (habilitado/inhabilitado).
+- **Libro** (obra/título): ISBN, título, autor(es), editorial, categoría.
+- **Ejemplar**: código de inventario, libro, sede propietaria, estado físico, estado de disponibilidad.
+- **Préstamo**: socio, ejemplar, sede origen, sede destino, fecha de solicitud, fecha de vencimiento, fecha de devolución, estado, tipo (local/inter-sedes).
+- **Remito**: número, préstamo o ejemplar asociado, sede origen y destino, estado actual y fechas.
+- **MovimientoRemito** (historial de estados): remito, estado, fecha/hora, responsable. Es lo que da la trazabilidad.
+- **Reserva**: socio, libro o ejemplar, sede, fecha, estado (pendiente, cumplida, cancelada, vencida).
+- **Devolución**: préstamo, fecha, estado físico del material.
+- **Multa**: préstamo, días de atraso, monto, estado.
+- **Personal/Usuario del sistema** (si se modela autenticación).
 
 ## Conceptos clave y decisiones de modelado
 
-1. **Libro vs. Ejemplar.** Es el punto central del dominio. La disponibilidad, la sede y la condición física son del *ejemplar*, mientras que el catálogo es del *libro*. El requisito "evitar duplicados" se aplica a los tres niveles: socio (DNI y nº de socio), libro (ISBN) y ejemplar (código de inventario).
-2. **Sede origen vs. destino.** Origen es la sede propietaria del ejemplar. Destino es donde el socio lo retira y lo devuelve. En un préstamo local son la misma.
-3. **Ciclo de vida del remito.** `GENERADO → EMPAQUETADO → EN_TRANSITO → RECIBIDO`, con `EXTRAVIADO` y `CANCELADO`. Al recibir se registra la revisión (`CONFORME`, `DANADO`, `DESTRUIDO`). Hay **un remito por ejemplar y por viaje**: el de ida y el de vuelta son independientes. Sin retrocesos; cada cambio queda en `MovimientoRemito`.
-4. **Ciclo de vida del préstamo.** Local: se crea `ACTIVO`. Inter-sedes: `EN_ENVIO → LISTO_PARA_RETIRO → ACTIVO → DEVUELTO`, con `CANCELADO`. El vencimiento corre desde la entrega al socio, y `VENCIDO` se calcula, no se guarda.
-
-Las máquinas de estado completas (remito, préstamo, ejemplar y reserva) y la matriz de efectos de cada evento están en [ARCHITECTURE.md §4.4 y §4.5](ARCHITECTURE.md#44-máquinas-de-estado).
+1. **Libro vs. Ejemplar.** Es el punto central del dominio. La disponibilidad, la sede y el estado físico son del *ejemplar*, mientras que el catálogo es del *libro*. El requisito "evitar duplicados" se aplica a los tres niveles: socio (DNI o nº socio), libro (ISBN) y ejemplar (código único).
+2. **Sede origen vs. destino.** Origen es donde está el ejemplar. Destino es donde el socio lo retira y devuelve. En un préstamo local son la misma.
+3. **Ciclo de vida del remito.** La consigna dice que se evaluará de forma crítica. Una propuesta inicial:
+   `Generado → Empaquetado → Despachado → En tránsito → Recibido` (con ramas `Extraviado`, `Dañado` y `Destruido` para la revisión de recepción).
+   Habría que definir las transiciones válidas, que no se pueda retroceder y qué efecto tiene cada estado sobre el préstamo y el ejemplar. El camino de vuelta (devolución a la sede dueña) también necesita remito.
+4. **Ciclo de vida del préstamo.** `Solicitado → (En envío) → Activo → Devuelto`, con `Vencido` y `Cancelado`. Está acoplado al del remito y al del ejemplar (`Disponible / Prestado / En tránsito / Reservado / Baja`).
 
 ## Reglas de negocio (validaciones obligatorias)
 
 | Regla | Dónde se valida |
-|---|---|
-| No prestar ejemplares no disponibles | Estado del ejemplar al registrar el préstamo, con respaldo de un índice único en la base |
-| No prestar a socios inhabilitados | `Socio.puede_pedir_prestamo()`, al registrar y al entregar |
-| Controlar fechas de vencimiento | Vencimiento calculado desde la entrega; multa por atraso al devolver |
-| Trazabilidad del remito | Patrón State en `Remito` + historial `MovimientoRemito` |
-| Evitar duplicados | Validación en servicios + `UNIQUE` en la base |
-| El ejemplar debe pertenecer a la sede origen | Al crear el préstamo (`PrestamoFactory`) |
-| Sedes de baja bloqueadas | En préstamos, reservas y envíos; además, no se puede dar de baja una sede con actividad abierta |
+|-------|-----------------|
+| No prestar ejemplares no disponibles | Al crear el préstamo |
+| No prestar a socios inhabilitados | Al crear el préstamo y la reserva |
+| Controlar vencimientos | Cálculo de fecha de vencimiento y detección de vencidos, que además alimenta las multas |
+| Trazabilidad del remito | Registrar cada cambio de estado con fecha, sin saltos ni retrocesos |
+| Evitar duplicados | Unicidad en socios, libros y ejemplares |
+| El ejemplar debe pertenecer a la sede origen | Al crear el préstamo |
+| Sedes de baja bloqueadas | En préstamos, reservas y envíos, tanto como origen como destino |
 
-Las reglas que el enunciado no fijaba (plazos, máximo de préstamos, multas, reservas, baja de sedes) quedaron definidas en [ARCHITECTURE.md §4.3](ARCHITECTURE.md#43-decisiones-de-modelado) y sus valores iniciales en [§5.5](ARCHITECTURE.md#55-parámetros-del-sistema).
+**Reglas que hay que definir nosotros** (el enunciado no las fija): plazo de préstamo, máximo de préstamos simultáneos por socio, monto de multa por día, si una multa pendiente inhabilita al socio, la política de reservas (orden FIFO, vigencia) y qué pasa con préstamos o remitos en curso cuando una sede se da de baja.
 
 ## Reportes
 
-Hay que implementar **al menos 4 no triviales**. Se implementan:
+Hay que implementar **al menos 4 no triviales**. Los sugeridos, de mayor a menor complejidad:
 
-1. Movimiento entre sedes: envíos por origen/destino y **tiempo promedio de tránsito**.
+1. Movimiento entre sedes: envíos por origen/destino y **tiempo promedio de tránsito**. Requiere agregación sobre el historial de estados.
 2. Tasa de envíos exitosos e incidencias.
 3. Libros más solicitados en préstamos inter-sedes.
 4. Vencidos y multas acumuladas.
+5. Disponibilidad de catálogo por sede.
+6. Préstamos activos y material en tránsito.
 
-Además, disponibilidad de catálogo por sede y préstamos activos con material en tránsito, que alimentan el tablero. El cálculo de cada uno está en [ARCHITECTURE.md §8](ARCHITECTURE.md#8-reportes-mínimo-exigido-4-no-triviales).
+Los reportes 1 y 2 dependen de guardar bien el historial de estados del remito. Conviene decidirlo desde el modelo.
 
 ## Requisitos no funcionales y restricciones del trabajo
 
-- Al menos **2 patrones de diseño**. Se aplican **State** (ciclo de vida del remito), **Strategy** (cálculo de multas), **Factory** (préstamo local vs. inter-sedes), **Observer** (notificaciones) y **Repository + Unit of Work** (persistencia).
+- Al menos **2 patrones de diseño**. Encajan naturalmente:
+  - **State** para el ciclo de vida de remito, préstamo y ejemplar.
+  - **Observer** para notificaciones.
+  - **Strategy** para el cálculo de multas o las políticas de plazo.
+  - **Factory** para préstamo local vs. inter-sedes.
+  - **Repository** para la persistencia.
 - Cumplir todos los procesos obligatorios y las validaciones.
-- Como la materia es de objetos, el diseño es orientado a objetos, con la lógica en el dominio y no en la interfaz.
+- Como la materia es de objetos, el diseño tiene que ser orientado a objetos, con la lógica en el dominio y no en la interfaz.
 
-## Ambigüedades del enunciado
+## Ambigüedades a resolver con la cátedra o el equipo
 
-| # | Pregunta | Resolución |
-|---|---|---|
-| 1 | ¿El remito es por préstamo o puede agrupar varios ejemplares? | Un remito por ejemplar y por viaje. Se valida con la cátedra si hace falta agrupar (PENDIENTE-1) |
-| 2 | ¿La vuelta lleva remito propio? | Sí: remito de ida y de vuelta independientes |
-| 3 | ¿Quién usa el sistema? ¿Hay roles y autenticación? | Solo el personal, con roles ADMIN, BIBLIOTECARIO y LOGISTICA y autenticación con JWT. El acceso de los socios queda abierto (PENDIENTE-3) |
-| 4 | ¿GUI, API o consola? ¿Qué tecnología? | API REST con FastAPI y SPA con React; base SQLite con SQLAlchemy y Alembic |
-| 5 | ¿La reserva es sobre un libro o un ejemplar? | Sobre el libro, en la sede de retiro, con cola FIFO |
-| 6 | ¿Qué pasa con un ejemplar dañado, extraviado o destruido? | Extraviado o destruido pasa a baja; dañado queda en revisión en su sede. El socio no recibe multa por daño ni por incidencias del envío |
+1. ¿El remito es por préstamo o puede agrupar varios ejemplares en un mismo envío?
+2. ¿El viaje de vuelta (devolución a la sede propietaria) lleva remito propio?
+3. ¿Quién es el usuario del sistema? ¿Hay roles (bibliotecario, administrador, socio) y autenticación, o solo una consola o GUI para el personal?
+4. ¿Se espera una GUI, una API o una consola? ¿Qué tecnología y persistencia se usa?
+5. ¿Una reserva es sobre un libro (cualquier ejemplar) o sobre un ejemplar concreto?
+6. ¿Qué ocurre con un ejemplar dañado, extraviado o destruido? ¿Se da de baja y se penaliza al socio?
 
-Las dudas que siguen abiertas están en [pendientes.md](pendientes.md).
+## Próximo paso sugerido
+
+Armar el **modelo de clases (diagrama UML)** y las **máquinas de estado** del remito, el préstamo y el ejemplar. Son el núcleo del dominio y lo que la cátedra va a evaluar.
