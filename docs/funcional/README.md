@@ -1,6 +1,6 @@
 # Documentación funcional
 
-Requerimientos funcionales (RF), casos de uso (CU) con flujo normal y flujos alternativos, y criterios de aceptación (CA) del Sistema de Préstamos Interbibliotecarios. Se derivan de las definiciones de [`../negocio/`](../negocio/), que son la fuente de las reglas.
+Documentación validada por Maxi el 2026-10-14. Requerimientos funcionales (RF), casos de uso (CU) con flujo normal y flujos alternativos, y criterios de aceptación (CA) del Sistema de Préstamos Interbibliotecarios. Se derivan de las definiciones de [`../negocio/`](../negocio/), que son la fuente de las reglas.
 
 ## Documentos
 

@@ -9,7 +9,7 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 | Carpeta | Contenido | Estado |
 |---------|-----------|--------|
 | [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada |
-| [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación | En definición |
+| [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación | Confirmada |
 | [`tecnica/`](tecnica/) | Arquitectura, modelo de clases, patrones, persistencia | Pendiente |
 
 ## Documentos de negocio
