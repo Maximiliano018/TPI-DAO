@@ -30,7 +30,7 @@ Define cómo se construye el **Sistema de Préstamos Interbibliotecarios**. Se d
 
 ## Decisiones propuestas, a confirmar
 
-Son recomendaciones técnicas del equipo de trabajo que asumo hasta que se corrijan.
+Son recomendaciones técnicas que se asumen hasta que se corrijan.
 
 | # | Tema | Propuesta |
 |---|------|-----------|

@@ -1,6 +1,6 @@
 # 08. Reportes
 
-El enunciado exige **al menos 4 reportes no triviales**; se documentan los 6 sugeridos. Para cada uno se indica la información necesaria, los roles que acceden y su utilidad. Las definiciones fueron confirmadas por Maxi.
+El enunciado exige **al menos 4 reportes no triviales**; se documentan los 6 sugeridos. Para cada uno se indica la información necesaria, los roles que acceden y su utilidad.
 
 Los reportes 1 y 2 dependen del **historial de estados del remito**, por eso ese historial se guarda desde el modelo (ver [Remitos](05-remitos.md)).
 

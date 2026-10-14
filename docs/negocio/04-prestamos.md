@@ -1,6 +1,6 @@
 # 04. Solicitudes de préstamo
 
-Proceso obligatorio 4 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 4 del enunciado. Los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 

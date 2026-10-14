@@ -1,6 +1,6 @@
 # 07. Registro de devoluciones
 
-Proceso obligatorio 8 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 8 del enunciado.
 
 ## ¿Cómo se define una devolución y qué datos se modelan?
 

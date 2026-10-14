@@ -1,6 +1,6 @@
 # 02. Administración de socios
 
-Proceso obligatorio 2 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 2 del enunciado. Los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 
