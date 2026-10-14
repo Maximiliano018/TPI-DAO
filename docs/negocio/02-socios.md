@@ -9,7 +9,7 @@ Proceso obligatorio 2 del enunciado. Las definiciones fueron confirmadas por Max
 | Número de socio | Único, generado por el sistema |
 | Documento | Tipo y número (DNI); único |
 | Nombre y apellido | Obligatorios |
-| Fecha de nacimiento | Para validar que el socio sea mayor de edad |
+| Fecha de nacimiento | Dato informativo y de apoyo para detectar duplicados; no condiciona el alta |
 | Contacto | Correo, teléfono, domicilio |
 | Sede de alta | Sede donde se registró el socio |
 | Fecha de alta | Automática |
