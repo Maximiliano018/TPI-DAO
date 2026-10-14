@@ -1,0 +1,11 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+  # Habilitar el ecosistema real cuando se defina el stack, por ej.:
+  # - package-ecosystem: pip   # o npm / maven
+  #   directory: /
+  #   schedule:
+  #     interval: weekly

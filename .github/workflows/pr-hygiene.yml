@@ -1,0 +1,25 @@
+name: PR hygiene
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  titulo-y-rama:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar título del PR (Conventional Commits)
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "$TITLE" | grep -Eq '^(feat|fix|docs|refactor|test|chore|ci)(\(.+\))?: .+' \
+            || { echo "El título debe seguir Conventional Commits, ej: 'feat: agregar ABM de socios'"; exit 1; }
+      - name: Validar nombre de rama
+        env:
+          BRANCH: ${{ github.head_ref }}
+        run: |
+          echo "$BRANCH" | grep -Eq '^(feature|fix|docs|refactor|chore|claude)/[a-z0-9._-]+$' \
+            || { echo "La rama debe ser prefijo/nombre-en-minusculas, ej: feature/abm-socios"; exit 1; }
