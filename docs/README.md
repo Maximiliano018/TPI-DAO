@@ -10,7 +10,7 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 |---------|-----------|--------|
 | [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada |
 | [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación | Confirmada |
-| [`tecnica/`](tecnica/) | Arquitectura, modelo de clases, patrones, persistencia | Pendiente |
+| [`tecnica/`](tecnica/) | Stack, arquitectura, modelo de clases y de datos, máquinas de estado, patrones, API, testing, frontend y guía de estilos | En definición |
 
 ## Documentos de negocio
 
