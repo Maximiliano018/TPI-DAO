@@ -1,6 +1,6 @@
 # 05. Remitos y envíos entre sedes
 
-Proceso obligatorio 5 del enunciado. La consigna indica que el ciclo de vida del remito **se evalúa críticamente**, por lo que este es el documento más importante para revisar. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 5 del enunciado. La consigna indica que el ciclo de vida del remito **se evalúa críticamente**, por lo que este es el documento más importante para revisar.
 
 ## ¿Cómo se define un remito y qué datos se modelan?
 

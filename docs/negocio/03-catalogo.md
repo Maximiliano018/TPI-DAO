@@ -1,6 +1,6 @@
 # 03. Catálogo: libros y ejemplares
 
-Proceso obligatorio 3 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 3 del enunciado.
 
 ## ¿Qué datos se modelan?
 

@@ -10,7 +10,7 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 |---------|-----------|--------|
 | [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada |
 | [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación | Confirmada |
-| [`tecnica/`](tecnica/) | Arquitectura, modelo de clases, patrones, persistencia | Pendiente |
+| [`tecnica/`](tecnica/) | Stack, arquitectura, modelo de clases y de datos, máquinas de estado, patrones, API, testing, frontend y guía de estilos | En definición |
 
 ## Documentos de negocio
 
@@ -30,7 +30,7 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 
 Cada documento responde las preguntas de su proceso. Los puntos que siguen abiertos están marcados así:
 
-- **Definido:** surge del enunciado o fue confirmado por Maxi (la documentación de negocio fue revisada y confirmada el 2026-10-14).
+- **Definido:** surge del enunciado o ya está acordado.
 - **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra; sigue abierto. Hoy hay un único punto: si el socio puede pedir el préstamo directamente.
 
 Todos los valores numéricos (plazos, montos, límites) son **parámetros configurables**, no constantes del código.
