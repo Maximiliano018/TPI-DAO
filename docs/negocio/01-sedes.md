@@ -70,7 +70,7 @@ El administrador decide. Motivos habituales: cierre definitivo, cierre temporal,
 
 El sistema informa qué elementos impiden la baja. Para darla de baja hay que cerrar esas operaciones o **trasladar los ejemplares** a otra sede mediante remito, antes de la baja.
 
-> **A consultar:** si la cátedra espera que las operaciones en curso se cancelen automáticamente en lugar de bloquear la baja.
+La baja **nunca cancela automáticamente** las operaciones en curso: se bloquea hasta que finalicen.
 
 ## ¿Cómo evitamos sedes duplicadas?
 

@@ -27,7 +27,7 @@ Un **remito** es el comprobante de un envío de ejemplares entre dos sedes. Acom
 
 **Un remito con detalle de ejemplares.** Un envío puede agrupar varios ejemplares que van de la misma sede origen a la misma sede destino. Es lo habitual en logística real, evita un papel por libro y no complica el caso simple (un remito con una sola línea). Cada línea del detalle apunta a su préstamo.
 
-> **A consultar con la cátedra.** Si se prefiere simplicidad, la alternativa es un remito por préstamo (relación 1 a 1), con la misma estructura pero siempre con una sola línea.
+Un envío de un solo ejemplar es el caso simple: un remito con una única línea de detalle.
 
 ## ¿Un remito debe ir asociado a un préstamo?
 

@@ -31,6 +31,6 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 Cada documento responde las preguntas de su proceso. Los puntos que siguen abiertos están marcados así:
 
 - **Definido:** surge del enunciado o fue confirmado por Maxi (la documentación de negocio fue revisada y confirmada el 2026-10-14).
-- **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra; sigue abierto.
+- **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra; sigue abierto. Hoy hay un único punto: si el socio puede pedir el préstamo directamente.
 
 Todos los valores numéricos (plazos, montos, límites) son **parámetros configurables**, no constantes del código.

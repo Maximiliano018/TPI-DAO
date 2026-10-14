@@ -34,7 +34,7 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 
 ## ¿Cómo se aplica la multa?
 
-`multa = días de atraso × monto por día`, con un monto fijo configurable. Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
+`multa = días de atraso × monto por día`, con un monto fijo configurable (valor inicial: $200 por día de atraso, ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configurables)). Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
 
 - La multa nace al registrar la devolución tardía.
 - Estados: `Pendiente`, `Saldada`.

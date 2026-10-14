@@ -46,7 +46,7 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Plazo de préstamo interbibliotecario | 21 días corridos, contados desde la recepción en la sede destino |
 | Renovaciones permitidas por préstamo | 1 (solo si no hay reservas pendientes sobre el libro) |
 | Máximo de préstamos simultáneos por socio | 3 |
-| Multa por día de atraso | monto fijo por día (valor a definir por el equipo) |
+| Multa por día de atraso | $200 por día de atraso, monto fijo; sin tope por defecto |
 | Vigencia de una reserva cumplida (retiro) | 3 días corridos |
 | Días de atraso que inhabilitan al socio | el socio queda inhabilitado mientras tenga un préstamo vencido o una multa impaga |
 
