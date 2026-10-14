@@ -1,6 +1,6 @@
 # 04. Solicitudes de préstamo
 
-Proceso obligatorio 4 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 4 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 
@@ -23,11 +23,9 @@ Proceso obligatorio 4 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Cómo se relaciona un préstamo con los ejemplares?
 
-**Propuesta:** un préstamo tiene **un ejemplar** (un registro por ejemplar prestado). Si el socio se lleva varios libros, son varios préstamos, cada uno con su estado y vencimiento. Esto simplifica vencimientos, multas y reportes. El límite de préstamos simultáneos se cuenta por socio.
+Un préstamo tiene **un ejemplar** (un registro por ejemplar prestado). Si el socio se lleva varios libros, son varios préstamos, cada uno con su estado y vencimiento. Esto simplifica vencimientos, multas y reportes. El límite de préstamos simultáneos se cuenta por socio.
 
 ## ¿Cómo determinamos cuándo inicia el préstamo?
-
-**Propuesta:**
 
 - **Local:** inicia cuando el bibliotecario **entrega** el ejemplar al socio.
 - **Interbibliotecario:** inicia cuando la sede destino **entrega** el ejemplar al socio, después de recibir el remito. El tiempo de traslado **no consume** el plazo del socio.
@@ -36,7 +34,7 @@ Hasta ese momento el préstamo está en estado `Solicitado` o `En envío`, y el 
 
 ## ¿Qué usuarios pueden solicitar un préstamo?
 
-**Propuesta:** el **Bibliotecario** lo registra en nombre del socio. El Administrador puede consultarlos. *A consultar:* si el socio debe poder iniciar la solicitud por sí mismo.
+El **Bibliotecario** lo registra en nombre del socio. El Administrador puede consultarlos. *A consultar:* si el socio debe poder iniciar la solicitud por sí mismo.
 
 ## Parámetros
 
@@ -84,7 +82,7 @@ Consultando el préstamo, que expone su estado actual y su historial de cambios.
 
 ## ¿Se considera el caso de que el socio no devuelva?
 
-**Propuesta: sí.** Pasada la fecha de vencimiento el préstamo queda `Vencido`, empieza a acumular multa por día y el socio se inhabilita. *No se contempla extravío por parte del socio como flujo propio* en esta etapa; si el material no vuelve, se registra como incidencia de extravío en la devolución (ver [Devoluciones](07-devoluciones.md)).
+**Sí.** Pasada la fecha de vencimiento el préstamo queda `Vencido`, empieza a acumular multa por día y el socio se inhabilita. *No se contempla extravío por parte del socio como flujo propio* en esta etapa; si el material no vuelve, se registra como incidencia de extravío en la devolución (ver [Devoluciones](07-devoluciones.md)).
 
 ## Validaciones y reglas
 

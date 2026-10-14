@@ -8,7 +8,7 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 
 | Carpeta | Contenido | Estado |
 |---------|-----------|--------|
-| [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | En definición |
+| [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada |
 | [`funcional/`](funcional/) | Requerimientos funcionales y casos de uso | Pendiente |
 | [`tecnica/`](tecnica/) | Arquitectura, modelo de clases, patrones, persistencia | Pendiente |
 
@@ -28,10 +28,9 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 
 ## Cómo leer las definiciones
 
-Cada documento responde las preguntas abiertas de su proceso. Las respuestas están marcadas así:
+Cada documento responde las preguntas de su proceso. Los puntos que siguen abiertos están marcados así:
 
-- **Definido:** surge directamente del enunciado.
-- **Propuesta:** decisión recomendada por el equipo de trabajo que **todavía debe confirmar Maxi (y, cuando corresponda, la cátedra)**. Al confirmarse, se quita la marca.
-- **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra.
+- **Definido:** surge del enunciado o fue confirmado por Maxi (la documentación de negocio fue revisada y confirmada el 2026-10-14).
+- **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra; sigue abierto.
 
 Todos los valores numéricos (plazos, montos, límites) son **parámetros configurables**, no constantes del código.

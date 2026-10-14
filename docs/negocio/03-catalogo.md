@@ -1,6 +1,6 @@
 # 03. Catálogo: libros y ejemplares
 
-Proceso obligatorio 3 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 3 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 
@@ -29,18 +29,16 @@ Proceso obligatorio 3 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Quién administra libros y ejemplares?
 
-**Propuesta:**
-
 - **Libros:** el Administrador (el catálogo es común a la red).
 - **Ejemplares:** el Bibliotecario da de alta y modifica los ejemplares de **su sede**; el Administrador gestiona los de cualquier sede.
 
 ## ¿Quién puede ver esta información?
 
-**Propuesta:** todos los roles ven el catálogo y la disponibilidad. El estado físico detallado y el historial del ejemplar son solo para el personal.
+Todos los roles ven el catálogo y la disponibilidad. El estado físico detallado y el historial del ejemplar son solo para el personal.
 
 ## ¿Se puede dar de baja un ejemplar? ¿Bajo qué condiciones?
 
-**Propuesta: sí, baja lógica**, solo si el ejemplar está `Disponible` y sin reservas asignadas. Motivos: destrucción, extravío, daño irreparable, depuración del catálogo. Un ejemplar `Prestado` o `En tránsito` no se puede dar de baja: primero debe completarse el flujo, y si hay una incidencia (extravío, daño) la baja es el resultado del cierre del envío o de la devolución.
+**Sí, baja lógica**, solo si el ejemplar está `Disponible` y sin reservas asignadas. Motivos: destrucción, extravío, daño irreparable, depuración del catálogo. Un ejemplar `Prestado` o `En tránsito` no se puede dar de baja: primero debe completarse el flujo, y si hay una incidencia (extravío, daño) la baja es el resultado del cierre del envío o de la devolución.
 
 ## ¿Cómo evitamos duplicados?
 
@@ -53,7 +51,7 @@ Un ejemplar está disponible solo si su estado es `Disponible`. La disponibilida
 
 ## ¿Es posible consultar libros y ejemplares de otras sedes?
 
-**Propuesta: sí.** Es el punto de partida del préstamo interbibliotecario. Se muestran todas las sedes **activas**; las sedes en baja no ofrecen ejemplares.
+**Sí.** Es el punto de partida del préstamo interbibliotecario. Se muestran todas las sedes **activas**; las sedes en baja no ofrecen ejemplares.
 
 ## Casos de uso y flujos
 

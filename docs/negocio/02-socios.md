@@ -1,6 +1,6 @@
 # 02. Administración de socios
 
-Proceso obligatorio 2 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 2 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 
@@ -18,11 +18,11 @@ Proceso obligatorio 2 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Quién administra los socios?
 
-**Propuesta:** el **Bibliotecario** (alta, modificación, habilitación) en cualquier sede de la red; el **Administrador** además puede corregir datos y resolver conflictos. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa.
+El **Bibliotecario** (alta, modificación, habilitación) en cualquier sede de la red; el **Administrador** además puede corregir datos y resolver conflictos. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa.
 
 ## ¿Quién puede ver esta información?
 
-**Propuesta:** personal (administrador y bibliotecario de cualquier sede) ve los datos completos; el socio ve solo los propios.
+Personal (administrador y bibliotecario de cualquier sede) ve los datos completos; el socio ve solo los propios.
 
 ## Funcionalidades a cubrir
 
@@ -32,8 +32,6 @@ Proceso obligatorio 2 del enunciado. Las respuestas marcadas como **Propuesta** 
 - Consulta de la situación del socio: préstamos activos, vencidos, multas, reservas.
 
 ## ¿Qué acciones puede realizar un socio?
-
-**Propuesta:**
 
 - Consultar el catálogo y la disponibilidad por sede.
 - Reservar un libro no disponible.
@@ -55,12 +53,12 @@ La **solicitud de un préstamo** la registra el personal en nombre del socio (en
 
 - Documento y datos de contacto obligatorios y con formato válido.
 - Un socio `Inhabilitado` **no puede recibir préstamos ni hacer reservas** (regla del enunciado).
-- Un socio no puede superar el máximo de préstamos simultáneos (parámetro, propuesta 3).
+- Un socio no puede superar el máximo de préstamos simultáneos (parámetro, valor 3).
 - No se elimina físicamente un socio con historial.
 
 ## ¿Se debe inhabilitar a un socio con devoluciones o multas pendientes?
 
-**Propuesta: sí.**
+**Sí.**
 
 - Con un **préstamo vencido** sin devolver: queda inhabilitado hasta devolver.
 - Con una **multa impaga**: queda inhabilitado hasta saldarla. El sistema solo registra la multa como saldada (el cobro real queda fuera del alcance).

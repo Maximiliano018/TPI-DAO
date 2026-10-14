@@ -1,6 +1,6 @@
 # 07. Registro de devoluciones
 
-Proceso obligatorio 8 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 8 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Cómo se define una devolución y qué datos se modelan?
 
@@ -19,14 +19,14 @@ Una **devolución** es el registro de que el socio entrega un ejemplar prestado 
 
 ## ¿Aplica a préstamos entre sedes y locales?
 
-**Propuesta:** a ambos.
+A ambos.
 
 - **Local:** el ejemplar vuelve a `Disponible` en la misma sede.
 - **Interbibliotecario:** el socio devuelve en la sede destino; el ejemplar queda `En tránsito` de vuelta y se genera el **remito de retorno** hacia la sede propietaria. El préstamo queda `Devuelto` al registrar la devolución del socio. El retorno del ejemplar sigue su propio ciclo de remito.
 
 ## ¿Quién registra una devolución?
 
-**Propuesta:** el **Bibliotecario** de la sede donde se devuelve. El administrador la consulta.
+El **Bibliotecario** de la sede donde se devuelve. El administrador la consulta.
 
 ## ¿Cuándo es fuera de término?
 
@@ -34,7 +34,7 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 
 ## ¿Cómo se aplica la multa?
 
-**Propuesta:** `multa = días de atraso × monto por día`, con un monto fijo configurable. Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
+`multa = días de atraso × monto por día`, con un monto fijo configurable. Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
 
 - La multa nace al registrar la devolución tardía.
 - Estados: `Pendiente`, `Saldada`.
@@ -43,7 +43,7 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 
 ## ¿Qué pasa si se devuelve en mal estado?
 
-**Propuesta:** el bibliotecario registra el estado físico y las observaciones.
+El bibliotecario registra el estado físico y las observaciones.
 
 | Estado recibido | Efecto |
 |-----------------|--------|

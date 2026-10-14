@@ -1,6 +1,6 @@
 # 06. Gestión de reservas
 
-Proceso obligatorio 7 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 7 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Cómo se define una reserva y qué datos se modelan?
 
@@ -17,21 +17,21 @@ Una **reserva** es un lugar en la cola de espera de un libro que no tiene ejempl
 | Fecha de aviso y de vencimiento | Para el retiro |
 | Estado | `Pendiente`, `Disponible para retiro`, `Cumplida`, `Cancelada`, `Vencida` |
 
-**Propuesta:** la reserva es **sobre el libro** (cualquier ejemplar), no sobre un ejemplar concreto. Al liberarse un ejemplar, el sistema se lo asigna a la primera reserva de la cola.
+La reserva es **sobre el libro** (cualquier ejemplar), no sobre un ejemplar concreto. Al liberarse un ejemplar, el sistema se lo asigna a la primera reserva de la cola.
 
 ## ¿Qué usuarios pueden reservar?
 
-**Propuesta:** el **Socio** (por sí mismo) y el **Bibliotecario** (en nombre del socio).
+El **Socio** (por sí mismo) y el **Bibliotecario** (en nombre del socio).
 
 ## ¿Se puede reservar un ejemplar de otra sede?
 
-**Propuesta: sí.** El socio elige la sede de retiro. Si el ejemplar liberado está en otra sede, la reserva se cumple con un préstamo interbibliotecario hacia la sede de retiro.
+**Sí.** El socio elige la sede de retiro. Si el ejemplar liberado está en otra sede, la reserva se cumple con un préstamo interbibliotecario hacia la sede de retiro.
 
 ## Política de la cola
 
 - Orden **FIFO** por fecha y hora de reserva.
 - Cuando se libera un ejemplar, la primera reserva pasa a `Disponible para retiro` y el ejemplar a `Reservado`.
-- La reserva tiene una **vigencia de retiro** (parámetro, propuesta 3 días). Si vence, pasa a `Vencida` y el ejemplar se asigna a la siguiente reserva.
+- La reserva tiene una **vigencia de retiro** (parámetro, valor 3 días). Si vence, pasa a `Vencida` y el ejemplar se asigna a la siguiente reserva.
 - Una reserva `Disponible para retiro` se transforma en préstamo al entregarse (queda `Cumplida`).
 
 ## Ciclo de vida
@@ -49,7 +49,7 @@ Pendiente ──▶ Disponible para retiro ──▶ Cumplida
 - No reservar a un socio `Inhabilitado`. *(enunciado)*
 - No reservar con destino a una sede en `Baja`. *(enunciado)*
 - Un socio no puede tener dos reservas activas del mismo libro.
-- Máximo de reservas activas por socio (parámetro, propuesta 3).
+- Máximo de reservas activas por socio (parámetro, valor 3).
 - Si el socio queda inhabilitado, sus reservas pendientes se mantienen pero no pueden cumplirse hasta que se rehabilite.
 
 ## Parámetros

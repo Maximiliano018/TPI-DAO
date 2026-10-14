@@ -1,6 +1,6 @@
 # 01. Administración de sedes
 
-Proceso obligatorio 1 del enunciado. Las respuestas marcadas como **Propuesta** requieren confirmación.
+Proceso obligatorio 1 del enunciado. Las definiciones fueron confirmadas por Maxi; los puntos marcados como *A consultar* siguen abiertos con la cátedra.
 
 ## ¿Qué datos se modelan?
 
@@ -18,7 +18,7 @@ Proceso obligatorio 1 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Quién administra las sedes?
 
-**Propuesta:** el **Administrador**. El bibliotecario no da de alta ni de baja sedes.
+El **Administrador**. El bibliotecario no da de alta ni de baja sedes.
 
 ## Funcionalidades a cubrir
 
@@ -29,8 +29,6 @@ Proceso obligatorio 1 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Quién puede ver esta información?
 
-**Propuesta:**
-
 | Rol | Acceso |
 |-----|--------|
 | Administrador | Todo, incluidos motivo y fecha de baja |
@@ -39,7 +37,7 @@ Proceso obligatorio 1 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿El personal de una sede ve las otras sedes?
 
-**Propuesta:** sí, en modo **solo lectura** y con datos básicos (nombre, dirección, contacto, horarios, estado). Es necesario para operar préstamos interbibliotecarios. La gestión operativa (socios en trámite, préstamos, remitos) queda limitada a su propia sede, salvo los remitos entrantes y salientes que la involucran.
+Sí, en modo **solo lectura** y con datos básicos (nombre, dirección, contacto, horarios, estado). Es necesario para operar préstamos interbibliotecarios. La gestión operativa (socios en trámite, préstamos, remitos) queda limitada a su propia sede, salvo los remitos entrantes y salientes que la involucran.
 
 ## Casos de uso y flujos
 
@@ -59,11 +57,11 @@ Proceso obligatorio 1 del enunciado. Las respuestas marcadas como **Propuesta** 
 
 ## ¿Bajo qué criterio se habilita o deshabilita una sede?
 
-**Propuesta:** el administrador decide. Motivos habituales: cierre definitivo, cierre temporal, obras o fusión con otra sede. Siempre queda registrado el motivo.
+El administrador decide. Motivos habituales: cierre definitivo, cierre temporal, obras o fusión con otra sede. Siempre queda registrado el motivo.
 
 ## ¿Se puede dar de baja una sede con actividad pendiente?
 
-**Propuesta: no.** La baja se bloquea si la sede tiene:
+**No.** La baja se bloquea si la sede tiene:
 
 - préstamos activos o vencidos (como origen o destino),
 - remitos no cerrados (en cualquier estado distinto de `Recibido`, `Extraviado`, `Dañado` o `Destruido`),

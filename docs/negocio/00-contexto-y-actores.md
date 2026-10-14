@@ -12,9 +12,9 @@ El enunciado distingue dos tipos de usuarios; el personal se divide en dos roles
 
 | Actor | Descripción | Estado |
 |-------|-------------|--------|
-| **Administrador** (personal de administración) | Gestiona la red: sedes, catálogo global, parámetros, usuarios del personal y reportes globales | Propuesta |
-| **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Propuesta |
-| **Socio** | Consulta disponibilidad, reserva, ve sus préstamos y multas | Propuesta |
+| **Administrador** (personal de administración) | Gestiona la red: sedes, catálogo global, parámetros, usuarios del personal y reportes globales | Definido |
+| **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Definido |
+| **Socio** | Consulta disponibilidad, reserva, ve sus préstamos y multas | Definido |
 
 El bibliotecario siempre está asociado a **una sede**. El administrador no pertenece a ninguna y ve toda la red.
 
@@ -38,9 +38,9 @@ Esta matriz se detalla en cada documento por proceso.
 
 ## Parámetros globales (configurables)
 
-Valores iniciales **propuestos**. Se guardan como configuración, no en el código.
+Valores iniciales **confirmados**. Se guardan como configuración, no en el código.
 
-| Parámetro | Valor propuesto |
+| Parámetro | Valor |
 |-----------|-----------------|
 | Plazo de préstamo local | 14 días corridos |
 | Plazo de préstamo interbibliotecario | 21 días corridos, contados desde la recepción en la sede destino |

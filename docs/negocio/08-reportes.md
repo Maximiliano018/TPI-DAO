@@ -1,12 +1,12 @@
 # 08. Reportes
 
-El enunciado exige **al menos 4 reportes no triviales**; se documentan los 6 sugeridos. Para cada uno se indica la información necesaria, los roles que acceden y su utilidad. Las definiciones marcadas como **Propuesta** requieren confirmación.
+El enunciado exige **al menos 4 reportes no triviales**; se documentan los 6 sugeridos. Para cada uno se indica la información necesaria, los roles que acceden y su utilidad. Las definiciones fueron confirmadas por Maxi.
 
 Los reportes 1 y 2 dependen del **historial de estados del remito**, por eso ese historial se guarda desde el modelo (ver [Remitos](05-remitos.md)).
 
 ## Resumen
 
-| # | Reporte | Complejidad | Acceso (propuesta) |
+| # | Reporte | Complejidad | Acceso |
 |---|---------|-------------|--------------------|
 | R1 | Movimiento de ejemplares entre sedes y tiempo de tránsito | Alta | Administrador; bibliotecario (su sede) |
 | R2 | Tasa de envíos exitosos e incidencias | Alta | Administrador |
@@ -17,7 +17,7 @@ Los reportes 1 y 2 dependen del **historial de estados del remito**, por eso ese
 
 Los socios acceden solo a la consulta de disponibilidad (R5) y a su propia información de préstamos y multas, que no es un reporte de gestión.
 
-**Propuesta de selección:** implementar R1, R2, R3 y R4 como los cuatro no triviales obligatorios, y R5 y R6 como complemento.
+**Selección:** implementar R1, R2, R3 y R4 como los cuatro no triviales obligatorios, y R5 y R6 como complemento.
 
 ## R1. Movimiento de ejemplares entre sedes
 
