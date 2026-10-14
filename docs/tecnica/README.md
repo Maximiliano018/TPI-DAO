@@ -20,13 +20,13 @@ Define cómo se construye el **Sistema de Préstamos Interbibliotecarios**. Se d
 
 ## Decisiones ya tomadas
 
-| Tema | Decisión | Quién |
-|------|----------|-------|
-| Backend | Python con FastAPI, en capas | Maxi |
-| Persistencia | ORM (SQLAlchemy 2.0) | Maxi |
-| Frontend | React con JavaScript | Maxi |
-| Base de datos | PostgreSQL (SQLite en memoria para tests) | Maxi, 2026-10-14 |
-| Design system | Crear uno base propio, reemplazable | Maxi, 2026-10-14 |
+| Tema | Decisión |
+|------|----------|
+| Backend | Python con FastAPI, en capas |
+| Persistencia | ORM (SQLAlchemy 2.0) |
+| Frontend | React con JavaScript |
+| Base de datos | PostgreSQL (SQLite en memoria para tests) |
+| Design system | Base propio, reemplazable |
 
 ## Decisiones propuestas, a confirmar
 

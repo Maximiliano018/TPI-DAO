@@ -18,7 +18,7 @@
 
 ### D1. PostgreSQL como base de datos
 
-**Decidido por Maxi.** El dominio exige no prestar un ejemplar que ya está prestado, aunque dos bibliotecarios lo intenten a la vez. PostgreSQL ofrece lo necesario para garantizarlo en la base y no solo en el código:
+El dominio exige no prestar un ejemplar que ya está prestado, aunque dos bibliotecarios lo intenten a la vez. PostgreSQL ofrece lo necesario para garantizarlo en la base y no solo en el código:
 
 - **Índices únicos parciales**, por ejemplo un solo préstamo abierto por ejemplar (`UNIQUE (ejemplar_id) WHERE estado IN (...)`).
 - **Bloqueo de filas** (`SELECT ... FOR UPDATE`) al cambiar el estado de un ejemplar o remito.
@@ -45,7 +45,7 @@ Las reglas viven en el dominio y no en la interfaz, como pide el enunciado. Deta
 
 ### D5. React con JavaScript
 
-- Decisión de Maxi: JavaScript, sin TypeScript. Se compensa con JSDoc en funciones y componentes compartidos, ESLint estricto y validación de formularios con esquemas.
+- JavaScript, sin TypeScript. Se compensa con JSDoc en funciones y componentes compartidos, ESLint estricto y validación de formularios con esquemas.
 - Vite para desarrollo y empaquetado.
 - Detalle en [Frontend](09-frontend.md).
 
@@ -69,7 +69,7 @@ Dos procesos deben correr solos: marcar préstamos vencidos y vencer reservas no
 |-------------|------------|
 | Django | Es más pesado y su ORM empuja la lógica a los modelos; el enunciado pide una arquitectura en capas explícita |
 | MongoDB | El dominio es relacional y exige integridad referencial y restricciones |
-| TypeScript en el frontend | Maxi eligió JavaScript |
+| TypeScript en el frontend | El frontend se hace en JavaScript |
 | Redux | El estado del servidor lo maneja TanStack Query y el resto es local; Redux agrega código sin beneficio |
 | Celery y Redis | Excesivo para dos tareas diarias |
 

@@ -1,6 +1,6 @@
 # 10. Guía de estilos (design system base)
 
-Design system propio y liviano para el frontend, definido por Maxi como «crear uno base». Es **reemplazable**: todo el aspecto sale de variables CSS (tokens), así que adoptar otro design system implica cambiar los valores de `styles/tokens.css` y revisar los componentes base, sin tocar las pantallas.
+Design system propio y liviano para el frontend. Es **reemplazable**: todo el aspecto sale de variables CSS (tokens), así que adoptar otro design system implica cambiar los valores de `styles/tokens.css` y revisar los componentes base, sin tocar las pantallas.
 
 ## Principios
 

@@ -1,6 +1,6 @@
 # 09. Frontend
 
-Aplicación web en **React 18 con JavaScript** (sin TypeScript, por decisión de Maxi), empaquetada con **Vite**. Consume la [API REST](06-api.md) y aplica la [guía de estilos](10-guia-de-estilos.md).
+Aplicación web en **React 18 con JavaScript** (sin TypeScript), empaquetada con **Vite**. Consume la [API REST](06-api.md) y aplica la [guía de estilos](10-guia-de-estilos.md).
 
 ## Bibliotecas
 
