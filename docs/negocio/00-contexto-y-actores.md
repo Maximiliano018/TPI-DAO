@@ -14,7 +14,7 @@ El enunciado distingue dos tipos de usuarios; el personal se divide en dos roles
 |-------|-------------|--------|
 | **Administrador** (personal de administración) | Gestiona la red: sedes, catálogo global, parámetros, usuarios del personal y reportes globales | Definido |
 | **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Definido |
-| **Socio** | Consulta disponibilidad, reserva, ve sus préstamos y multas | Definido |
+| **Socio** | Consulta disponibilidad, reserva, solicita préstamos interbibliotecarios, ve sus préstamos y multas | Definido |
 
 El bibliotecario siempre está asociado a **una sede**. El administrador no pertenece a ninguna y ve toda la red.
 
@@ -25,10 +25,10 @@ El bibliotecario siempre está asociado a **una sede**. El administrador no pert
 | Recurso / acción | Administrador | Bibliotecario | Socio |
 |------------------|:---:|:---:|:---:|
 | Sedes | A | V (todas, datos básicos) | V (datos de contacto y horarios) |
-| Socios | A | A (alta/modificación), V | V (solo sus propios datos) |
+| Socios | A | A (alta/modificación), V | V (solo sus propios datos); modifica su sede |
 | Libros (catálogo) | A | V | V |
 | Ejemplares | A | A (de su sede) | V (disponibilidad) |
-| Préstamos | V (todos) | R (su sede) | V (los propios) |
+| Préstamos | V (todos) | R (su sede) | R (solo interbibliotecarios propios), V (los propios) |
 | Remitos | V (todos) | R (su sede) | V (los de sus préstamos) |
 | Reservas | V (todas) | R (en nombre del socio), V (su sede) | R (propias) |
 | Devoluciones | V | R (su sede) | - |
@@ -66,8 +66,9 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Socio | Persona registrada que puede pedir material |
 | Libro | Obra del catálogo, identificada por ISBN |
 | Ejemplar | Copia física de un libro, con código de inventario único y sede propietaria |
-| Préstamo local | Origen y destino son la misma sede |
-| Préstamo interbibliotecario | Origen y destino distintos; requiere envío |
+| Préstamo local | Origen y destino son la misma sede. Lo determina el sistema cuando hay ejemplares disponibles en la sede destino |
+| Préstamo interbibliotecario | Origen y destino distintos; requiere envío. Lo determina el sistema cuando la sede destino no tiene ejemplares disponibles y otra sede sí |
+| Sede del socio | Sede habitual del socio; se propone por defecto en sus solicitudes de préstamo y reservas |
 | Remito | Comprobante del envío de ejemplares entre sedes, con estados y trazabilidad |
 | Reserva | Espera ordenada por un libro no disponible |
 | Multa | Sanción económica por devolución fuera de término |

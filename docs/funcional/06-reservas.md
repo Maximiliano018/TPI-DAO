@@ -6,7 +6,7 @@ Origen: [negocio/06-reservas.md](../negocio/06-reservas.md). Proceso obligatorio
 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
-| RF-RES-01 | El sistema debe permitir al socio y al bibliotecario (en nombre del socio) reservar un libro sin ejemplares disponibles en la sede de retiro elegida. | Obligatorio |
+| RF-RES-01 | El sistema debe permitir al socio y al bibliotecario (en nombre del socio) reservar un libro sin ejemplares disponibles en la sede de retiro. Se propone por defecto la sede del socio (si reserva el socio) o la sede del usuario (si reserva el bibliotecario). En ambos casos se puede elegir otra sede activa antes de confirmar. | Obligatorio |
 | RF-RES-02 | La reserva debe ser sobre el libro (cualquier ejemplar) y registrar socio, libro, sede de retiro, fecha y hora, y estado. | Obligatorio |
 | RF-RES-03 | El sistema debe rechazar la reserva de un socio `Inhabilitado`. | Obligatorio |
 | RF-RES-04 | El sistema debe rechazar la reserva con una sede de retiro en `Baja`. | Obligatorio |
@@ -24,13 +24,14 @@ Origen: [negocio/06-reservas.md](../negocio/06-reservas.md). Proceso obligatorio
 ### CU-RES-01. Reservar un libro
 
 - **Actores:** Socio, Bibliotecario.
+- **Disparador:** inicio manual, o la oferta de reserva de una solicitud de préstamo rechazada por falta de disponibilidad (CU-PRE-00 A3). En ese caso llega con el libro y la sede destino como sede de retiro.
 - **Flujo normal:**
-  1. Busca el libro y comprueba que no hay ejemplares disponibles en la sede de retiro.
-  2. Elige la sede de retiro y confirma.
+  1. El sistema propone la sede de retiro: la sede del socio o la sede del bibliotecario. El usuario puede elegir otra sede activa.
+  2. Busca el libro, el sistema comprueba que no hay ejemplares disponibles en la sede de retiro y el usuario confirma.
   3. El sistema valida las reglas.
   4. Crea la reserva `Pendiente` con fecha y hora, y informa la posición en la cola.
 - **Flujos alternativos:**
-  - **A1 (paso 1): hay ejemplares disponibles en la sede de retiro.** El sistema indica que corresponde un préstamo y no permite reservar.
+  - **A1 (paso 2): hay ejemplares disponibles en la sede de retiro.** El sistema indica que corresponde un préstamo y no permite reservar.
   - **A2 (paso 3): socio inhabilitado.** Rechaza.
   - **A3 (paso 3): sede de retiro en `Baja`.** Rechaza.
   - **A4 (paso 3): reserva duplicada o máximo alcanzado.** Rechaza.
@@ -93,3 +94,6 @@ Origen: [negocio/06-reservas.md](../negocio/06-reservas.md). Proceso obligatorio
 | CA-RES-11 | RF-RES-10 | **Dado** una reserva `Cumplida`, **cuando** se intenta cancelar, **entonces** se rechaza. |
 | CA-RES-12 | RF-RES-11 | **Dado** una reserva `Disponible para retiro`, **cuando** se entrega el ejemplar, **entonces** la reserva queda `Cumplida` y existe un préstamo `Activo`. |
 | CA-RES-13 | RF-RES-12 | **Dado** un socio, **cuando** consulta reservas, **entonces** ve solo las propias con su posición en la cola. |
+| CA-RES-14 | RF-RES-01 | **Dado** un socio con sede A, **cuando** inicia una reserva, **entonces** la sede de retiro propuesta es A y puede cambiarla por otra sede activa. |
+| CA-RES-15 | RF-RES-01 | **Dado** un bibliotecario de la sede A, **cuando** inicia una reserva en nombre de un socio, **entonces** la sede de retiro propuesta es A. |
+| CA-RES-16 | RF-RES-01 | **Dado** un bibliotecario de la sede A, **cuando** cambia la sede de retiro a la sede activa B y confirma, **entonces** la reserva queda con retiro en B. |

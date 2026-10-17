@@ -13,6 +13,7 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 | RF-ACC-05 | Un socio solo puede ver sus propios datos, préstamos, reservas y multas. | Obligatorio |
 | RF-ACC-06 | El administrador debe poder dar de alta, modificar y dar de baja usuarios del personal. | Obligatorio |
 | RF-ACC-07 | Toda operación que modifica datos debe registrar el usuario y el momento. | Obligatorio |
+| RF-ACC-08 | Un socio solo puede solicitar préstamos para sí mismo y solo de tipo interbibliotecario. El tipo lo determina el sistema (ver [Préstamos](04-prestamos.md), RF-PRE-16 y RF-PRE-18). El préstamo local solicitado por el socio queda para un evolutivo. | Obligatorio |
 
 ## Casos de uso
 
@@ -45,7 +46,10 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 
 | ID | RF | Criterio |
 |----|----|----------|
-| CA-ACC-01 | RF-ACC-03 | **Dado** un socio, **cuando** intenta registrar un préstamo, **entonces** el sistema rechaza la operación por falta de permiso. |
+| CA-ACC-01 | RF-ACC-08 | **Dado** un socio, **cuando** solicita un préstamo y el sistema determina que es local, **entonces** se rechaza e indica que se acerque al mostrador. |
+| CA-ACC-08 | RF-ACC-08 | **Dado** un socio, **cuando** solicita un préstamo de un libro sin disponibles en su sede pero sí en otra, **entonces** se registra un préstamo interbibliotecario a su nombre. |
+| CA-ACC-09 | RF-ACC-08 | **Dado** un socio, **cuando** intenta solicitar un préstamo a nombre de otro socio, **entonces** el sistema rechaza la operación por falta de permiso. |
+| CA-ACC-10 | RF-ACC-03 | **Dado** un administrador, **cuando** intenta registrar un préstamo, **entonces** el sistema rechaza la operación por falta de permiso. |
 | CA-ACC-02 | RF-ACC-04 | **Dado** un bibliotecario de la sede A, **cuando** intenta registrar una devolución en la sede B, **entonces** el sistema rechaza la operación. |
 | CA-ACC-03 | RF-ACC-04 | **Dado** un bibliotecario de la sede A, **cuando** consulta la sede B, **entonces** ve solo sus datos básicos. |
 | CA-ACC-04 | RF-ACC-05 | **Dado** un socio, **cuando** consulta préstamos, **entonces** ve únicamente los propios. |

@@ -12,9 +12,12 @@ Proceso obligatorio 2 del enunciado. Los puntos marcados como *A consultar* sigu
 | Fecha de nacimiento | Dato informativo y de apoyo para detectar duplicados; no condiciona el alta |
 | Contacto | Correo, teléfono, domicilio |
 | Sede de alta | Sede donde se registró el socio |
+| Sede | Sede habitual del socio. Al dar de alta al socio se inicializa con la sede de alta; la pueden modificar el personal y el propio socio desde su cuenta. Se propone por defecto al iniciar una solicitud de préstamo o una reserva; el socio puede cambiarla en esa operación antes de confirmar |
 | Fecha de alta | Automática |
+| Cantidad de préstamos activos | Entero o bool |
 | Estado | `Habilitado` / `Inhabilitado` |
 | Motivo de inhabilitación | Texto o causa (`Multa impaga`, `Préstamo vencido`, `Decisión administrativa`) |
+| Préstamos históricos | Listado de historial de préstamos solicitados |
 
 ## ¿Quién administra los socios?
 
@@ -36,10 +39,12 @@ Personal (administrador y bibliotecario de cualquier sede) ve los datos completo
 - Consultar el catálogo y la disponibilidad por sede.
 - Reservar un libro no disponible.
 - Cancelar sus reservas.
+- Solicitar préstamos interbibliotecarios. El socio inicia una solicitud de préstamo y el sistema determina el tipo (ver [Préstamos](04-prestamos.md#inicio-del-flujo)).
 - Ver sus préstamos (activos, vencidos, historial), fechas de vencimiento y multas.
 - Ver sus propios datos y solicitar su corrección al personal.
+- Cambiar su sede (la que se propone por defecto en sus préstamos y reservas).
 
-La **solicitud de un préstamo** la registra el personal en nombre del socio (en mostrador). *A consultar con la cátedra* si el socio debe poder pedirlo directamente.
+La **solicitud de un préstamo** la registra el personal en nombre del socio cuando sea requerido por el socio. El **socio** solo puede solicitar préstamos interbibliotecarios. Si hay ejemplares disponibles en la sede elegida, el sistema rechaza la solicitud y le indica que se acerque al mostrador. Se debe contemplar la incorporación de la funcionalidad de solicitud de préstamos locales para un evolutivo.
 
 ## Casos de uso y flujos
 
@@ -69,3 +74,10 @@ La **solicitud de un préstamo** la registra el personal en nombre del socio (en
 - Número y tipo de documento únicos.
 - Búsqueda previa obligatoria en el alta (por documento y por nombre + fecha de nacimiento).
 - Si el socio existe en estado de baja, se **reactiva** en lugar de crear uno nuevo.
+
+
+## ¿Cómo controlamos que un socio solicite más préstamos de los permitidos?
+
+- Consulta previa obligatoria en la generación de préstamos (consulta parámetro `Cantidad de préstamos activos` del usuario y valida que sea menor que la cantidad permitida).
+- Si el socio ya tiene el máximo de préstamos permitidos, se cancela la generación de preéstamo y se muestra en pantalla el mensaje de error indicando el motivo.
+- El control se debe realizar al comienzo del flujo de generación de préstamo.

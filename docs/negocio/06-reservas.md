@@ -25,7 +25,9 @@ El **Socio** (por sí mismo) y el **Bibliotecario** (en nombre del socio).
 
 ## ¿Se puede reservar un ejemplar de otra sede?
 
-**Sí.** El socio elige la sede de retiro. Si el ejemplar liberado está en otra sede, la reserva se cumple con un préstamo interbibliotecario hacia la sede de retiro.
+**Sí.** La sede de retiro se propone por defecto igual que en la solicitud de préstamo: si reserva el socio, se propone la **sede del socio** y puede cambiarla antes de confirmar; si reserva el bibliotecario (a pedido del socio en el mostrador), se propone la sede asignada a su usuario y puede elegir otra sede activa si el socio lo requiere. Si el ejemplar liberado está en otra sede, la reserva se cumple con un préstamo interbibliotecario hacia la sede de retiro.
+
+Una solicitud de préstamo rechazada por falta de disponibilidad en toda la red ofrece crear una reserva con retiro en la sede destino de esa solicitud.
 
 ## Política de la cola
 

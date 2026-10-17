@@ -7,8 +7,8 @@ El enunciado exige **al menos dos patrones**. Este documento analiza los que enc
 | # | Patrón | Dónde | Prioridad | Implementar |
 |---|--------|-------|-----------|-------------|
 | 1 | State | Ciclo de vida de remito, préstamo, ejemplar y reserva | Alta | Sí |
-| 2 | Strategy | Cálculo de multa y plazo de préstamo | Alta | Sí |
-| 3 | Factory | Creación de préstamo local o interbibliotecario | Alta | Sí |
+| 2 | Strategy | Cálculo de multa, plazo de préstamo y criterio de sede origen | Alta | Sí |
+| 3 | Factory | Creación de préstamo local o interbibliotecario según el ejemplar asignado | Alta | Sí |
 | 4 | Repository | Acceso a datos | Alta | Sí |
 | 5 | Unit of Work | Transacción por caso de uso | Media | Sí |
 | 6 | Observer (eventos de dominio) | Notificaciones | Media | Opcional |
@@ -76,7 +76,17 @@ class MultaFijaPorDia:
 class PoliticaPlazo(Protocol):
     def vencimiento(self, inicio: date) -> date: ...
 # PlazoLocal (14 días) y PlazoInterbibliotecario (21 días)
+
+class CriterioSedeOrigen(Protocol):
+    def elegir(self, disponibles_por_sede: dict[int, int]) -> int: ...
+
+class MasDisponiblesMenorId:
+    def elegir(self, disponibles_por_sede: dict[int, int]) -> int:
+        # más disponibles primero; con empate, menor id de sede
+        return min(disponibles_por_sede, key=lambda sede_id: (-disponibles_por_sede[sede_id], sede_id))
 ```
+
+`CriterioSedeOrigen` lo usa `AsignadorDeEjemplar` cuando la sede destino no tiene ejemplares disponibles. Si mañana se elige por cercanía o por carga de envíos, se agrega otra estrategia sin tocar el asignador.
 
 **Ventajas.**
 
@@ -92,11 +102,11 @@ class PoliticaPlazo(Protocol):
 
 **Problema.** Un préstamo local y uno interbibliotecario se crean con reglas distintas: el local exige origen igual a destino, no genera remito y usa el plazo local; el interbibliotecario exige sedes distintas, genera envío y usa otro plazo. Repetir esa decisión en cada servicio duplica las reglas.
 
-**Solución.** `PrestamoFactory.crear(...)` decide el tipo según las sedes, construye el préstamo en estado `Solicitado` con la `PoliticaPlazo` correspondiente y garantiza sus invariantes.
+**Solución.** La decisión se reparte en dos pasos. Primero, `AsignadorDeEjemplar` elige el ejemplar según la disponibilidad: uno de la sede destino si hay, o si no uno de la sede que indica `CriterioSedeOrigen`. Después, `PrestamoFactory.crear(socio, ejemplar, sede_destino, parametros)` deduce el tipo comparando la sede del ejemplar con la sede destino, construye el préstamo en estado `Solicitado` con la `PoliticaPlazo` correspondiente y garantiza sus invariantes. El usuario nunca indica el tipo ni el ejemplar (RF-PRE-01, RF-PRE-16).
 
 **Ventajas.**
 
-- Un único punto donde se decide «local o interbibliotecario», que respalda `CA-PRE-10`.
+- Un único punto donde se decide «local o interbibliotecario», que respalda `CA-PRE-10` y `CA-PRE-19` a `CA-PRE-21`.
 - El resto del código trata a todos los préstamos igual.
 - Facilita sumar un tercer tipo (por ejemplo, préstamo a domicilio) sin tocar los llamadores.
 

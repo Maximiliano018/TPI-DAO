@@ -101,6 +101,7 @@ Roles: todos. Devuelve el usuario autenticado.
 | `GET /socios` | A, B | Búsqueda; `?q=`, `?documento=`, `?estado=` | RF-SOC-04 |
 | `GET /socios/{id}` | A, B, S | Detalle y situación | RF-SOC-10 |
 | `PUT /socios/{id}` | A, B | Modificar | RF-SOC-03 |
+| `PUT /socios/{id}/sede` | A, B, S | Cambiar la sede del socio (el socio, solo la propia) | RF-SOC-11 |
 | `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa | RF-SOC-06 |
 | `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes | RF-SOC-05, 06 |
 | `POST /socios/{id}/baja` | A | Baja lógica | RF-SOC-09 |
@@ -126,7 +127,8 @@ Roles: todos. Devuelve el usuario autenticado.
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /prestamos` | B | Registrar solicitud (local o interbibliotecario) | RF-PRE-01 a 08 |
+| `POST /prestamos/previsualizar` | B, S | Simula la determinación (tipo, sede origen, plazo) sin registrar ni apartar | RF-PRE-16, 17 |
+| `POST /prestamos` | B, S | Registrar solicitud; el sistema determina el tipo. El socio, solo interbibliotecarios propios | RF-PRE-01 a 08, 16 a 19 |
 | `GET /prestamos` | A, B, S | Listado; `?estado=`, `?tipo=`, `?socio_id=` | RF-PRE-15 |
 | `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito | RF-PRE-15 |
 | `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
@@ -256,8 +258,10 @@ Request:
 Response `201`:
 
 ```json
-{ "id": 45, "numero_socio": "00045", "estado": "HABILITADO", "sede_alta_id": 2 }
+{ "id": 45, "numero_socio": "00045", "estado": "HABILITADO", "sede_alta_id": 2, "sede_id": 2 }
 ```
+
+`sede_id` (sede del socio) se inicializa con la sede de alta. La modifican el personal o el propio socio con `PUT /socios/{id}/sede` (`{ "sede_id": 3 }`; debe ser una sede activa).
 
 Errores: `409 DUPLICADO` (devuelve el socio existente en `detalles`; si estaba dado de baja, indica que puede reactivarse).
 
@@ -307,13 +311,18 @@ Response `200`:
 }
 ```
 
-### `POST /prestamos` — préstamo interbibliotecario
+### `POST /prestamos` — solicitud de préstamo
 
-Request (el tipo se deduce de las sedes):
+Request: el usuario indica el libro, no el ejemplar ni el tipo.
 
 ```json
-{ "socio_id": 45, "ejemplar_id": 301, "sede_destino_id": 2 }
+{ "socio_id": 45, "libro_id": 12, "sede_destino_id": 2 }
 ```
+
+- **Bibliotecario:** `sede_destino_id` se ignora; se usa la sede de su usuario.
+- **Socio:** omite `socio_id`, que se toma de su sesión. `sede_destino_id` es opcional y, si no se envía, se usa la sede del socio.
+
+El sistema asigna el ejemplar. Si hay disponibles en la sede destino, el préstamo es local. Si no, el origen es la sede activa con más disponibles, y con empate la de menor id. En este ejemplo no hay disponibles en la sede 2 y sí en la 1:
 
 Response `201`:
 
@@ -332,9 +341,45 @@ Response `201`:
 }
 ```
 
-Errores posibles: `409 SOCIO_INHABILITADO`, `409 EJEMPLAR_NO_DISPONIBLE`, `409 SEDE_EN_BAJA`, `409 LIMITE_PRESTAMOS`, `422 EJEMPLAR_FUERA_DE_SEDE_ORIGEN`.
+Errores posibles: `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 LIMITE_PRESTAMOS`, `409 SIN_DISPONIBILIDAD`, `409 CORRESPONDE_PRESTAMO_LOCAL` (solo socio), `403 FORBIDDEN` (socio que pide a nombre de otro, o administrador).
 
-Para un préstamo local, `sede_destino_id` coincide con la sede del ejemplar y el préstamo nace sin remito.
+Para un préstamo local, `sede_origen_id` coincide con `sede_destino_id` y el préstamo nace sin remito.
+
+`409 SIN_DISPONIBILIDAD` incluye en `detalles` la oferta de reserva para que el frontend la presente:
+
+```json
+{
+  "error": {
+    "codigo": "SIN_DISPONIBILIDAD",
+    "mensaje": "No hay ejemplares disponibles del libro en ninguna sede activa.",
+    "detalles": [{ "accion_sugerida": "RESERVAR", "libro_id": 12, "sede_retiro_id": 2 }]
+  }
+}
+```
+
+`409 CORRESPONDE_PRESTAMO_LOCAL`:
+
+```json
+{
+  "error": {
+    "codigo": "CORRESPONDE_PRESTAMO_LOCAL",
+    "mensaje": "Hay ejemplares disponibles en la sede Norte. Acercate al mostrador para solicitar el préstamo.",
+    "detalles": [{ "sede_id": 2, "sede": "Norte" }]
+  }
+}
+```
+
+### `POST /prestamos/previsualizar`
+
+Mismo request que `POST /prestamos`. No registra el préstamo ni aparta el ejemplar; sirve para mostrar el resumen antes de confirmar. Devuelve los mismos errores de validación.
+
+Response `200`:
+
+```json
+{ "tipo": "INTERBIBLIOTECARIO", "sede_origen_id": 1, "sede_destino_id": 2, "plazo_dias": 21 }
+```
+
+La asignación definitiva ocurre en `POST /prestamos`. Si cambió la disponibilidad entre la vista previa y la confirmación, la respuesta refleja el tipo y la sede origen vigentes.
 
 ### `POST /prestamos/{id}/entregar`
 
@@ -446,7 +491,7 @@ Response `200`:
 
 ### `POST /reservas`
 
-Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omite `socio_id`; se toma de su sesión).
+Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omite `socio_id`; se toma de su sesión). `sede_retiro_id` es opcional: si se omite, se usa la sede del socio (cuando reserva el socio) o la sede del usuario (cuando reserva el bibliotecario). Ambos pueden enviar otra sede activa.
 
 Response `201`: `{ "id": 9, "numero": "RS-2026-000009", "estado": "PENDIENTE", "posicion_en_cola": 3 }`
 

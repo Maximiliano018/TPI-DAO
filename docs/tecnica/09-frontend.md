@@ -63,10 +63,10 @@ Se organiza **por funcionalidad** y no por tipo de archivo: todo lo de remitos v
 |----------|:---:|:---:|:---:|
 | Inicio con indicadores (vencidos, remitos abiertos, reservas por retirar) | ✔ | ✔ (su sede) | resumen propio |
 | Sedes: listado, alta, edición, baja | ✔ | consulta | consulta |
-| Socios: búsqueda, alta, ficha, inhabilitación | ✔ | ✔ | su ficha |
+| Socios: búsqueda, alta, ficha, inhabilitación, cambio de sede | ✔ | ✔ | su ficha y cambio de su sede |
 | Catálogo: libros y disponibilidad por sede | ✔ | ✔ | ✔ |
 | Ejemplares: alta, estado, baja, historial | ✔ | ✔ (su sede) | |
-| Préstamos: registrar, detalle con historial y remito, entregar, renovar, cancelar | consulta | ✔ | los propios |
+| Préstamos: solicitar, detalle con historial y remito, entregar, renovar, cancelar | consulta | ✔ | solicitar (solo interbibliotecario) y consultar los propios |
 | Devolución: registro con estado físico y resultado (multa, retorno) | consulta | ✔ | |
 | Remitos: listado, generar, empaquetar, despachar, recibir, anular | consulta | ✔ | estado del propio |
 | Reservas: reservar, cola, cancelar, retirar | consulta | ✔ | ✔ |
@@ -76,7 +76,12 @@ Se organiza **por funcionalidad** y no por tipo de archivo: todo lo de remitos v
 
 ### Flujos que merecen diseño propio
 
-1. **Registrar un préstamo.** Buscar socio → buscar libro → elegir ejemplar (mostrando disponibilidad por sede) → el sistema indica si es local o interbibliotecario → confirmar. Si el socio está inhabilitado se informa antes de avanzar.
+1. **Solicitar un préstamo.** Un único flujo para ambos tipos: buscar socio (el socio usa su sesión) → sede destino → buscar libro → resumen con tipo, sede origen y plazo (`POST /prestamos/previsualizar`) → confirmar (`POST /prestamos`). El usuario no elige el ejemplar ni el tipo.
+   - La sede destino es fija para el bibliotecario (la de su usuario). Para el socio se precarga su sede, editable con un selector de sedes activas.
+   - Si el socio está inhabilitado o alcanzó el máximo, se informa antes de buscar el libro.
+   - `SIN_DISPONIBILIDAD`: mensaje y botón «Reservar» que abre la reserva con el libro y la sede ya cargados.
+   - `CORRESPONDE_PRESTAMO_LOCAL` (socio): cartel informativo «Hay ejemplares disponibles en la sede {sede}. Acercate al mostrador para solicitar el préstamo», con opción de cambiar la sede.
+   - Si al confirmar cambia el tipo o la sede origen respecto de la vista previa, se muestra el nuevo resumen antes de cerrar.
 2. **Detalle de remito.** Línea de tiempo con cada movimiento (estado, fecha y hora, responsable) y botones que aparecen solo para las acciones válidas en ese estado y para el rol y la sede del usuario.
 3. **Recepción de remito.** Lista de ejemplares con estado físico por línea y observación obligatoria si hay daño.
 4. **Devolución.** Resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio.

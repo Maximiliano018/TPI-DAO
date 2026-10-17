@@ -31,17 +31,17 @@ Herramientas: **pytest**, **pytest-cov**, **httpx/TestClient**, **factory_boy** 
 Cada criterio `CA-XXX-nn` tiene al menos una prueba que lo cubre. La prueba lo declara en su nombre o con un marcador, así se puede listar la cobertura funcional:
 
 ```python
-@pytest.mark.ca("CA-PRE-01")
-def test_no_se_presta_un_ejemplar_prestado(servicio_prestamos, ejemplar_prestado, socio):
-    with pytest.raises(EjemplarNoDisponible):
-        servicio_prestamos.registrar(socio_id=socio.id, ejemplar_id=ejemplar_prestado.id)
+@pytest.mark.ca("CA-PRE-23")
+def test_sin_disponibles_en_la_red_se_rechaza(servicio_prestamos, libro_sin_disponibles, socio):
+    with pytest.raises(SinDisponibilidad):
+        servicio_prestamos.registrar(socio_id=socio.id, libro_id=libro_sin_disponibles.id)
 ```
 
 | Documento funcional | Dónde se prueba principalmente |
 |---------------------|--------------------------------|
 | Acceso y roles | API (autorización) |
 | Sedes, socios, catálogo | Unitarias + servicios; restricciones de unicidad en integración |
-| Préstamos | Unitarias (estado, factory, plazos) + servicios (reglas) + integración (índice de préstamo abierto) |
+| Préstamos | Unitarias (estado, factory, plazos, criterio de sede origen) + servicios (reglas, determinación del tipo) + integración (índice de préstamo abierto, `SKIP LOCKED`) |
 | Remitos | Unitarias de State (una por transición válida e inválida) + servicios |
 | Reservas | Servicios (cola FIFO, asignación, vencimiento) |
 | Devoluciones y multas | Unitarias de la política de multa + servicios |
@@ -52,7 +52,8 @@ Un script de CI compara los `CA` de la documentación con los marcadores del có
 ## Casos de prueba imprescindibles
 
 - **State del remito:** todas las transiciones válidas y todas las inválidas (matriz estado × operación).
-- **Concurrencia:** dos solicitudes simultáneas sobre el mismo ejemplar; solo una prospera (`CA-PRE-01`, `CA-PRE-07`).
+- **Concurrencia:** dos solicitudes simultáneas por el último ejemplar disponible de una sede; solo una obtiene el préstamo local y la otra se vuelve a evaluar (`CA-PRE-07`, `CA-PRE-28`).
+- **Determinación del tipo:** local si hay disponibles en la sede destino; interbibliotecario con la sede de más disponibles; empate por menor id; sedes en `Baja` excluidas; sin disponibilidad, rechazo con oferta de reserva; socio con disponibles en su sede, rechazo (`CA-PRE-19` a `CA-PRE-24`).
 - **Vencimiento:** el día de vencimiento no es vencido; el siguiente sí (`CA-PRE-13`, `CA-PRE-14`, `CA-DEV-05`).
 - **Multa:** cálculo con atraso de uno, cinco y cero días; cambio de monto en la configuración (`CA-DEV-06`, `CA-DEV-07`).
 - **Cascada de efectos:** devolver libera el ejemplar, asigna la primera reserva y reevalúa al socio (`CA-DEV-15`, `CA-SOC-07`).

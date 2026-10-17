@@ -70,7 +70,7 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 - **Flujos alternativos:**
   - **A1:** sin coincidencias; informa que no hay resultados.
   - **A2:** el libro no tiene disponibles en ninguna sede; el sistema ofrece reservar (ver [Reservas](06-reservas.md)).
-  - **A3:** hay disponibles solo en otra sede; el sistema señala que se puede pedir como préstamo interbibliotecario.
+  - **A3:** hay disponibles solo en otra sede; el sistema señala que, al solicitarlo, se tramitará como préstamo interbibliotecario (ver [Préstamos](04-prestamos.md), CU-PRE-00).
   - **A4:** el estado físico detallado y el historial se muestran solo al personal.
 
 ### CU-CAT-06. Trasladar un ejemplar a otra sede

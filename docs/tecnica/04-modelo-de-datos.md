@@ -83,6 +83,7 @@ El solapamiento de franjas del mismo día lo valida el dominio; en PostgreSQL se
 | fecha_nacimiento | DATE | informativa |
 | email, telefono, domicilio | VARCHAR | |
 | sede_alta_id | FK sede | NOT NULL |
+| sede_id | FK sede | NOT NULL; sede habitual, inicializada con `sede_alta_id` y modificable por el personal o el socio. Valor por defecto de la sede destino y de la sede de retiro |
 | estado | VARCHAR(15) | `HABILITADO` o `INHABILITADO` |
 | motivo_inhabilitacion | VARCHAR(30) | `PRESTAMO_VENCIDO`, `MULTA_IMPAGA`, `ADMINISTRATIVA`; NOT NULL si inhabilitado |
 | fecha_baja | TIMESTAMPTZ | NULL si está dado de alta; la baja es lógica |
@@ -225,7 +226,7 @@ Además de claves primarias, únicas y los índices parciales anteriores:
 
 | Índice | Para qué |
 |--------|----------|
-| `ejemplar (libro_id, sede_actual_id, estado)` | Disponibilidad por libro y sede (R5) |
+| `ejemplar (libro_id, sede_actual_id, estado)` | Disponibilidad por libro y sede (R5) y asignación del ejemplar al solicitar un préstamo |
 | `prestamo (socio_id, estado)` | Préstamos abiertos del socio y límite de 3 |
 | `prestamo (estado, fecha_vencimiento)` | Detección de vencidos (R4) |
 | `prestamo (tipo, fecha_solicitud)` | Libros más pedidos entre sedes (R3) |

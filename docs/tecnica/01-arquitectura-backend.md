@@ -95,14 +95,17 @@ Cliente ── HTTP ──▶ Router
                   Router ──▶ esquema de respuesta ──▶ Cliente
 ```
 
-Ejemplo, registrar un préstamo interbibliotecario (`PrestamoService.registrar`):
+Ejemplo, registrar una solicitud de préstamo (`PrestamoService.registrar`). El request trae socio y libro; el tipo lo decide el sistema:
 
-1. Abre la Unit of Work y bloquea la fila del ejemplar (`FOR UPDATE`).
-2. Carga socio, ejemplar y sedes por repositorio.
-3. `PrestamoFactory` decide el tipo y la política de plazo, y construye el préstamo `Solicitado`.
-4. Las validaciones de negocio (socio habilitado, ejemplar disponible y de la sede origen, sedes activas, tope de préstamos) se ejecutan en el dominio.
-5. El ejemplar pasa a `Apartado`, el préstamo se guarda y se registra el movimiento.
-6. Se confirma la transacción.
+1. Abre la Unit of Work y resuelve la sede destino: la del bibliotecario, o la enviada por el socio (por defecto, la sede del socio).
+2. Carga el socio y la sede destino, y valida en el dominio que el socio esté habilitado, el tope de préstamos, que no tenga el libro repetido y que la sede destino esté activa.
+3. `AsignadorDeEjemplar` busca y bloquea un ejemplar `Disponible` del libro (`FOR UPDATE SKIP LOCKED`). Prueba primero en la sede destino, lo que da un préstamo local. Si no hay, prueba en la sede activa con más disponibles (con empate, la de menor id), lo que da un préstamo interbibliotecario. Si no encuentra ninguno, lanza `SinDisponibilidad`.
+4. Si el usuario es socio y el resultado es local, lanza `CorrespondePrestamoLocal`.
+5. `PrestamoFactory` deduce el tipo y la política de plazo a partir de las sedes del ejemplar asignado y construye el préstamo `Solicitado`.
+6. El ejemplar pasa a `Apartado`, el préstamo se guarda y se registra el movimiento.
+7. Se confirma la transacción.
+
+`SKIP LOCKED` hace que dos solicitudes simultáneas del mismo libro no tomen el mismo ejemplar: la segunda pasa al siguiente disponible o a otra sede. Así la decisión del tipo siempre se toma sobre la disponibilidad real en el momento de confirmar.
 
 ## Transacciones y concurrencia
 
@@ -134,6 +137,8 @@ El dominio lanza excepciones propias con un código estable; la capa `api` las t
 | `ReservaDuplicada` | `RESERVA_DUPLICADA` | 409 |
 | `LimiteReservasExcedido` | `LIMITE_RESERVAS` | 409 |
 | `HorarioInvalido` | `HORARIO_INVALIDO` | 422 |
+| `SinDisponibilidad` | `SIN_DISPONIBILIDAD` | 409 |
+| `CorrespondePrestamoLocal` | `CORRESPONDE_PRESTAMO_LOCAL` | 409 |
 
 La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `domain/exceptions.py`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
 

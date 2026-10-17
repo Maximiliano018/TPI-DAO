@@ -152,6 +152,7 @@ classDiagram
     Libro "1" --> "*" Ejemplar
     Libro "*" --> "*" Autor
     Libro "*" --> "1" Categoria
+    Socio "*" --> "1" Sede : sede habitual
     Socio "1" --> "*" Prestamo
     Socio "1" --> "*" Reserva
     Ejemplar "1" --> "*" Prestamo
@@ -175,7 +176,8 @@ classDiagram
 ### Notas del modelo
 
 - **Libro y ejemplar son clases distintas.** El libro es la obra; el ejemplar es la copia física con sede, estado físico y estado de disponibilidad.
-- **Un préstamo tiene un solo ejemplar** y dos sedes: origen (donde está el ejemplar) y destino (donde lo retira el socio). En el préstamo local coinciden.
+- **Un préstamo tiene un solo ejemplar** y dos sedes: origen (donde está el ejemplar) y destino (donde lo retira el socio). En el préstamo local coinciden. El ejemplar y, con él, el tipo los asigna el sistema (`AsignadorDeEjemplar`), no el usuario.
+- **El socio tiene una sede habitual**, distinta de la sede de alta (que es histórica). Se usa como valor por defecto de la sede destino y de la sede de retiro; la cambian el personal o el propio socio.
 - **El remito agrupa ejemplares** mediante `DetalleRemito`; todos comparten origen y destino. Cada línea referencia su préstamo, salvo los traslados.
 - **`MovimientoRemito`** es el historial que da la trazabilidad y alimenta los reportes de tránsito. Préstamo y ejemplar tienen historiales equivalentes (`MovimientoPrestamo`, `MovimientoEjemplar`).
 - **`Multa`** nace al registrar una devolución fuera de término.
@@ -237,6 +239,17 @@ classDiagram
     class PrestamoFactory {
         +crear(socio, ejemplar, sede_destino, parametros) Prestamo
     }
+    class AsignadorDeEjemplar {
+        +asignar(libro, sede_destino) Ejemplar
+    }
+    class CriterioSedeOrigen {
+        <<interface>>
+        +elegir(disponibles_por_sede) Sede
+    }
+    class MasDisponiblesMenorId
+    CriterioSedeOrigen <|.. MasDisponiblesMenorId
+    AsignadorDeEjemplar --> CriterioSedeOrigen
+    AsignadorDeEjemplar ..> Ejemplar : asigna
     PrestamoFactory ..> Prestamo : crea
     PrestamoFactory ..> PoliticaPlazo : elige
     Prestamo ..> PoliticaPlazo

@@ -16,6 +16,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | RF-SOC-08 | El sistema debe limitar los préstamos simultáneos de un socio al máximo configurado. | Obligatorio |
 | RF-SOC-09 | El sistema debe permitir dar de baja lógica a un socio sin préstamos activos ni multas pendientes, y reactivar a un socio dado de baja en lugar de duplicarlo. | Obligatorio |
 | RF-SOC-10 | El sistema debe mostrar la situación de un socio: préstamos activos y vencidos, multas, reservas e historial. El socio solo ve la propia. | Obligatorio |
+| RF-SOC-11 | Cada socio debe tener una **sede** habitual, que al darlo de alta se inicializa con la sede de alta. El personal y el propio socio pueden cambiarla por otra sede activa. Se propone por defecto como sede destino de sus solicitudes de préstamo y como sede de retiro de sus reservas. | Obligatorio |
 
 ## Casos de uso
 
@@ -26,7 +27,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
   1. Busca previamente por documento y por nombre y fecha de nacimiento.
   2. Al no encontrarlo, ingresa los datos.
   3. El sistema valida formato y unicidad.
-  4. Asigna el número de socio, estado `Habilitado`, fecha de alta y sede de alta.
+  4. Asigna el número de socio, estado `Habilitado`, fecha de alta, sede de alta y sede del socio (igual a la de alta).
 - **Flujos alternativos:**
   - **A1 (paso 1): el socio ya existe habilitado.** El sistema muestra el existente y no permite crear otro.
   - **A2 (paso 1): el socio existe dado de baja.** El sistema ofrece reactivarlo (CU-SOC-04).
@@ -40,7 +41,17 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 - **Flujo normal:** busca al socio, edita datos y guarda; el sistema valida y registra el cambio.
 - **Flujos alternativos:**
   - **A1:** el nuevo documento ya pertenece a otro socio; rechaza.
-  - **A2:** el socio pidió la corrección desde su cuenta; el personal la aplica (el socio no edita directamente).
+  - **A2:** el socio pidió la corrección desde su cuenta; el personal la aplica (el socio no edita directamente sus datos, salvo la sede: ver CU-SOC-06).
+  - **A3:** se cambia la sede del socio por una sede en `Baja`; rechaza.
+
+### CU-SOC-06. Cambiar la sede del socio
+
+- **Actores:** Socio (la propia), Bibliotecario, Administrador.
+- **Flujo normal:** abre la ficha, elige otra sede activa y confirma; el sistema guarda la nueva sede y registra el cambio. Desde ese momento es la sede propuesta por defecto en sus solicitudes de préstamo y reservas.
+- **Flujos alternativos:**
+  - **A1:** la sede elegida está en `Baja`; rechaza.
+  - **A2:** un socio intenta cambiar la sede de otro; rechaza.
+  - **A3:** el cambio no afecta préstamos ni reservas ya registrados.
 
 ### CU-SOC-03. Inhabilitar y rehabilitar a un socio
 
@@ -83,3 +94,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | CA-SOC-09 | RF-SOC-09 | **Dado** un socio con un préstamo activo, **cuando** se pide su baja, **entonces** se bloquea. |
 | CA-SOC-10 | RF-SOC-06 | **Dado** un socio inhabilitado por decisión administrativa, **cuando** un bibliotecario intenta rehabilitarlo, **entonces** se rechaza. |
 | CA-SOC-11 | RF-SOC-10 | **Dado** un socio autenticado, **cuando** consulta a otro socio, **entonces** se rechaza. |
+| CA-SOC-12 | RF-SOC-11 | **Dado** un socio dado de alta en la sede A, **cuando** se crea, **entonces** su sede es A. |
+| CA-SOC-13 | RF-SOC-11 | **Dado** un socio con sede A, **cuando** se la cambia a una sede B en `Baja`, **entonces** se rechaza. |
+| CA-SOC-14 | RF-SOC-11 | **Dado** un socio autenticado con sede A, **cuando** cambia su sede a la sede activa B, **entonces** su sede pasa a ser B y es la propuesta en su próxima solicitud de préstamo. |
+| CA-SOC-15 | RF-SOC-11 | **Dado** un socio autenticado, **cuando** intenta cambiar la sede de otro socio, **entonces** se rechaza. |
