@@ -42,6 +42,8 @@ Ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configu
 
 ## Préstamo local
 
+> Gestionados por el bibliotecario o el socio (abierto a extensión)
+
 1. El socio pide un libro en una sede.
 2. El bibliotecario busca un ejemplar `Disponible` **de esa sede**.
 3. El sistema valida las reglas.
