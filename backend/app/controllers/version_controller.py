@@ -7,6 +7,6 @@ router = APIRouter(prefix="/api", tags=["Sistema"])
 
 
 @router.get("/version", response_model=VersionResponse, summary="Estado y versión del backend")
-def obtener_version() -> VersionResponse:
+def consultar_version() -> VersionResponse:
     """Indica que el backend está en línea y su versión."""
     return VersionResponse(servicio="backend", estado="ok", version=obtener_version())
