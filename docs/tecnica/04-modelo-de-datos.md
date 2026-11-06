@@ -245,7 +245,7 @@ Además de claves primarias, únicas y los índices parciales anteriores:
 | R5 Disponibilidad por sede | `ejemplar` agrupado por libro, sede y estado |
 | R6 Activos y en tránsito | `prestamo`, `remito` |
 
-Los reportes son consultas de solo lectura en `application/reports/`, con SQL agregado (`GROUP BY`) y no recorren entidades una por una.
+Los reportes son consultas de solo lectura en `services/reports/`, con SQL agregado (`GROUP BY`) y no recorren entidades una por una.
 
 ## Migraciones y datos de ejemplo
 

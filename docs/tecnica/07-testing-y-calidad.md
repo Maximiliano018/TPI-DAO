@@ -13,7 +13,7 @@
 | Unitarias de dominio | Entidades, estados, políticas, factory, objetos de valor | Ninguna | `tests/unit/` | 60 % |
 | De servicios | Casos de uso completos con repositorios en memoria | Repositorios en memoria | `tests/services/` | 20 % |
 | De integración | Repositorios, restricciones, índices parciales, bloqueos y migraciones | PostgreSQL | `tests/integration/` | 10 % |
-| De API | Endpoints, autorización por rol, formato de errores, contrato OpenAPI | `TestClient` + PostgreSQL | `tests/api/` | 10 % |
+| De API | Endpoints, autorización por rol, formato de errores, contrato OpenAPI | `TestClient` + PostgreSQL | `tests/controllers/` | 10 % |
 
 Herramientas: **pytest**, **pytest-cov**, **httpx/TestClient**, **factory_boy** (datos de prueba) y **freezegun** o un reloj inyectable para fechas.
 
@@ -80,8 +80,8 @@ Se prueba lo que el usuario ve y hace (texto, roles ARIA, interacción), no deta
 
 | Alcance | Mínimo |
 |---------|--------|
-| `domain/` | 90 % de líneas, 100 % de transiciones de estado |
-| `application/` | 85 % |
+| `models/` | 90 % de líneas, 100 % de transiciones de estado |
+| `services/` | 85 % |
 | Backend en total | 80 % |
 | Frontend | 70 %, priorizando formularios y flujos críticos |
 
@@ -92,7 +92,7 @@ La cobertura es un piso, no un objetivo: se revisa que las pruebas verifiquen co
 | Herramienta | Uso |
 |-------------|-----|
 | ruff | Lint y formato del backend (reemplaza flake8, isort y black) |
-| mypy (estricto en `domain/` y `application/`) | Tipos del backend |
+| mypy (estricto en `models/` y `services/`) | Tipos del backend |
 | ESLint + Prettier | Lint y formato del frontend |
 | pre-commit | Ejecuta ruff, ESLint y detección de secretos antes de cada commit |
 | gitleaks | Ya activo en el repositorio |

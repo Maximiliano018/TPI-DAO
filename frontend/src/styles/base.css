@@ -1,0 +1,5 @@
+/* Estilos globales. Los tokens del design system irán en tokens.css (ver docs/tecnica/10-guia-de-estilos.md). */
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
