@@ -1,0 +1,25 @@
+# Entorno de desarrollo. Por ahora solo levanta PostgreSQL;
+# backend y frontend se agregan cuando existan sus Dockerfile.
+services:
+  db:
+    image: postgres:16
+    container_name: tpi-dao-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-tpi_dao}
+      POSTGRES_USER: ${POSTGRES_USER:-tpi_dao}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en el archivo .env}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Los scripts de init solo corren la primera vez que se crea el volumen.
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:
