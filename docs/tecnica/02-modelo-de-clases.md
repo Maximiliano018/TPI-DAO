@@ -294,4 +294,4 @@ classDiagram
     PrestamoRepository <|.. SqlAlchemyPrestamoRepository
 ```
 
-Los servicios dependen de interfaces (`UnitOfWork`, repositorios) definidas en el dominio. Las implementaciones con SQLAlchemy viven en `infrastructure` y se inyectan, lo que permite probar los servicios con repositorios en memoria.
+Los servicios dependen de interfaces (`UnitOfWork`, repositorios) definidas en el dominio. Las implementaciones con SQLAlchemy viven en `repositories/impl` y se inyectan, lo que permite probar los servicios con repositorios en memoria.

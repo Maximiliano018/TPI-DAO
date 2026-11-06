@@ -171,4 +171,4 @@ class PoliticaPlazo(Protocol):
 
 - **Mínimo de dos patrones:** State y Strategy cumplen solos, con Factory, Repository y Unit of Work como refuerzo.
 - **Ciclo de vida del remito evaluado críticamente:** State lo modela de forma explícita y verificable.
-- **Lógica en el dominio:** los patrones viven en `domain/` (State, Strategy, Factory) y en `application/` (Unit of Work); la interfaz no decide reglas.
+- **Lógica en el dominio:** los patrones viven en `models/` (State, Strategy, Factory) y en `repositories/` (Unit of Work); la interfaz no decide reglas.

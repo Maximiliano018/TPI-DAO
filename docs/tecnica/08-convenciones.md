@@ -15,9 +15,9 @@ Es la propuesta **T2**. El criterio es que quien lea el código y la documentaci
 ## Python
 
 - **Estilo:** PEP 8 aplicado por ruff (línea máxima 100). No se discute el formato: lo resuelve la herramienta.
-- **Tipos:** anotaciones en todas las firmas públicas; `mypy` estricto en `domain/` y `application/`.
+- **Tipos:** anotaciones en todas las firmas públicas; `mypy` estricto en `models/` y `services/`.
 - **Nombres:** `snake_case` para funciones y variables, `PascalCase` para clases, `MAYUSCULAS` para constantes.
-- **Importaciones:** solo en la parte superior, agrupadas (estándar, terceros, propias). `domain/` no importa de `api`, `application` ni `infrastructure`.
+- **Importaciones:** solo en la parte superior, agrupadas (estándar, terceros, propias). `models/` no importa de `controllers`, `services`, `repositories` ni `db`.
 - **Excepciones:** se lanzan excepciones de dominio con código; no se usa `except Exception` salvo en el borde de la API.
 - **Dinero y fechas:** `Decimal` para dinero, nunca `float`; reloj inyectado, nunca `date.today()` en el dominio.
 

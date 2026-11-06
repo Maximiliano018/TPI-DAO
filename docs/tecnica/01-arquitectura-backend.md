@@ -3,25 +3,33 @@
 ## Capas
 
 ```
-┌──────────────────────────────────────────────┐
-│ api            Routers, esquemas, seguridad  │  recibe y responde HTTP
-├──────────────────────────────────────────────┤
-│ application    Servicios (casos de uso)      │  orquesta, controla transacciones
-├──────────────────────────────────────────────┤
-│ domain         Entidades, reglas, estados    │  lógica del negocio, sin frameworks
-├──────────────────────────────────────────────┤
-│ infrastructure Repositorios, ORM, relojes    │  base de datos y servicios externos
-└──────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│ controllers   Routers FastAPI, seguridad            │  recibe y responde HTTP
+│ dtos          Request y response (Pydantic)         │  contratos de la API
+├─────────────────────────────────────────────────────┤
+│ services      Casos de uso                          │  orquesta, controla transacciones
+├─────────────────────────────────────────────────────┤
+│ models        Entidades, estados, políticas, reglas │  lógica del negocio, sin frameworks
+├─────────────────────────────────────────────────────┤
+│ repositories  Interfaces e implementaciones         │  acceso a datos
+│ db            Engine, sesión, modelos ORM, Alembic  │  PostgreSQL
+└─────────────────────────────────────────────────────┘
+  Transversales: config, exceptions, utils
 ```
 
-Regla de dependencia: cada capa solo conoce a la de abajo, y **`domain` no importa a ninguna otra**. La base de datos depende del dominio, no al revés: el dominio define las interfaces de los repositorios y `infrastructure` las implementa (inversión de dependencias).
+Regla de dependencia: `controllers → services → repositories → db`, y **`models` no importa a ninguna otra capa**. Los services dependen de las **interfaces** de repositorio; las implementaciones con SQLAlchemy se inyectan (inversión de dependencias). `config`, `exceptions` y `utils` no importan de las capas de negocio.
 
 | Capa | Responsabilidad | No debe |
 |------|-----------------|---------|
-| `api` | Validar la forma de la entrada (Pydantic), autenticar, autorizar por rol, traducir excepciones a HTTP | Contener reglas de negocio ni consultar la base |
-| `application` | Un servicio por proceso (`PrestamoService`, `RemitoService`…). Cargar entidades, invocar al dominio, guardar, abrir y cerrar la transacción | Conocer HTTP ni SQL |
-| `domain` | Entidades con comportamiento, estados, políticas, excepciones de negocio, interfaces de repositorio | Importar FastAPI, SQLAlchemy ni Pydantic |
-| `infrastructure` | Modelos del ORM, repositorios, Unit of Work, scheduler, generador de números | Contener reglas de negocio |
+| `controllers` | Recibir el DTO de request, autenticar, autorizar por rol, llamar a un service y devolver un DTO de response. Traducir excepciones a HTTP | Contener reglas de negocio ni consultar la base |
+| `dtos` | `request/` y `response/`: esquemas Pydantic distintos de las entidades | Contener lógica ni importar `models` |
+| `services` | Un servicio por proceso (`PrestamoService`, `RemitoService`…). Cargar entidades, invocar al dominio, guardar, abrir y cerrar la transacción | Conocer HTTP ni SQL |
+| `models` | Entidades con comportamiento, estados (State), políticas (Strategy) y factories | Importar FastAPI, SQLAlchemy ni Pydantic |
+| `repositories` | `interfaces/` (puertos por agregado) e `impl/` (SQLAlchemy), mappers entre ORM y entidad, Unit of Work | Contener reglas de negocio |
+| `db` | Engine, sesión, **modelos ORM** (tablas) y migraciones Alembic | Contener reglas de negocio |
+| `config` | Variables de entorno (`settings`), seguridad (hash, JWT), logging | Importar capas de negocio |
+| `exceptions` | Excepciones de negocio con código estable | Importar HTTP |
+| `utils` | Funciones puras reutilizables (normalización de texto, fechas, numeración) | Tener estado ni dependencias de otras capas |
 
 ## Estructura de carpetas
 
@@ -29,70 +37,62 @@ Regla de dependencia: cada capa solo conoce a la de abajo, y **`domain` no impor
 backend/
 ├── app/
 │   ├── main.py                    # crea la app, registra routers y manejadores de error
-│   ├── core/
-│   │   ├── config.py              # configuración desde variables de entorno
-│   │   ├── security.py            # hash de contraseñas, creación y lectura de JWT
-│   │   └── logging.py
-│   ├── api/
-│   │   ├── dependencies.py        # sesión, usuario actual, control de rol
-│   │   ├── errors.py              # excepción de dominio -> respuesta HTTP
-│   │   ├── routers/               # sedes.py, socios.py, catalogo.py, prestamos.py, ...
-│   │   └── schemas/               # modelos Pydantic de request y response
-│   ├── application/
-│   │   ├── services/              # sede_service.py, prestamo_service.py, ...
-│   │   └── reports/               # consultas de lectura de los reportes R1-R6
-│   ├── domain/
-│   │   ├── entities/              # sede.py, socio.py, ejemplar.py, prestamo.py, remito.py, ...
+│   ├── config/                    # settings.py, security.py, logging.py
+│   ├── controllers/               # sede_controller.py, socio_controller.py, prestamo_controller.py, ...
+│   │   └── dependencies.py        # sesión, usuario actual, control de rol
+│   ├── dtos/
+│   │   ├── request/               # *_request.py
+│   │   └── response/              # *_response.py
+│   ├── services/                  # sede_service.py, prestamo_service.py, ...; reports/ (R1-R6)
+│   ├── models/                    # entidades de dominio: sede.py, socio.py, ejemplar.py, prestamo.py, remito.py, ...
 │   │   ├── states/                # estados de remito, préstamo, ejemplar, reserva
-│   │   ├── policies/              # cálculo de multa, plazos, selección de ejemplar
-│   │   ├── factories/             # PrestamoFactory
-│   │   ├── events.py              # eventos de dominio
-│   │   ├── exceptions.py          # errores de negocio con código
-│   │   └── repositories.py        # interfaces (puertos) de repositorio
-│   └── infrastructure/
-│       ├── db/
-│       │   ├── session.py         # engine y sesión
-│       │   ├── models/            # modelos SQLAlchemy
-│       │   ├── mappers.py         # modelo ORM <-> entidad
-│       │   ├── repositories/      # implementaciones SQLAlchemy
-│       │   └── unit_of_work.py
-│       ├── scheduler.py           # tareas periódicas
-│       └── notifications.py       # observadores de eventos (opcional)
+│   │   ├── policies/              # cálculo de multa, plazos, selección de ejemplar y sede origen
+│   │   └── factories/             # PrestamoFactory
+│   ├── repositories/
+│   │   ├── interfaces/            # puertos por agregado (sede_repository.py, ...)
+│   │   ├── impl/                  # implementaciones SQLAlchemy
+│   │   ├── mappers.py             # modelo ORM <-> entidad
+│   │   └── unit_of_work.py
+│   ├── db/
+│   │   ├── session.py             # engine y sesión
+│   │   └── models/                # modelos ORM (tablas)
+│   ├── exceptions/                # errores de negocio con código
+│   └── utils/                     # funciones puras
 ├── alembic/                       # migraciones
 ├── tests/
-│   ├── unit/                      # dominio y políticas, sin base
+│   ├── unit/                      # models y políticas, sin base
 │   ├── services/                  # casos de uso con repositorios en memoria
 │   ├── integration/               # repositorios y restricciones sobre PostgreSQL
-│   └── api/                       # endpoints con TestClient
+│   └── controllers/               # endpoints con TestClient
 ├── pyproject.toml
 └── Dockerfile
 ```
 
 ## Entidades de dominio y modelos del ORM
 
-**Propuesta T1.** Se mantienen separadas:
+**Decisión T1 (confirmada).** Se mantienen separadas:
 
-- Las **entidades de dominio** son clases Python comunes con comportamiento (`prestamo.entregar(...)`, `remito.despachar(...)`). No conocen la base.
-- Los **modelos del ORM** describen tablas y columnas. Los repositorios convierten entre ambos con `mappers.py`.
+- Las **entidades de dominio** (`app/models/`) son clases Python comunes con comportamiento (`prestamo.entregar(...)`, `remito.despachar(...)`). No conocen la base.
+- Los **modelos del ORM** (`app/db/models/`) describen tablas y columnas. Los repositorios convierten entre ambos con `mappers.py`.
 
 Ventajas: el dominio se prueba sin base ni frameworks (tests unitarios rápidos), las reglas no se mezclan con el esquema, y se evidencia la arquitectura que la cátedra evalúa. Costo: un mapeo adicional por entidad. Alternativa más corta: usar los modelos del ORM como entidades; es válida pero acopla el dominio a SQLAlchemy y complica los tests unitarios.
 
 ## Flujo de una solicitud
 
 ```
-Cliente ── HTTP ──▶ Router
+Cliente ── HTTP ──▶ Controller (DTO request)
                      │ valida esquema, autentica y autoriza el rol
                      ▼
-                  Servicio (application)
+                  Service
                      │ abre Unit of Work; carga entidades por repositorio
                      ▼
-                  Dominio: entidad.operación()   ◀── reglas y cambio de estado
+                  Models: entidad.operación()   ◀── reglas y cambio de estado
                      │ lanza excepción de negocio si una regla no se cumple
                      ▼
                   Servicio: guarda y confirma la transacción
                      │ publica eventos de dominio
                      ▼
-                  Router ──▶ esquema de respuesta ──▶ Cliente
+                  Controller ──▶ DTO response ──▶ Cliente
 ```
 
 Ejemplo, registrar un préstamo interbibliotecario (`PrestamoService.registrar`):
@@ -113,7 +113,7 @@ Ejemplo, registrar un préstamo interbibliotecario (`PrestamoService.registrar`)
 
 ## Errores
 
-El dominio lanza excepciones propias con un código estable; la capa `api` las traduce a HTTP en un único lugar.
+El dominio lanza excepciones propias con un código estable; la capa `controllers` las traduce a HTTP en un único lugar.
 
 | Excepción (dominio) | Código de error | HTTP |
 |---------------------|-----------------|------|
@@ -135,7 +135,7 @@ El dominio lanza excepciones propias con un código estable; la capa `api` las t
 | `LimiteReservasExcedido` | `LIMITE_RESERVAS` | 409 |
 | `HorarioInvalido` | `HORARIO_INVALIDO` | 422 |
 
-La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `domain/exceptions.py`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
+La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `exceptions/`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
 
 ## Seguridad
 
