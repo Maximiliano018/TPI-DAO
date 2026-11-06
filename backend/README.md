@@ -1,6 +1,6 @@
 # backend
 
-API en Python 3.12 con FastAPI, SQLAlchemy 2 y Alembic, organizada en capas (`api`, `application`, `domain`, `infrastructure`).
+API en Python 3.12 con FastAPI, SQLAlchemy 2 y Alembic, organizada en capas.
 Estructura y reglas en [docs/tecnica/01-arquitectura-backend.md](../docs/tecnica/01-arquitectura-backend.md).
 
 ## Estructura
