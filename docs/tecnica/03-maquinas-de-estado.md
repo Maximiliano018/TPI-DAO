@@ -13,7 +13,9 @@ stateDiagram-v2
     Baja --> Activa : reactivar
 ```
 
-Guarda: la baja se rechaza si hay préstamos activos o vencidos, remitos no cerrados, reservas pendientes o ejemplares propios fuera de la sede.
+Guarda de `dar_de_baja`: la baja se rechaza con `SedeConActividadPendiente` si algún verificador informa un impedimento: préstamos en curso, remitos abiertos, reservas pendientes, ejemplares alojados en la sede, ejemplares propios fuera de ella o bibliotecarios activos asignados (ver [Negocio](../negocio/01-sedes.md#se-puede-dar-de-baja-una-sede-con-actividad-pendiente)).
+
+Efectos: `dar_de_baja` registra fecha, motivo y usuario y escribe el evento `BAJA`; `reactivar` no tiene guarda, limpia esos datos y escribe `REACTIVACION`. Ambas transiciones bloquean la fila (`FOR UPDATE`) y la repetición de la misma transición se rechaza con `SEDE_YA_EN_BAJA` o `SEDE_YA_ACTIVA`. En `Baja` toda operación de modificación (datos, horarios, excepciones) se rechaza con `SEDE_EN_BAJA`.
 
 ## Socio
 

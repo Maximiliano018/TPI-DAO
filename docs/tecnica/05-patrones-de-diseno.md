@@ -15,6 +15,8 @@ El enunciado exige **al menos dos patrones**. Este documento analiza los que enc
 | 7 | Chain of Responsibility / Specification | Validaciones de préstamo | Baja | Opcional |
 | 8 | Dependency Injection | Servicios y repositorios | Alta | Sí (FastAPI lo trae) |
 | 9 | Facade | Servicios de aplicación | Media | Sí, de forma natural |
+| 10 | Strategy + Composite | Verificación de impedimentos de baja de sede | Alta | Sí |
+| 11 | Value Object | Dirección, contacto, código de sede, franja horaria | Media | Sí |
 
 **Propuesta:** los cuatro primeros más Unit of Work. Superan el mínimo de dos con holgura, y cada uno responde a un problema real del dominio y no se agrega por cumplir.
 
@@ -156,6 +158,72 @@ class PoliticaPlazo(Protocol):
 **Ventajas.** Reglas pequeñas, probables una a una, que se pueden reordenar o reutilizar (por ejemplo, la misma regla «socio habilitado» sirve para reservas). Facilita trazar los criterios `CA-PRE-01` a `CA-PRE-06`.
 
 **Costos.** Para ocho reglas simples, un método con guardas claras puede ser suficiente. Se recomienda solo si la lista crece o se reutiliza entre préstamos y reservas.
+
+---
+
+## 10. Strategy + Composite: verificación de baja de sede
+
+**Problema.** La baja de una sede se bloquea por seis tipos de actividad pendiente que viven en procesos distintos y que se construyen en iteraciones distintas (usuarios hoy; ejemplares, préstamos, remitos y reservas después). Si `SedeService` consultara todo directamente, estaría acoplado a módulos que no existen y cada módulo nuevo obligaría a modificarlo (viola abierto/cerrado).
+
+**Solución.** Un **puerto** definido por el dominio, una implementación por módulo y un compuesto que las agrupa.
+
+```python
+@dataclass(frozen=True)
+class Impedimento:
+    tipo: TipoImpedimento          # PRESTAMOS_EN_CURSO, REMITOS_ABIERTOS, ...
+    cantidad: int
+    elementos: list[ElementoImpedimento]   # muestra de hasta 10: id y referencia legible
+    hay_mas: bool
+
+class VerificadorImpedimentoBaja(Protocol):          # puerto (models/policies)
+    tipo: TipoImpedimento
+    def verificar(self, sede_id: int) -> Impedimento | None: ...
+    # devuelve None si no hay nada que bloquee
+
+class VerificadorBajaSede:                           # Composite (models/policies)
+    def __init__(self, verificadores: Sequence[VerificadorImpedimentoBaja]): ...
+    def verificar(self, sede_id: int) -> list[Impedimento]:
+        return [i for v in self._verificadores if (i := v.verificar(sede_id))]
+```
+
+El servicio obtiene la lista y se la entrega al dominio, que es quien decide:
+
+```python
+sede.dar_de_baja(motivo, usuario, impedimentos=verificador.verificar(sede.id))
+# lanza SedeConActividadPendiente(sede, impedimentos) si la lista no está vacía
+```
+
+**Dónde vive cada pieza.**
+
+| Pieza | Capa y archivo |
+|-------|----------------|
+| `Impedimento`, `TipoImpedimento`, puerto y compuesto | `models/policies/verificacion_baja_sede.py` |
+| Implementación de **usuarios** (bibliotecarios activos asignados) | `repositories/impl/usuario_verificador_baja_sede.py` (esta iteración) |
+| Implementaciones de ejemplares, préstamos, remitos y reservas | `repositories/impl/<modulo>_verificador_baja_sede.py`, cada una en el PR del módulo que corresponda |
+| Armado del compuesto con las implementaciones registradas | `controllers/dependencies.py` (raíz de composición) |
+
+**Cómo se suma un módulo.** El PR del módulo agrega su verificador, lo registra en la lista de la raíz de composición y suma las pruebas de su criterio de aceptación. No toca `SedeService` ni el dominio de sede.
+
+**Garantía de cobertura.** `TipoImpedimento` enumera los seis tipos. Una prueba de contrato (`tests/contract/test_verificadores_baja_sede.py`) falla si hay un tipo sin verificador registrado, salvo los de una lista explícita de pendientes (`TIPOS_PENDIENTES_DE_MODULO`) que **solo puede achicarse**. Así no se puede olvidar una verificación al agregar un módulo ni dar la baja por completa antes de tiempo.
+
+**Contrato para los demás módulos (concurrencia).** Toda operación que tome una sede como origen, destino, retiro o alta debe obtenerla con `SedeRepository.obtener_para_operar(id)`, que la bloquea con `FOR SHARE` y llama a `sede.validar_operativa()` (lanza `SedeEnBaja` si no está activa). La baja bloquea con `FOR UPDATE`. Así las dos se serializan: si la baja llega primero, la operación se rechaza; si la operación llega primero, la baja espera y después la ve.
+
+**Ventajas.**
+
+- `SedeService` no cambia cuando aparece un módulo nuevo.
+- Cada verificación se prueba sola, con datos propios.
+- La regla de decisión (bloquear si hay impedimentos) queda en un único lugar del dominio.
+- Para las pruebas de servicio se inyectan verificadores falsos que simulan cada tipo de actividad, sin esperar a los demás módulos.
+
+**Costos.** Una abstracción más y una prueba de contrato que mantener. Se justifica porque el negocio ya declaró que son seis causas en cuatro módulos que se construyen por separado.
+
+**Alternativas descartadas.** (a) Consultas SQL directas en `SedeService`: acoplamiento fuerte y tablas que aún no existen. (b) Eventos de dominio: la verificación debe ser síncrona y dentro de la misma transacción que la baja, y un evento la volvería asincrónica y opaca. (c) Una vista SQL «actividad por sede»: oculta reglas de negocio en la base y se desactualiza con cada módulo.
+
+---
+
+## 11. Value Object
+
+Los datos que se validan juntos y no tienen identidad propia son objetos de valor inmutables que se validan al construirse: `CodigoSede` (formato y mayúsculas), `Telefono` (E.164), `Email`, `Direccion` (calle, número, localidad y su forma normalizada para comparar), `FranjaHoraria` (día, apertura y cierre, con la regla de cierre posterior) y `ExcepcionHorario`. Así la regla vive en un solo lugar, el dominio nunca maneja cadenas sin validar y se prueba sin base de datos.
 
 ---
 

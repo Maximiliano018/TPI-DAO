@@ -11,14 +11,14 @@ Proceso obligatorio 2 del enunciado. Los puntos marcados como *A consultar* sigu
 | Nombre y apellido | Obligatorios |
 | Fecha de nacimiento | Dato informativo y de apoyo para detectar duplicados; no condiciona el alta |
 | Contacto | Correo, teléfono, domicilio |
-| Sede de alta | Sede donde se registró el socio |
+| Sede de alta | Sede donde se registró el socio. Es solo un **dato de registro**: no vincula al socio con la sede ni limita dónde puede operar |
 | Fecha de alta | Automática |
 | Estado | `Habilitado` / `Inhabilitado` |
 | Motivo de inhabilitación | Texto o causa (`Multa impaga`, `Préstamo vencido`, `Decisión administrativa`) |
 
 ## ¿Quién administra los socios?
 
-El **Bibliotecario** (alta, modificación, habilitación) en cualquier sede de la red; el **Administrador** además puede corregir datos y resolver conflictos. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa.
+El **Bibliotecario** (alta, modificación, habilitación) en cualquier sede de la red; el **Administrador** además puede corregir datos y resolver conflictos. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa. No se puede dar de alta un socio en una sede en `Baja`, y la baja de la sede de alta no afecta al socio.
 
 ## ¿Quién puede ver esta información?
 

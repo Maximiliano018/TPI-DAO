@@ -55,15 +55,19 @@ backend/
 │   │   └── unit_of_work.py
 │   ├── db/
 │   │   ├── session.py             # engine y sesión
-│   │   └── models/                # modelos ORM (tablas)
+│   │   ├── models/                # modelos ORM (tablas)
+│   │   └── seed.py                # datos de demostración (solo desarrollo y test)
 │   ├── exceptions/                # errores de negocio con código
 │   └── utils/                     # funciones puras
 ├── alembic/                       # migraciones
-├── tests/
+├── tests/                         # estructura completa en 07-testing-y-calidad.md
 │   ├── unit/                      # models y políticas, sin base
 │   ├── services/                  # casos de uso con repositorios en memoria
 │   ├── integration/               # repositorios y restricciones sobre PostgreSQL
-│   └── controllers/               # endpoints con TestClient
+│   ├── controllers/               # endpoints con TestClient
+│   ├── contract/                  # contratos entre módulos (verificadores de baja, OpenAPI)
+│   ├── fakes/                     # repositorios y verificadores en memoria
+│   └── factories/                 # fábricas de datos de prueba
 ├── pyproject.toml
 └── Dockerfile
 ```
@@ -128,20 +132,33 @@ El dominio lanza excepciones propias con un código estable; la capa `controller
 | `DuplicadoError` | `DUPLICADO` | 409 |
 | `SedeConActividadPendiente` | `SEDE_CON_ACTIVIDAD_PENDIENTE` | 409 |
 | `PermisoDenegado` | `FORBIDDEN` | 403 |
+| `ErrorDeValidacion` (forma: tipo, largo, formato) | `VALIDACION` | 422 |
 | `CredencialesInvalidas` | `CREDENCIALES_INVALIDAS` | 401 |
 | `EjemplarEnOtroRemito` | `EJEMPLAR_EN_OTRO_REMITO` | 409 |
 | `HayEjemplaresDisponibles` | `HAY_EJEMPLARES_DISPONIBLES` | 409 |
 | `ReservaDuplicada` | `RESERVA_DUPLICADA` | 409 |
 | `LimiteReservasExcedido` | `LIMITE_RESERVAS` | 409 |
 | `HorarioInvalido` | `HORARIO_INVALIDO` | 422 |
+| `SedeNoEncontrada` | `SEDE_NO_ENCONTRADA` | 404 |
+| `SedeCodigoDuplicado` | `SEDE_CODIGO_DUPLICADO` | 409 |
+| `SedeNombreDuplicado` | `SEDE_NOMBRE_DUPLICADO` | 409 |
+| `DireccionDuplicada` | `DIRECCION_DUPLICADA` | 409 |
+| `SedeYaEnBaja` / `SedeYaActiva` | `SEDE_YA_EN_BAJA` / `SEDE_YA_ACTIVA` | 409 |
+| `CodigoInmutable` | `CODIGO_INMUTABLE` | 422 |
+| `LocalidadInvalida` | `LOCALIDAD_INVALIDA` | 422 |
+| `ExcepcionHorarioInvalida` | `EXCEPCION_HORARIO_INVALIDA` | 422 |
+| `ExcepcionHorarioSuperpuesta` | `EXCEPCION_HORARIO_SUPERPUESTA` | 409 |
+| `ConflictoDeVersion` | `CONFLICTO_DE_VERSION` | 409 |
+| `TokenInvalido` | `TOKEN_INVALIDO` | 401 |
 
 La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `exceptions/`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
 
 ## Seguridad
 
 - Contraseñas con hash (Argon2 o bcrypt); nunca se guardan ni se registran en claro.
-- JWT con vencimiento corto; el token incluye `sub`, `rol` y `sede_id`.
-- Autorización por dependencia: cada endpoint declara los roles que admite. Además, el servicio verifica que el bibliotecario opere solo sobre **su** sede (`RF-ACC-04`).
+- JWT con vencimiento corto (60 min); el token incluye `sub`, `rol` y `sede_id`, pero el usuario se **recarga de la base en cada solicitud** (`RF-ACC-08`, `RF-ACC-10`).
+- Autorización por **permiso**: el dominio define el mapa rol → permisos (`models/permisos.py`); cada endpoint declara con `requiere(Permiso.X)` lo que exige. Además, el servicio verifica que el bibliotecario opere solo sobre **su** sede (`RF-ACC-04`) con `usuario.opera_en(sede_id)`.
+- El DTO de respuesta de sede se elige según el permiso de lectura que tenga el usuario (completo, básico o público), de modo que un campo no autorizado **nunca se serializa**: no se «oculta» después.
 - El socio accede solo a sus propios datos (`RF-ACC-05`): el filtro se aplica en el servicio, no en el cliente.
 - Secretos y credenciales solo por variables de entorno; `.env` está en `.gitignore` y existe un `.env.example` sin valores reales.
 - CORS restringido al origen del frontend.
@@ -157,7 +174,9 @@ Variables de entorno leídas con `pydantic-settings`:
 | `SECRET_KEY` | Firma de los JWT |
 | `ACCESS_TOKEN_MINUTES` | Duración del token |
 | `CORS_ORIGINS` | Orígenes permitidos |
-| `TZ_NEGOCIO` | Zona horaria para plazos (`America/Argentina/Cordoba`) |
+| `TZ_NEGOCIO` | Zona horaria para plazos y horarios de sede (`America/Argentina/Cordoba`) |
+| `ENTORNO` | `desarrollo`, `test` o `produccion`; el seed solo corre en los dos primeros |
+| `SEED_PASSWORD` | Contraseña de los usuarios de demostración (solo seed) |
 
 Los parámetros de negocio (plazos, límites, monto de multa) **no** son variables de entorno sino filas de la tabla `parametro`, editables por el administrador sin redesplegar.
 

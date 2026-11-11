@@ -8,26 +8,79 @@ Diagramas UML en Mermaid (se visualizan en GitHub). Muestran el dominio; los nom
 classDiagram
     class Sede {
         +int id
-        +str codigo
+        +CodigoSede codigo
         +str nombre
         +Direccion direccion
         +Contacto contacto
+        +list~FranjaHoraria~ horarios
+        +list~ExcepcionHorario~ excepciones
         +EstadoSede estado
-        +dar_de_baja(motivo)
-        +reactivar()
+        +int version
+        +dar_de_baja(motivo, usuario, impedimentos)
+        +reactivar(usuario)
+        +modificar(datos, usuario)
+        +reemplazar_horarios(franjas)
+        +agregar_excepcion(excepcion, hoy)
+        +quitar_excepcion(id, hoy)
+        +esta_abierta(momento) bool
         +esta_activa() bool
+        +validar_operativa()
     }
-    class HorarioSede {
+    class Direccion {
+        <<value object>>
+        +str calle
+        +str numero
+        +Localidad localidad
+        +normalizada() str
+    }
+    class Contacto {
+        <<value object>>
+        +Telefono telefono
+        +Email email
+        +str responsable
+    }
+    class FranjaHoraria {
+        <<value object>>
         +DiaSemana dia
         +time apertura
         +time cierre
+        +se_solapa_con(otra) bool
+    }
+    class ExcepcionHorario {
+        <<value object>>
+        +date fecha
+        +TipoExcepcion tipo
+        +time desde
+        +time hasta
+        +str motivo
+    }
+    class EventoSede {
+        +TipoEventoSede tipo
+        +datetime fecha_hora
+        +list~Cambio~ cambios
+        +str motivo
+    }
+    class Impedimento {
+        <<value object>>
+        +TipoImpedimento tipo
+        +int cantidad
+        +list elementos
+    }
+    class VerificadorImpedimentoBaja {
+        <<interface>>
+        +verificar(sede_id) Impedimento
+    }
+    class VerificadorBajaSede {
+        +verificar(sede_id) list~Impedimento~
     }
     class Usuario {
         +int id
         +str username
         +Rol rol
         +bool activo
-        +puede(accion) bool
+        +int sede_id
+        +puede(permiso) bool
+        +opera_en(sede_id) bool
     }
     class Socio {
         +int id
@@ -146,7 +199,14 @@ classDiagram
         +datetime fecha
     }
 
-    Sede "1" o-- "*" HorarioSede
+    Sede "1" *-- "1..*" FranjaHoraria
+    Sede "1" *-- "*" ExcepcionHorario
+    Sede "1" *-- "1" Direccion
+    Sede "1" *-- "1" Contacto
+    Sede "1" --> "*" EventoSede : historial
+    VerificadorBajaSede o-- "*" VerificadorImpedimentoBaja
+    VerificadorImpedimentoBaja ..> Impedimento : produce
+    Sede ..> Impedimento : rechaza la baja si hay
     Sede "1" --> "*" Ejemplar : propietaria
     Sede "1" --> "*" Usuario : bibliotecarios
     Libro "1" --> "*" Ejemplar
@@ -173,6 +233,10 @@ classDiagram
 ```
 
 ### Notas del modelo
+
+- **La sede decide.** `Sede.dar_de_baja(...)` recibe los impedimentos ya calculados y lanza `SedeConActividadPendiente` si hay alguno; `Sede.validar_operativa()` lanza `SedeEnBaja` y es la guarda que usan los demás módulos antes de operar con una sede. `Sede.modificar`, `reemplazar_horarios`, `agregar_excepcion` y `quitar_excepcion` rechazan con `SedeEnBaja` si la sede está dada de baja.
+- **Permisos.** `Permiso` es una enumeración y `ROL_PERMISOS` el mapa rol → permisos; `Usuario.puede(permiso)` consulta el mapa. Los roles son tres y fijos.
+- **`esta_abierta(momento)`** combina horario semanal y excepciones en la zona de negocio; el reloj se inyecta.
 
 - **Libro y ejemplar son clases distintas.** El libro es la obra; el ejemplar es la copia física con sede, estado físico y estado de disponibilidad.
 - **Un préstamo tiene un solo ejemplar** y dos sedes: origen (donde está el ejemplar) y destino (donde lo retira el socio). En el préstamo local coinciden.
