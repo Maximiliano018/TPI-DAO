@@ -1,0 +1,132 @@
+import { useState } from 'react';
+import {
+  EmptyState,
+  ErrorState,
+  FilterBar,
+  FiltroSelect,
+  Pagination,
+  Skeleton,
+  Timeline,
+} from '../../../components/index.js';
+import { estadoDe } from '../../../utils/estados.js';
+import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
+import { useHistorialSede } from '../hooks/useSedes.js';
+import estilos from './Sedes.module.css';
+
+export const EVENTOS = {
+  ALTA: 'Alta de la sede',
+  MODIFICACION: 'Modificación',
+  BAJA: 'Baja',
+  REACTIVACION: 'Reactivación',
+  EXCEPCION_AGREGADA: 'Cierre agregado',
+  EXCEPCION_ELIMINADA: 'Cierre quitado',
+};
+
+const CAMPOS = {
+  excepcion: 'Cierre',
+  nombre: 'Nombre',
+  calle: 'Calle',
+  numero: 'Número',
+  localidad: 'Localidad',
+  telefono: 'Teléfono',
+  email: 'Correo',
+  responsable: 'Responsable',
+  horarios: 'Horarios',
+};
+
+const TIPOS_DE_CIERRE = { CIERRE_TOTAL: 'cierre total', CIERRE_PARCIAL: 'cierre parcial' };
+
+const esCierre = (valor) =>
+  valor && typeof valor === 'object' && 'fecha' in valor && 'tipo' in valor;
+
+/** Valor de un cambio en texto: los cierres se describen; el resto se muestra tal cual. */
+const texto = (valor) => {
+  if (valor === null || valor === undefined || valor === '') return '—';
+  if (esCierre(valor)) {
+    const horas = valor.hora_desde ? ` de ${valor.hora_desde} a ${valor.hora_hasta}` : '';
+    const motivo = valor.motivo ? ` (${valor.motivo})` : '';
+    return `${formatearFecha(valor.fecha)}, ${TIPOS_DE_CIERRE[valor.tipo] ?? valor.tipo}${horas}${motivo}`;
+  }
+  return typeof valor === 'string' ? valor : JSON.stringify(valor);
+};
+
+function Contenido({ evento }) {
+  const hayEstado = evento.estado_anterior || evento.estado_nuevo;
+  return (
+    <>
+      {hayEstado && (
+        <p style={{ margin: 0 }}>
+          Estado: {evento.estado_anterior ? estadoDe('sede', evento.estado_anterior).texto : '—'} →{' '}
+          {estadoDe('sede', evento.estado_nuevo).texto}
+        </p>
+      )}
+      {evento.motivo && <p style={{ margin: 0 }}>Motivo: {evento.motivo}</p>}
+      {evento.cambios.length > 0 && (
+        <ul className={estilos.cambios}>
+          {evento.cambios.map((c, i) => (
+            <li key={`${c.campo}-${i}`}>
+              {CAMPOS[c.campo] ?? c.campo}: {texto(c.antes)} → {texto(c.despues)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+/** Línea de tiempo de auditoría (solo administrador), paginada y con filtro por tipo. */
+export default function HistorialSede({ sedeId }) {
+  const [tipo, setTipo] = useState('');
+  const [page, setPage] = useState(1);
+  const { data, isPending, error, refetch } = useHistorialSede(sedeId, {
+    tipo_evento: tipo,
+    page,
+    size: 10,
+  });
+
+  return (
+    <div className={estilos.seccion}>
+      <FilterBar
+        etiqueta="Filtros del historial"
+        hayFiltros={Boolean(tipo)}
+        onLimpiar={() => {
+          setTipo('');
+          setPage(1);
+        }}
+      >
+        <FiltroSelect
+          etiqueta="Tipo de evento"
+          valor={tipo}
+          onCambiar={(v) => {
+            setTipo(v);
+            setPage(1);
+          }}
+        >
+          <option value="">Todos</option>
+          {Object.entries(EVENTOS).map(([valor, etiqueta]) => (
+            <option key={valor} value={valor}>
+              {etiqueta}
+            </option>
+          ))}
+        </FiltroSelect>
+      </FilterBar>
+      {isPending && <Skeleton alto={120} />}
+      {error && <ErrorState error={error} onReintentar={refetch} />}
+      {data && data.items.length === 0 && <EmptyState titulo="Sin eventos para mostrar" />}
+      {data && data.items.length > 0 && (
+        <>
+          <Timeline
+            etiqueta="Historial de la sede"
+            items={data.items.map((e) => ({
+              id: e.id,
+              titulo: EVENTOS[e.tipo_evento] ?? e.tipo_evento,
+              meta: `${e.usuario.nombre} · ${formatearFechaHora(e.fecha_hora)}`,
+              contenido: <Contenido evento={e} />,
+            }))}
+          />
+          <Pagination page={data.page} size={data.size} total={data.total} onPage={setPage} />
+        </>
+      )}
+    </div>
+  );
+}

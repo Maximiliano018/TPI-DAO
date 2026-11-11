@@ -100,3 +100,48 @@ export function sedePublica(over = {}) {
 export function pagina(items, over = {}) {
   return { items, total: items.length, page: 1, size: 20, ...over };
 }
+
+export const LOCALIDADES = [
+  { id: 1, nombre: 'Córdoba', departamento: 'Capital', provincia_id: 1, provincia: 'Córdoba' },
+  {
+    id: 2,
+    nombre: 'Villa María',
+    departamento: 'General San Martín',
+    provincia_id: 1,
+    provincia: 'Córdoba',
+  },
+  {
+    id: 3,
+    nombre: 'Río Cuarto',
+    departamento: 'Río Cuarto',
+    provincia_id: 1,
+    provincia: 'Córdoba',
+  },
+];
+
+export function excepcion(over = {}) {
+  return {
+    id: 7,
+    fecha: '2026-12-24',
+    tipo: 'CIERRE_TOTAL',
+    hora_desde: null,
+    hora_hasta: null,
+    motivo: 'Víspera de Navidad',
+    ...over,
+  };
+}
+
+export function evento(over = {}) {
+  return {
+    id: 1,
+    tipo_evento: 'MODIFICACION',
+    fecha_hora: '2026-10-15T12:00:00Z',
+    usuario: { id: 1, nombre: 'Ana Admin' },
+    estado_anterior: null,
+    estado_nuevo: null,
+    motivo: null,
+    version_resultante: 2,
+    cambios: [{ campo: 'telefono', antes: '+543514221234', despues: '+543514229999' }],
+    ...over,
+  };
+}

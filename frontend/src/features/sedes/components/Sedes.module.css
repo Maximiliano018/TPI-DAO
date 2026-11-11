@@ -1,0 +1,94 @@
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.codigo {
+  font-family: var(--font-mono);
+}
+.filtros {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.filtros > * {
+  min-width: 200px;
+}
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+.definiciones {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+.definiciones dt {
+  color: var(--color-text-muted);
+}
+.definiciones dd {
+  margin: 0;
+}
+.semana {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.dia {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+.hoy {
+  background: var(--color-primary-100);
+  font-weight: 600;
+}
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.excepciones {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.excepcion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.grupo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+}
+.cambios {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  font-size: var(--text-sm);
+}
+.barraDeAcciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.filtroLocalidad {
+  min-width: 240px;
+}
