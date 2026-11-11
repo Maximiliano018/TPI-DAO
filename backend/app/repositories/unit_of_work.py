@@ -4,6 +4,7 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.repositories.interfaces.sede_repository import LocalidadRepository, SedeRepository
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
 
 
@@ -11,6 +12,8 @@ class UnitOfWork(Protocol):
     """Agrupa los repositorios de una transacción."""
 
     usuarios: UsuarioRepository
+    sedes: SedeRepository
+    localidades: LocalidadRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -25,10 +28,16 @@ class SqlAlchemyUnitOfWork:
     """Unit of Work sobre una sesión de SQLAlchemy (una por solicitud)."""
 
     def __init__(self, sesion: Session) -> None:
+        from app.repositories.impl.sede_repository import (
+            SqlAlchemyLocalidadRepository,
+            SqlAlchemySedeRepository,
+        )
         from app.repositories.impl.usuario_repository import SqlAlchemyUsuarioRepository
 
         self.sesion = sesion
         self.usuarios: UsuarioRepository = SqlAlchemyUsuarioRepository(sesion)
+        self.sedes: SedeRepository = SqlAlchemySedeRepository(sesion)
+        self.localidades: LocalidadRepository = SqlAlchemyLocalidadRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()

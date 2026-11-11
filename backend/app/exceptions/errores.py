@@ -36,6 +36,10 @@ class UsuarioNoEncontrado(EntidadNoEncontrada):
     codigo = "USUARIO_NO_ENCONTRADO"
 
 
+class ExcepcionHorarioNoEncontrada(EntidadNoEncontrada):
+    codigo = "EXCEPCION_HORARIO_NO_ENCONTRADA"
+
+
 class ReglaDeNegocioViolada(ErrorDeNegocio):
     codigo = "REGLA_DE_NEGOCIO"
 

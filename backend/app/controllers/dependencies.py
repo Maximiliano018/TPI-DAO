@@ -9,9 +9,11 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db.session import sesion_por_solicitud
 from app.exceptions import TokenInvalido
+from app.models.policies.verificacion_baja_sede import VerificadorBajaSede
 from app.models.usuario import Permiso, Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.auth_service import AuthService
+from app.services.sede_service import SedeService
 from app.utils.reloj import Reloj, RelojSistema
 
 _esquema_bearer = HTTPBearer(auto_error=False)
@@ -31,6 +33,23 @@ def get_auth_service(
     settings: Settings = Depends(get_settings),
 ) -> AuthService:
     return AuthService(uow, reloj, settings)
+
+
+def get_verificador_baja_sede(uow: UnitOfWork = Depends(get_uow)) -> VerificadorBajaSede:
+    """Compuesto de verificadores de impedimentos de baja.
+
+    Cada módulo registra el suyo acá cuando se implementa; ver ``TIPOS_PENDIENTES_DE_MODULO``
+    en la prueba de contrato.
+    """
+    return VerificadorBajaSede([])
+
+
+def get_sede_service(
+    uow: UnitOfWork = Depends(get_uow),
+    reloj: Reloj = Depends(get_reloj),
+    verificador: VerificadorBajaSede = Depends(get_verificador_baja_sede),
+) -> SedeService:
+    return SedeService(uow, reloj, verificador)
 
 
 def usuario_actual(
