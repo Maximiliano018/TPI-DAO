@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.controllers import auth_controller, version_controller
+from app.controllers import auth_controller, sede_controller, version_controller
 from app.controllers.manejo_errores import registrar_manejadores
 
 
@@ -20,6 +20,7 @@ def crear_app() -> FastAPI:
     registrar_manejadores(app)
     app.include_router(version_controller.router)
     app.include_router(auth_controller.router)
+    app.include_router(sede_controller.router)
     return app
 
 
