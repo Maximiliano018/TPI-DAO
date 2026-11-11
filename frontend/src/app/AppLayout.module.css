@@ -1,0 +1,23 @@
+.estructura {
+  min-height: 100vh;
+}
+.principal {
+  padding: var(--space-4);
+}
+.principal:focus {
+  outline: none;
+}
+.contenido {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+@media (min-width: 640px) {
+  .principal {
+    padding: var(--space-6);
+  }
+}
+@media (min-width: 1024px) {
+  .principal {
+    margin-left: var(--sidebar-width);
+  }
+}

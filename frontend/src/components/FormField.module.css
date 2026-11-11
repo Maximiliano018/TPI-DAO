@@ -1,0 +1,23 @@
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.etiqueta {
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.requerido {
+  color: var(--color-danger-700);
+}
+.ayuda {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.error {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-danger-800);
+  font-weight: 500;
+}

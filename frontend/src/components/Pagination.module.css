@@ -1,0 +1,30 @@
+.paginacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.total {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+.tamano {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+.tamano select {
+  min-height: 32px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-2);
+  font: inherit;
+}
+.botones {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}

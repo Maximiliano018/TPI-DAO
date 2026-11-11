@@ -1,0 +1,23 @@
+.tarjeta {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.etiqueta {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+.valor {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: 600;
+}
+.enlace {
+  font-size: var(--text-sm);
+}

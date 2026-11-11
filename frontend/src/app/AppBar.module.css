@@ -1,0 +1,75 @@
+.barra {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--appbar-height);
+  padding: 0 var(--space-4);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+.menu {
+  min-width: 40px;
+  min-height: 40px;
+  background: none;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+.sistema {
+  font-weight: 600;
+  flex: 1;
+}
+.sede {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.usuario {
+  position: relative;
+}
+.boton {
+  min-height: 40px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-3);
+  font: inherit;
+  cursor: pointer;
+}
+.panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+}
+.datos {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+.datos span {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+@media (min-width: 1024px) {
+  .menu {
+    display: none;
+  }
+}
+@media (max-width: 639px) {
+  .sede {
+    display: none;
+  }
+}

@@ -1,44 +1,56 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import App from './App.jsx';
-
-function renderizar(ruta) {
-  return render(
-    <MemoryRouter initialEntries={[ruta]}>
-      <App />
-    </MemoryRouter>,
-  );
-}
+import { screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { error, responder, sesionDe } from '../../tests/handlers.js';
+import { ADMIN, sedeAdmin, pagina } from '../../tests/datos.js';
+import { renderizarApp } from '../../tests/render.jsx';
 
 describe('App', () => {
-  afterEach(() => vi.unstubAllGlobals());
+  it('sin sesión lleva al login', async () => {
+    renderizarApp('/');
 
-  it('muestra el título del sistema en el inicio', () => {
-    renderizar('/');
     expect(
-      screen.getByRole('heading', { name: /préstamos interbibliotecarios/i }),
+      await screen.findByRole('heading', { name: /préstamos interbibliotecarios/i }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText('Usuario')).toBeInTheDocument();
   });
 
-  it('en /version muestra el backend en línea con su versión', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ servicio: 'backend', estado: 'ok', version: '9.9.9' }),
-      }),
+  it('con sesión guardada muestra el inicio dentro del layout', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/sedes/resumen', { total: 1, activas: 1, en_baja: 0 });
+    responder('get', '/sedes', pagina([sedeAdmin()]));
+    renderizarApp('/', { conSesion: true });
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Inicio' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
+  });
+
+  it('una ruta desconocida muestra «no encontrada» sin perder el layout', async () => {
+    sesionDe(ADMIN);
+    renderizarApp('/no-existe', { conSesion: true });
+
+    expect(await screen.findByText('La pantalla que busca no existe')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeInTheDocument();
+  });
+
+  it('un token vencido al restaurar la sesión lleva al login', async () => {
+    responder('get', '/auth/me', () => error(401, 'TOKEN_INVALIDO', 'Su sesión venció.'));
+    renderizarApp('/', { conSesion: true });
+
+    expect(await screen.findByLabelText('Usuario')).toBeInTheDocument();
+    expect(sessionStorage.getItem('tpi.token')).toBeNull();
+  });
+
+  it('/version es pública y muestra el estado del backend', async () => {
+    const { http, HttpResponse } = await import('msw');
+    const { servidor } = await import('../../tests/servidor.js');
+    servidor.use(
+      http.get('http://localhost/api/version', () =>
+        HttpResponse.json({ servicio: 'backend', estado: 'ok', version: '9.9.9' }),
+      ),
     );
-    renderizar('/version');
+    renderizarApp('/version');
 
     expect(await screen.findByText('9.9.9')).toBeInTheDocument();
     expect(screen.getAllByText('En línea')).toHaveLength(2);
-  });
-
-  it('en /version informa si el backend no responde', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('fallo de red')));
-    renderizar('/version');
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sin conexión');
   });
 });

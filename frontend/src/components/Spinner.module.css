@@ -1,0 +1,36 @@
+.contenedor {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-muted);
+  padding: var(--space-4) 0;
+}
+.rueda {
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary-700);
+  border-radius: 50%;
+  animation: girar 0.8s linear infinite;
+}
+.esqueleto {
+  background: linear-gradient(
+    90deg,
+    var(--color-neutral-100),
+    var(--color-border),
+    var(--color-neutral-100)
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: brillo 1.4s ease infinite;
+}
+@keyframes girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes brillo {
+  to {
+    background-position: -200% 0;
+  }
+}

@@ -1,0 +1,50 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.tarjetas {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.elemento {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+.elemento + .elemento {
+  border-top: 1px solid var(--color-border);
+}
+.detalle {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.estados {
+  display: flex;
+  gap: var(--space-2);
+}
+.miSede p {
+  margin: 0 0 var(--space-2);
+}
+.nombre {
+  font-weight: 600;
+}
+.subtitulo {
+  font-size: var(--text-md);
+  margin: var(--space-3) 0 var(--space-1);
+}
