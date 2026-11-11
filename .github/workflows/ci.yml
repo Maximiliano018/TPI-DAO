@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: tpi_dao
+          POSTGRES_USER: tpi_dao
+          POSTGRES_PASSWORD: ci_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U tpi_dao -d tpi_dao"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://tpi_dao:ci_password@localhost:5432/tpi_dao
+      SECRET_KEY: clave-de-ci-con-mas-de-treinta-y-dos-caracteres
+      ENTORNO: test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/pyproject.toml
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy app/models app/services
+      - run: pytest --cov=app --cov-report=term-missing
+      - name: Migraciones aplican sobre una base vacía y no quedan cambios sin migrar
+        run: |
+          alembic upgrade head
+          alembic check
+      - name: Trazabilidad de criterios de aceptación
+        run: python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC --estricto
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build

@@ -7,7 +7,7 @@ Estructura y reglas en [docs/tecnica/01-arquitectura-backend.md](../docs/tecnica
 
 `app/` se organiza en `controllers`, `dtos` (`request` y `response`), `services`, `models` (dominio), `repositories`, `db`, `config`, `exceptions` y `utils`. Las carpetas están creadas vacías; se completan con cada módulo.
 
-Pendiente: mypy, conexión a la base y Alembic.
+Persistencia con SQLAlchemy 2 y migraciones con Alembic (`alembic/`). Comandos de pruebas, lint y migraciones en [`CLAUDE.md`](../CLAUDE.md).
 
 ## Comandos
 
