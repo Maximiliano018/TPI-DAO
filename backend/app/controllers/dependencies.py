@@ -14,6 +14,8 @@ from app.models.usuario import Permiso, Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.auth_service import AuthService
 from app.services.sede_service import SedeService
+from app.services.usuario_service import UsuarioService
+from app.services.verificadores_baja_sede import VerificadorBibliotecariosAsignados
 from app.utils.reloj import Reloj, RelojSistema
 
 _esquema_bearer = HTTPBearer(auto_error=False)
@@ -41,7 +43,7 @@ def get_verificador_baja_sede(uow: UnitOfWork = Depends(get_uow)) -> Verificador
     Cada módulo registra el suyo acá cuando se implementa; ver ``TIPOS_PENDIENTES_DE_MODULO``
     en la prueba de contrato.
     """
-    return VerificadorBajaSede([])
+    return VerificadorBajaSede([VerificadorBibliotecariosAsignados(uow.usuarios)])
 
 
 def get_sede_service(
@@ -50,6 +52,12 @@ def get_sede_service(
     verificador: VerificadorBajaSede = Depends(get_verificador_baja_sede),
 ) -> SedeService:
     return SedeService(uow, reloj, verificador)
+
+
+def get_usuario_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> UsuarioService:
+    return UsuarioService(uow, reloj)
 
 
 def usuario_actual(

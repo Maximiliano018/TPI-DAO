@@ -11,8 +11,8 @@ from pydantic import BaseModel
 
 from app.models.horario import ExcepcionHorario
 from app.models.paginacion import Pagina
-from app.models.sede import EventoSede, Sede, UsuarioRef
-from app.models.usuario import Permiso, Usuario
+from app.models.sede import EventoSede, Sede
+from app.models.usuario import Permiso, Usuario, UsuarioRef
 from app.models.valores import Localidad
 from app.services.sede_service import VistaSede
 

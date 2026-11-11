@@ -1,6 +1,9 @@
 """Repositorios y Unit of Work en memoria para las pruebas de dominio y de servicios."""
 
-from app.models.usuario import Usuario
+from app.exceptions import DuplicadoError
+from app.models.usuario import ROLES_DE_PERSONAL, Rol, Usuario
+from app.repositories.interfaces.usuario_repository import FiltroUsuarios
+from app.utils.texto import normalizar
 from tests.factories.sede import CORDOBA, RIO_CUARTO
 
 
@@ -13,16 +16,55 @@ class UsuarioRepositorioEnMemoria:
             self.agregar(usuario)
 
     def agregar(self, usuario: Usuario) -> Usuario:
+        if any(u.username == usuario.username for u in self._usuarios.values()):
+            raise DuplicadoError("Ya existe un usuario con ese nombre de usuario.")
         if usuario.id is None:
             usuario.id = max(self._usuarios, default=0) + 1
         self._usuarios[usuario.id] = usuario
         return usuario
 
+    def guardar(self, usuario: Usuario) -> None:
+        assert usuario.id in self._usuarios
+
     def obtener(self, usuario_id: int) -> Usuario | None:
         return self._usuarios.get(usuario_id)
 
+    obtener_detalle = obtener
+    obtener_para_modificar = obtener
+
     def obtener_por_username(self, username: str) -> Usuario | None:
         return next((u for u in self._usuarios.values() if u.username == username), None)
+
+    def listar(self, filtro: FiltroUsuarios, page: int, size: int) -> tuple[list[Usuario], int]:
+        usuarios = [u for u in self._usuarios.values() if u.rol in ROLES_DE_PERSONAL]
+        if filtro.rol:
+            usuarios = [u for u in usuarios if u.rol == filtro.rol]
+        if filtro.sede_id is not None:
+            usuarios = [u for u in usuarios if u.sede_id == filtro.sede_id]
+        if filtro.activo is not None:
+            usuarios = [u for u in usuarios if u.activo == filtro.activo]
+        if filtro.texto:
+            usuarios = [
+                u
+                for u in usuarios
+                if filtro.texto in normalizar(u.nombre) or filtro.texto in u.username
+            ]
+        usuarios.sort(key=lambda u: normalizar(u.nombre))
+        inicio = (page - 1) * size
+        return usuarios[inicio : inicio + size], len(usuarios)
+
+    def bibliotecarios_activos_de_sede(
+        self, sede_id: int, limite: int
+    ) -> tuple[list[Usuario], int]:
+        asignados = sorted(
+            (
+                u
+                for u in self._usuarios.values()
+                if u.rol == Rol.BIBLIOTECARIO and u.activo and u.sede_id == sede_id
+            ),
+            key=lambda u: u.username,
+        )
+        return asignados[:limite], len(asignados)
 
 
 class UnitOfWorkEnMemoria:
@@ -54,7 +96,6 @@ from app.repositories.interfaces.sede_repository import (  # noqa: E402
     FiltroHistorial,
     FiltroSedes,
 )
-from app.utils.texto import normalizar  # noqa: E402
 
 
 class SedeRepositorioEnMemoria:

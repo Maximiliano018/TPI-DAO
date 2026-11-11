@@ -16,6 +16,7 @@ from app.exceptions import (
 )
 from app.models.horario import ExcepcionHorario, validar_horarios
 from app.models.policies.verificacion_baja_sede import Impedimento
+from app.models.usuario import UsuarioRef
 from app.models.valores import (
     CodigoSede,
     Contacto,
@@ -44,14 +45,6 @@ class TipoEventoSede(StrEnum):
     REACTIVACION = "REACTIVACION"
     EXCEPCION_AGREGADA = "EXCEPCION_AGREGADA"
     EXCEPCION_ELIMINADA = "EXCEPCION_ELIMINADA"
-
-
-@dataclass(frozen=True)
-class UsuarioRef:
-    """Quién realizó una operación (id y nombre para mostrar)."""
-
-    id: int
-    nombre: str
 
 
 @dataclass(frozen=True)

@@ -437,11 +437,35 @@ Roles: A, B, S. `?provincia_id=` y `?q=` (sin distinguir mayúsculas ni tildes);
   "rol": "BIBLIOTECARIO", "sede_id": 2 }
 ```
 
-`rol` es `ADMIN` o `BIBLIOTECARIO` (los usuarios `SOCIO` los crea el proceso de socios). Errores: `409 DUPLICADO` (username repetido), `422 VALIDACION` (bibliotecario sin sede, `ADMIN` con sede), `409 SEDE_EN_BAJA` (sede destino en baja), `404 SEDE_NO_ENCONTRADA`.
+`rol` es `ADMIN` o `BIBLIOTECARIO` (los usuarios `SOCIO` los crea el proceso de socios). Reglas de los campos:
 
-Un administrador no puede darse de baja a sí mismo (`422 VALIDACION`).
+| Campo | Regla |
+|-------|-------|
+| `username` | 3 a 50 caracteres entre `a-z`, `0-9`, `.`, `_` y `-`; se guarda en minúsculas y es único sin distinguir mayúsculas |
+| `password` | 10 a 128 caracteres con al menos una letra y un número; se guarda con Argon2id y nunca se devuelve |
+| `nombre` | 3 a 100 caracteres |
+| `sede_id` | Obligatoria para `BIBLIOTECARIO` y de una sede **activa**; no se admite para `ADMIN` |
 
-`PUT /usuarios/{id}` con `{ "nombre": "Lucía Gómez", "sede_id": 3 }` reasigna al bibliotecario a otra sede activa; rige desde su siguiente solicitud. `POST /usuarios/{id}/baja` lo desvincula y deja de contar como asignado a la sede. `POST /usuarios/{id}/reactivar` devuelve `409 SEDE_EN_BAJA` si su sede está dada de baja.
+Response `201` (`Location: /api/v1/usuarios/7`) y detalle `GET /usuarios/{id}`:
+
+```json
+{ "id": 7, "username": "bibliotecario.norte", "nombre": "Lucía Gómez", "rol": "BIBLIOTECARIO", "activo": true,
+  "sede_id": 2, "sede": { "id": 2, "codigo": "NORTE", "nombre": "Sede Norte" },
+  "creado_en": "2026-11-10T15:00:00Z", "creado_por": { "id": 1, "nombre": "Admin" },
+  "actualizado_en": "2026-11-10T15:00:00Z", "actualizado_por": { "id": 1, "nombre": "Admin" } }
+```
+
+Errores del alta: `409 DUPLICADO` (username repetido), `422 VALIDACION` (formato inválido, bibliotecario sin sede, `ADMIN` con sede, rol que no es de personal), `409 SEDE_EN_BAJA` (sede destino en baja), `404 SEDE_NO_ENCONTRADA`. El orden de validación es forma (422) → username repetido (409) → sede (404/409).
+
+`GET /usuarios` devuelve solo personal (los socios no aparecen) ordenado por nombre; `q` busca en nombre (sin distinguir mayúsculas ni tildes) y en usuario. Un socio o un id inexistente responden `404 USUARIO_NO_ENCONTRADO` en todas las rutas de `/usuarios/{id}`.
+
+Un administrador no puede darse de baja a sí mismo (`422 VALIDACION`, `detalles[0].campo = "id"`).
+
+`PUT /usuarios/{id}` con `{ "nombre": "Lucía Gómez", "sede_id": 3 }` reasigna al bibliotecario a otra sede activa; rige desde su siguiente solicitud, porque cada solicitud recarga al usuario. El `sede_id` es obligatorio para un bibliotecario y no se admite para un administrador (`422 VALIDACION`); si no cambia, la sede no se vuelve a validar, de modo que se puede corregir el nombre de alguien cuya sede está en baja. También se puede reasignar a un usuario dado de baja, para poder reactivarlo.
+
+`POST /usuarios/{id}/baja` lo desvincula y deja de contar como asignado a la sede (`409 USUARIO_YA_EN_BAJA` si ya lo estaba). `POST /usuarios/{id}/reactivar` devuelve `409 SEDE_EN_BAJA` si su sede está dada de baja (hay que reasignarlo primero) y `409 USUARIO_YA_ACTIVO` si ya estaba activo.
+
+Los bibliotecarios **activos** asignados a una sede son un impedimento de baja de esa sede (`BIBLIOTECARIOS_ASIGNADOS`, hasta 10 elementos con `referencia` = usuario). Asignar o reasignar toma la sede en modo compartido, así que no puede cruzarse con su baja: si gana la baja, la asignación recibe `SEDE_EN_BAJA`; si gana la asignación, la baja ve al bibliotecario nuevo.
 
 ### `POST /socios` — alta de socio
 

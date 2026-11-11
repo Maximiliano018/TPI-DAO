@@ -42,7 +42,9 @@ def crear_usuario(sesion: Session) -> Callable[..., UsuarioORM]:
         datos.update(over)
         usuario = UsuarioORM(**datos)
         sesion.add(usuario)
-        sesion.flush()
+        # Se confirma (en el savepoint de la prueba) como lo estaría en producción: un rollback
+        # de la solicitud no debe deshacer los datos que la prueba preparó.
+        sesion.commit()
         return usuario
 
     return _crear
