@@ -187,6 +187,14 @@ Todos son `Modal` accesibles: foco atrapado, Escape cierra (salvo mientras se pr
 
 Hooks en `features/sedes/hooks/`: `useSedes(filtros)`, `useSede(id)`, `useCrearSede`, `useModificarSede`, `useBajaSede`, `useReactivarSede`, `useExcepciones(id)`, `useHistorialSede(id, filtros)`, `useLocalidades()`. Tras cualquier mutación se invalidan el listado, el detalle y el resumen. Las localidades se cachean por sesión (cambian muy rara vez).
 
+Detalles de implementación:
+
+- Las mutaciones (`useCrearSede`, `useModificarSede`, `useBajaSede`, `useReactivarSede`, `useAgregarExcepciones`, `useQuitarExcepcion`) están en `useSedesMutaciones.js` y refrescan la caché también cuando fallan, para que un conflicto («la sede ya estaba en ese estado») deje la pantalla con los datos vigentes.
+- El detalle muestra los cierres de `sede.excepciones` (los vigentes que ya devuelve `GET /sedes/{id}`); `useExcepciones` queda para consultas que necesiten los cierres pasados.
+- Los filtros del listado viven en la URL (`useFiltrosUrl`); el filtro de estado se omite de la URL cuando coincide con el valor por defecto del rol (Todas para el administrador, Activas para el bibliotecario).
+- En la edición, la versión que se envía es la leída **al abrir** el formulario, aunque la caché se refresque por detrás: así un cambio ajeno se detecta (`CONFLICTO_DE_VERSION`) en lugar de pisarse. «Recargar» vuelve a leer la sede y reinicia el formulario.
+- Componentes nuevos del design system: `FilterBar` (con `BusquedaConEspera` y `FiltroSelect`), `Combobox`, `Timeline` y `WeekScheduleEditor`; los campos de fecha y hora usan los controles nativos.
+
 ## Módulo de usuarios del personal
 
 Acceso solo del administrador (`USUARIO_ADMINISTRAR`).
