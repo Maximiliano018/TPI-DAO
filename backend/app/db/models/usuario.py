@@ -1,6 +1,7 @@
 """Usuarios del sistema y socios (estructura mínima para el vínculo usuario-socio)."""
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
@@ -13,9 +14,12 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, ConAuditoriaDeTiempo
+
+if TYPE_CHECKING:
+    from app.db.models.sede import SedeORM
 
 
 class SocioORM(ConAuditoriaDeTiempo, Base):
@@ -70,3 +74,5 @@ class UsuarioORM(ConAuditoriaDeTiempo, Base):
     )
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
     actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+
+    sede: Mapped["SedeORM | None"] = relationship(foreign_keys=[sede_id], lazy="joined")

@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 from alembic import command
 from app.config import get_settings
 
-RAIZ_BACKEND = Path(__file__).resolve().parents[2]
+RAIZ_BACKEND = Path(__file__).resolve().parents[1]
 
 
 def url_de_prueba() -> str:
