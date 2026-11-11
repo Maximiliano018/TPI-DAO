@@ -145,3 +145,21 @@ export function evento(over = {}) {
     ...over,
   };
 }
+
+/** Usuario del personal con la forma de `GET /usuarios`. */
+export function usuarioPersonal(over = {}) {
+  return {
+    id: 10,
+    username: 'lucia.gomez',
+    nombre: 'Lucía Gómez',
+    rol: 'BIBLIOTECARIO',
+    activo: true,
+    sede_id: 1,
+    sede: { id: 1, codigo: 'CEN', nombre: 'Sede Central' },
+    creado_en: '2026-10-14T15:30:00Z',
+    creado_por: { id: 1, nombre: 'Ana Admin' },
+    actualizado_en: '2026-10-14T15:30:00Z',
+    actualizado_por: { id: 1, nombre: 'Ana Admin' },
+    ...over,
+  };
+}

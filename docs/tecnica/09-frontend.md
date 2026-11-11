@@ -209,6 +209,14 @@ Acceso solo del administrador (`USUARIO_ADMINISTRAR`).
 
 Códigos propios del módulo: `DUPLICADO` («Ya existe un usuario con ese nombre de usuario») y `SEDE_EN_BAJA` (con el texto de sedes).
 
+Detalles de implementación:
+
+- El filtro de estado de la URL usa `estado=activos` o `estado=baja` (así lo arma el enlace de la baja de sede); la pantalla lo traduce a `activo=true|false` de la API.
+- Los formularios cargan primero las sedes activas y recién entonces se muestran: un `<select>` nativo no puede reflejar una sede precargada si todavía no existen sus opciones.
+- Se puede editar a un usuario dado de baja: sirve para reasignarlo a una sede activa cuando la anterior está en baja y poder reactivarlo. Si su sede actual no figura entre las activas, el campo queda vacío con un aviso y debe elegirse otra.
+- La confirmación de contraseña solo se valida en la pantalla; no se envía a la API.
+- Las mutaciones (`useCrearUsuario`, `useModificarUsuario`, `useBajaUsuario`, `useReactivarUsuario`) refrescan listado y detalle aunque fallen. Al reactivar con `SEDE_EN_BAJA` el diálogo enlaza a la edición del usuario.
+
 ## Pruebas del frontend
 
 - Cada pantalla con MSW: listado con filtros y paginación, formulario (validaciones, errores del servidor, advertencia de dirección duplicada, conflicto de versión), baja bloqueada y baja correcta, reactivación y vistas por rol (administrador, bibliotecario, socio).
