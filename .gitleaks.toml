@@ -1,0 +1,21 @@
+# Configuración de gitleaks: parte de las reglas por defecto y solo exceptúa valores de ejemplo.
+title = "TPI-DAO"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores de ejemplo y de prueba: no son secretos"
+# El ejemplo de variables de entorno y los datos de las pruebas.
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)tests?/''',
+  '''\.test\.jsx?$''',
+]
+regexTarget = "line"
+regexes = [
+  # Conversión de minutos a segundos de la vigencia del token (no es una clave).
+  '''expira_en_segundos=minutos \* 60''',
+  # Contraseña de ejemplo del esquema de la API.
+  '''"password": "Clave-segura-123"''',
+]
