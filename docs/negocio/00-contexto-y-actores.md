@@ -16,7 +16,13 @@ El enunciado distingue dos tipos de usuarios; el personal se divide en dos roles
 | **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Definido |
 | **Socio** | Consulta disponibilidad, reserva, ve sus préstamos y multas | Definido |
 
-El bibliotecario siempre está asociado a **una sede**. El administrador no pertenece a ninguna y ve toda la red.
+El bibliotecario siempre está asociado a **una sede activa**. El administrador no pertenece a ninguna y ve toda la red. El socio **no está vinculado a ninguna sede**: opera en toda la red.
+
+### Permisos
+
+Los roles son tres y fijos (los define el enunciado). Cada rol tiene un conjunto de **permisos** (consultar sedes básicas, administrar sedes, administrar usuarios, etc.) que se resuelve en el servidor; la matriz de abajo es su resumen. Un bibliotecario, además, solo opera sobre su propia sede.
+
+La sesión dura 60 minutos. Si el usuario se da de baja, cambia de sede o de rol, el cambio rige desde su siguiente solicitud.
 
 ## Matriz de permisos (resumen)
 
@@ -24,7 +30,8 @@ El bibliotecario siempre está asociado a **una sede**. El administrador no pert
 
 | Recurso / acción | Administrador | Bibliotecario | Socio |
 |------------------|:---:|:---:|:---:|
-| Sedes | A | V (todas, datos básicos) | V (datos de contacto y horarios) |
+| Sedes | A | V (todas, datos básicos) | V (solo activas: dirección, contacto y horarios) |
+| Usuarios del personal | A | - | - |
 | Socios | A | A (alta/modificación), V | V (solo sus propios datos) |
 | Libros (catálogo) | A | V | V |
 | Ejemplares | A | A (de su sede) | V (disponibilidad) |

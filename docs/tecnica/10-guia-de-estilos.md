@@ -104,6 +104,12 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | `EmptyState` / `Spinner` / `Skeleton` | Estados vacío y de carga |
 | `PageHeader` | Título, descripción y acciones de la pantalla |
 | `Tabs`, `Card`, `Breadcrumb` | Estructura de pantallas de detalle |
+| `AppLayout`, `AppBar`, `Sidebar` | Estructura de las pantallas autenticadas: barra superior, menú lateral (fijo desde 1024 px, panel deslizable debajo) y `<main>` |
+| `StatCard` | Tarjeta de indicador del inicio: valor, etiqueta y enlace; con estados de carga y error propios |
+| `FilterBar` | Filtros del listado: búsqueda con espera, selectores y botón «Limpiar» |
+| `Combobox` | Lista desplegable con búsqueda (por ejemplo, localidades); accesible con teclado y `aria-activedescendant` |
+| `WeekScheduleEditor` | Editor semanal de franjas horarias (una fila por día, agregar, quitar, copiar, cerrado) |
+| `DatePicker` y `TimeInput` | Fecha (`dd/mm/aaaa`) y hora (`HH:mm`) con teclado y etiquetas |
 
 ## Mapa de estados a etiquetas
 
@@ -139,6 +145,13 @@ Una sola tabla de correspondencia (`utils/estados.js`) define cómo se muestra c
 | | `VENCIDA`, `CANCELADA` | neutro | Vencida, Cancelada |
 | Multa | `PENDIENTE` | peligro | Pendiente |
 | | `SALDADA` | éxito | Saldada |
+
+## Estructura de pantallas autenticadas
+
+- Menú lateral de 240 px, `--color-surface` con borde derecho `--color-border`; el ítem activo usa `--color-primary-100` con texto `--color-primary-800` y `aria-current="page"` (no solo color).
+- AppBar de 56 px con la sede del usuario y el menú de usuario; `--shadow-sm`.
+- Contenido principal con padding de 24 px (16 px en pantallas chicas) y ancho máximo de 1200 px.
+- Indicador «abierta ahora»: `Badge` de éxito con el texto «Abierta» o neutro con «Cerrada» (siempre con texto).
 
 ## Voz y contenido
 

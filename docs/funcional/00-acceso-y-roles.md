@@ -13,6 +13,9 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 | RF-ACC-05 | Un socio solo puede ver sus propios datos, préstamos, reservas y multas. | Obligatorio |
 | RF-ACC-06 | El administrador debe poder dar de alta, modificar y dar de baja usuarios del personal. | Obligatorio |
 | RF-ACC-07 | Toda operación que modifica datos debe registrar el usuario y el momento. | Obligatorio |
+| RF-ACC-08 | El sistema debe resolver los permisos de cada usuario a partir de su rol en el servidor, en cada solicitud, y aplicar el cambio de rol, sede o estado del usuario de inmediato, sin esperar a que venza la sesión. | Obligatorio |
+| RF-ACC-09 | El sistema debe asignar o reasignar un bibliotecario solo a una sede `Activa`, y permitir desvincularlo dándolo de baja. | Obligatorio |
+| RF-ACC-10 | El sistema debe cerrar la sesión por vencimiento del token y rechazar tokens inválidos, vencidos o de usuarios dados de baja. | Obligatorio |
 
 ## Casos de uso
 
@@ -40,6 +43,17 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
   - **A1 (paso 3): usuario duplicado.** El sistema rechaza el alta e indica el usuario existente.
   - **A2 (paso 2): bibliotecario sin sede.** El sistema rechaza el alta.
   - **A3 (paso 1): baja de un usuario con operaciones en curso.** Se permite: la baja es lógica y conserva el historial.
+  - **A4 (paso 2): sede en `Baja`.** El sistema rechaza asignar a un bibliotecario a una sede dada de baja.
+  - **A5 (paso 1): reasignar a un bibliotecario.** El administrador elige otra sede **activa**; el cambio rige desde la siguiente solicitud del usuario.
+  - **A6 (paso 1): reactivar a un bibliotecario cuya sede está en `Baja`.** El sistema rechaza hasta que se asigne una sede activa.
+
+### CU-ACC-03. Cerrar sesión y expiración
+
+- **Actor:** cualquier usuario.
+- **Flujo normal:** el usuario cierra la sesión y el cliente descarta el token. Si no lo hace, el token vence solo a los 60 minutos.
+- **Flujos alternativos:**
+  - **A1:** token vencido o inválido. El sistema responde que no está autenticado y el cliente lleva al login.
+  - **A2:** el usuario fue dado de baja con el token vigente. La siguiente solicitud se rechaza.
 
 ## Criterios de aceptación
 
@@ -52,3 +66,10 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 | CA-ACC-05 | RF-ACC-02 | **Dado** el alta de un bibliotecario sin sede, **cuando** se confirma, **entonces** el sistema la rechaza. |
 | CA-ACC-06 | RF-ACC-07 | **Dado** cualquier modificación de datos, **cuando** se confirma, **entonces** queda registrado el usuario y el momento. |
 | CA-ACC-07 | RF-ACC-01 | **Dado** credenciales inválidas, **cuando** se intenta ingresar, **entonces** no se inicia sesión y el mensaje no revela cuál dato es incorrecto. |
+| CA-ACC-08 | RF-ACC-08 | **Dado** un bibliotecario con sesión iniciada, **cuando** el administrador lo reasigna a otra sede, **entonces** su siguiente solicitud ya opera sobre la nueva sede. |
+| CA-ACC-09 | RF-ACC-09 | **Dado** una sede en `Baja`, **cuando** se asigna o reasigna a ella un bibliotecario, **entonces** el sistema lo rechaza. |
+| CA-ACC-10 | RF-ACC-09 | **Dado** un bibliotecario dado de baja, **cuando** se consulta la baja de su sede, **entonces** ya no cuenta como asignado. |
+| CA-ACC-11 | RF-ACC-10 | **Dado** un token vencido o manipulado, **cuando** se llama a cualquier endpoint protegido, **entonces** se responde no autenticado. |
+| CA-ACC-12 | RF-ACC-10 | **Dado** un usuario dado de baja con un token todavía vigente, **cuando** hace una solicitud, **entonces** se rechaza. |
+| CA-ACC-13 | RF-ACC-03 | **Dado** un bibliotecario, **cuando** intenta administrar usuarios del personal, **entonces** el sistema rechaza la operación por falta de permiso. |
+| CA-ACC-14 | RF-ACC-06 | **Dado** un administrador, **cuando** intenta darse de baja a sí mismo, **entonces** el sistema lo rechaza. |

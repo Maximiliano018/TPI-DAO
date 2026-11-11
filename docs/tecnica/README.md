@@ -17,6 +17,7 @@ Define cómo se construye el **Sistema de Préstamos Interbibliotecarios**. Se d
 | 08 | [Convenciones de desarrollo](08-convenciones.md) | Estilo, clean code, documentación de código, git |
 | 09 | [Frontend](09-frontend.md) | Arquitectura de React, pantallas por rol, estado y formularios |
 | 10 | [Guía de estilos](10-guia-de-estilos.md) | Design system base: tokens, componentes y accesibilidad |
+| 11 | [Plan de implementación: sedes y acceso](11-plan-sedes-y-acceso.md) | Alcance de la primera iteración, cadena de ramas y PR, definición de terminado |
 
 ## Decisiones ya tomadas
 
@@ -25,7 +26,7 @@ Define cómo se construye el **Sistema de Préstamos Interbibliotecarios**. Se d
 | Backend | Python con FastAPI, en capas |
 | Persistencia | ORM (SQLAlchemy 2.0) |
 | Frontend | React con JavaScript |
-| Base de datos | PostgreSQL (SQLite en memoria para tests) |
+| Base de datos | PostgreSQL (los tests unitarios y de servicios usan repositorios en memoria; sin SQLite) |
 | Design system | Base propio, reemplazable |
 
 ## Decisiones propuestas, a confirmar
@@ -36,7 +37,7 @@ Son recomendaciones técnicas que se asumen hasta que se corrijan.
 |---|------|-----------|
 | T1 | Entidades de dominio | Clases de dominio puras, separadas de los modelos del ORM, con mapeo en los repositorios ([ver arquitectura](01-arquitectura-backend.md#entidades-de-dominio-y-modelos-del-orm)) |
 | T2 | Idioma del código | Nombres de dominio en español sin tildes (`Prestamo`, `Ejemplar`); sufijos técnicos en inglés (`Repository`, `Service`) |
-| T3 | Autenticación | JWT con usuario y contraseña, roles Administrador, Bibliotecario y Socio |
+| T3 | Autenticación | **Confirmada:** JWT con usuario y contraseña, roles fijos Administrador, Bibliotecario y Socio, permisos por rol en código ([ver decisión D6](00-stack-y-decisiones.md#d6-autenticación-y-permisos)) |
 | T4 | Estados de ejemplar | Sumar `Apartado` y `En revisión` a los estados definidos en negocio ([ver máquinas de estado](03-maquinas-de-estado.md#ejemplar)) |
 | T5 | Entrega | `docker-compose` con base, backend y frontend; instrucciones también sin Docker |
 | T6 | Migraciones | Alembic |
