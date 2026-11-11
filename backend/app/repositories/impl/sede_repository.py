@@ -16,7 +16,6 @@ from app.db.models import (
     LocalidadORM,
     ProvinciaORM,
     SedeORM,
-    UsuarioORM,
 )
 from app.exceptions import SedeCodigoDuplicado, SedeNoEncontrada, SedeNombreDuplicado
 from app.models.horario import ExcepcionHorario, TipoExcepcion
@@ -28,8 +27,8 @@ from app.models.sede import (
     EventoSede,
     Sede,
     TipoEventoSede,
-    UsuarioRef,
 )
+from app.models.usuario import UsuarioRef
 from app.models.valores import (
     CodigoSede,
     Contacto,
@@ -39,15 +38,13 @@ from app.models.valores import (
     Localidad,
     Telefono,
 )
+from app.repositories.impl.consultas import nombres_de_usuarios, sin_tildes
 from app.repositories.interfaces.sede_repository import (
     FiltroEstado,
     FiltroHistorial,
     FiltroSedes,
     OrdenSedes,
 )
-
-_CON_TILDES = "áéíóúüàèìòùâêîôûñ"
-_SIN_TILDES = "aeiouuaeiouaeioun"
 
 _ORDEN: dict[OrdenSedes, tuple[Any, bool]] = {
     OrdenSedes.NOMBRE: (SedeORM.nombre_normalizado, False),
@@ -59,11 +56,6 @@ _ORDEN: dict[OrdenSedes, tuple[Any, bool]] = {
 }
 
 
-def _sin_tildes(columna: Any) -> ColumnElement[str]:
-    """Minúsculas y sin tildes en SQL, igual que ``utils.texto.normalizar`` para letras."""
-    return func.translate(func.lower(columna), _CON_TILDES, _SIN_TILDES)
-
-
 def _localidad_a_dominio(orm: LocalidadORM) -> Localidad:
     return Localidad(
         id=orm.id,
@@ -72,16 +64,6 @@ def _localidad_a_dominio(orm: LocalidadORM) -> Localidad:
         provincia_id=orm.provincia_id,
         provincia=orm.provincia.nombre,
     )
-
-
-def _nombres_de_usuarios(sesion: Session, ids: Iterable[int]) -> dict[int, str]:
-    pedidos = set(ids)
-    if not pedidos:
-        return {}
-    filas = sesion.execute(
-        select(UsuarioORM.id, UsuarioORM.nombre).where(UsuarioORM.id.in_(pedidos))
-    )
-    return {fila.id: fila.nombre for fila in filas}
 
 
 def _ids_de_usuarios(sedes: Iterable[SedeORM]) -> set[int]:
@@ -265,7 +247,7 @@ class SqlAlchemySedeRepository:
             .offset((page - 1) * size)
             .limit(size)
         ).all()
-        nombres = _nombres_de_usuarios(self._sesion, (f.usuario_id for f in filas))
+        nombres = nombres_de_usuarios(self._sesion, (f.usuario_id for f in filas))
         return [self._evento_a_dominio(f, nombres) for f in filas], total or 0
 
     # --- internos: lectura ----------------------------------------------------------------
@@ -274,11 +256,11 @@ class SqlAlchemySedeRepository:
         orm = self._sesion.scalars(self._con_relaciones(consulta)).unique().first()
         if orm is None:
             return None
-        return _a_dominio(orm, _nombres_de_usuarios(self._sesion, _ids_de_usuarios([orm])))
+        return _a_dominio(orm, nombres_de_usuarios(self._sesion, _ids_de_usuarios([orm])))
 
     def _cargar_varias(self, consulta: Any) -> list[Sede]:
         filas = self._sesion.scalars(self._con_relaciones(consulta)).unique().all()
-        nombres = _nombres_de_usuarios(self._sesion, _ids_de_usuarios(filas))
+        nombres = nombres_de_usuarios(self._sesion, _ids_de_usuarios(filas))
         return [_a_dominio(orm, nombres) for orm in filas]
 
     @staticmethod
@@ -296,8 +278,8 @@ class SqlAlchemySedeRepository:
             condiciones.append(
                 SedeORM.nombre_normalizado.contains(filtro.texto, autoescape=True)
                 | func.lower(SedeORM.codigo).contains(filtro.texto, autoescape=True)
-                | _sin_tildes(SedeORM.calle).contains(filtro.texto, autoescape=True)
-                | _sin_tildes(LocalidadORM.nombre).contains(filtro.texto, autoescape=True)
+                | sin_tildes(SedeORM.calle).contains(filtro.texto, autoescape=True)
+                | sin_tildes(LocalidadORM.nombre).contains(filtro.texto, autoescape=True)
             )
         return condiciones
 
@@ -434,11 +416,11 @@ class SqlAlchemyLocalidadRepository:
             consulta = consulta.where(LocalidadORM.provincia_id == provincia_id)
         if texto:
             consulta = consulta.where(
-                _sin_tildes(LocalidadORM.nombre).contains(texto, autoescape=True)
+                sin_tildes(LocalidadORM.nombre).contains(texto, autoescape=True)
             )
         filas = self._sesion.scalars(
             # Collation "C" sobre el texto sin tildes: mismo orden en cualquier servidor.
-            consulta.order_by(_sin_tildes(LocalidadORM.nombre).collate("C"), LocalidadORM.id)
+            consulta.order_by(sin_tildes(LocalidadORM.nombre).collate("C"), LocalidadORM.id)
         ).all()
         return [_localidad_a_dominio(f) for f in filas]
 

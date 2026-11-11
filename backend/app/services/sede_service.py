@@ -20,8 +20,8 @@ from app.exceptions import (
 from app.models.horario import MAX_DIAS_POR_RANGO, ExcepcionHorario, TipoExcepcion
 from app.models.paginacion import Pagina
 from app.models.policies.verificacion_baja_sede import Impedimento, VerificadorBajaSede
-from app.models.sede import MENSAJE_NO_DISPONIBLE, EventoSede, Sede, UsuarioRef, validar_nombre
-from app.models.usuario import Permiso, Usuario
+from app.models.sede import MENSAJE_NO_DISPONIBLE, EventoSede, Sede, validar_nombre
+from app.models.usuario import Permiso, Usuario, UsuarioRef
 from app.models.valores import CodigoSede, Contacto, Direccion, FranjaHoraria, Localidad
 from app.repositories.interfaces.sede_repository import (
     FiltroEstado,

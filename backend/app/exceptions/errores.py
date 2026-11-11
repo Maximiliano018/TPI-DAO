@@ -80,6 +80,14 @@ class ConflictoDeVersion(ReglaDeNegocioViolada):
     codigo = "CONFLICTO_DE_VERSION"
 
 
+class UsuarioYaEnBaja(ReglaDeNegocioViolada):
+    codigo = "USUARIO_YA_EN_BAJA"
+
+
+class UsuarioYaActivo(ReglaDeNegocioViolada):
+    codigo = "USUARIO_YA_ACTIVO"
+
+
 class ExcepcionHorarioSuperpuesta(ReglaDeNegocioViolada):
     codigo = "EXCEPCION_HORARIO_SUPERPUESTA"
 

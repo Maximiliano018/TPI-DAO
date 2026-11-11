@@ -13,11 +13,16 @@ from sqlalchemy import Engine, select, text
 from sqlalchemy.orm import Session
 
 from app.db.models import LocalidadORM
-from app.exceptions import ConflictoDeVersion, SedeEnBaja
+from app.exceptions import ConflictoDeVersion, SedeConActividadPendiente, SedeEnBaja
+from app.models.policies.verificacion_baja_sede import VerificadorBajaSede
 from app.models.sede import EstadoSede, UsuarioRef
+from app.models.usuario import Rol
 from app.repositories.impl.sede_repository import SqlAlchemySedeRepository
+from app.repositories.impl.usuario_repository import SqlAlchemyUsuarioRepository
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork
 from app.services.sede_service import SedeService
+from app.services.usuario_service import DatosUsuarioNuevo, UsuarioService
+from app.services.verificadores_baja_sede import VerificadorBibliotecariosAsignados
 from tests.factories.datos_orm import crear_admin
 from tests.factories.dominio import UsuarioFactory
 from tests.factories.sede import datos_sede
@@ -146,3 +151,88 @@ def test_operar_con_una_sede_que_se_esta_dando_de_baja_espera_y_luego_se_rechaza
 
     hilo.join(15)
     assert isinstance(resultado.get("error"), SedeEnBaja), resultado
+
+
+def _servicio_de_sedes(sesion: Session) -> SedeService:
+    """Servicio con el verificador real de bibliotecarios asignados."""
+    uow = SqlAlchemyUnitOfWork(sesion)
+    verificador = VerificadorBajaSede([VerificadorBibliotecariosAsignados(uow.usuarios)])
+    return SedeService(uow, RelojFijo(), verificador)
+
+
+def _servicio_de_usuarios(sesion: Session) -> UsuarioService:
+    return UsuarioService(SqlAlchemyUnitOfWork(sesion), RelojFijo(), hashear=lambda c: f"hash:{c}")
+
+
+@pytest.mark.ca("CA-SED-16", "CA-SED-42")
+def test_una_baja_que_corre_en_paralelo_a_una_asignacion_ve_al_bibliotecario_nuevo(mundo):
+    """La asignación toma la sede en modo compartido: la baja espera y luego lo cuenta."""
+    admin = mundo["admin"]
+    with _sesion(mundo["engine"]) as asignador:
+        uow = SqlAlchemyUnitOfWork(asignador)
+        sede = uow.sedes.obtener_para_operar(mundo["sede_id"])  # asignación en curso
+        nuevo = _servicio_de_usuarios(asignador)  # se reutiliza la sesión con la sede ya tomada
+
+        def baja():
+            with _sesion(mundo["engine"]) as sesion:
+                return _servicio_de_sedes(sesion).dar_de_baja(
+                    admin, mundo["sede_id"], 1, "Cierre por obras"
+                )
+
+        hilo, resultado = _en_hilo(baja)
+        hilo.join(1.0)
+        assert hilo.is_alive(), "La baja debería esperar a la asignación en curso"
+        nuevo.crear(
+            admin,
+            DatosUsuarioNuevo(
+                "nuevo.biblio", "Clave-segura-123", "Nuevo Biblio", Rol.BIBLIOTECARIO, sede.id
+            ),
+        )  # confirma la transacción y libera la sede
+
+    hilo.join(15)
+    error = resultado.get("error")
+    assert isinstance(error, SedeConActividadPendiente), resultado
+    assert error.detalles[0]["tipo"] == "BIBLIOTECARIOS_ASIGNADOS"
+    with _sesion(mundo["engine"]) as sesion:
+        assert (
+            SqlAlchemySedeRepository(sesion).obtener(mundo["sede_id"]).estado == EstadoSede.ACTIVA
+        )
+
+
+@pytest.mark.ca("CA-ACC-09", "CA-SED-42")
+def test_asignar_un_bibliotecario_mientras_se_da_de_baja_la_sede_se_rechaza(mundo):
+    admin = mundo["admin"]
+    reloj = RelojFijo()
+    with _sesion(mundo["engine"]) as bajista:
+        repo = SqlAlchemySedeRepository(bajista)
+        sede = repo.obtener_para_modificar(mundo["sede_id"])  # baja en curso
+
+        def asignar():
+            with _sesion(mundo["engine"]) as sesion:
+                return _servicio_de_usuarios(sesion).crear(
+                    admin,
+                    DatosUsuarioNuevo(
+                        "tarde.biblio",
+                        "Clave-segura-123",
+                        "Tarde Biblio",
+                        Rol.BIBLIOTECARIO,
+                        mundo["sede_id"],
+                    ),
+                )
+
+        hilo, resultado = _en_hilo(asignar)
+        hilo.join(1.0)
+        assert hilo.is_alive(), "La asignación debería esperar a que termine la baja"
+        sede.dar_de_baja(
+            motivo="Cierre por obras",
+            actor=UsuarioRef(admin.id, admin.nombre),
+            ahora=reloj.ahora(),
+            impedimentos=[],
+        )
+        repo.guardar(sede)
+        bajista.commit()
+
+    hilo.join(15)
+    assert isinstance(resultado.get("error"), SedeEnBaja), resultado
+    with _sesion(mundo["engine"]) as sesion:
+        assert SqlAlchemyUsuarioRepository(sesion).obtener_por_username("tarde.biblio") is None

@@ -16,6 +16,9 @@ from app.models.policies.verificacion_baja_sede import (
     TipoImpedimento,
     VerificadorBajaSede,
 )
+from app.models.usuario import SedeRef
+from tests.factories.dominio import BibliotecarioFactory
+from tests.fakes.repositorios import UnitOfWorkEnMemoria
 
 # Tipos cuyo módulo todavía no existe. Solo puede achicarse: cada módulo quita el suyo al
 # registrar su verificador (y agrega sus pruebas de contrato).
@@ -25,11 +28,11 @@ TIPOS_PENDIENTES_DE_MODULO: set[TipoImpedimento] = {
     TipoImpedimento.RESERVAS_PENDIENTES,
     TipoImpedimento.EJEMPLARES_EN_SEDE,
     TipoImpedimento.EJEMPLARES_PROPIOS_FUERA,
-    TipoImpedimento.BIBLIOTECARIOS_ASIGNADOS,
 }
 
 
 def _registrados(uow=None) -> VerificadorBajaSede:
+    uow = uow or UnitOfWorkEnMemoria()
     parametros = inspect.signature(get_verificador_baja_sede).parameters
     return get_verificador_baja_sede(**{nombre: uow for nombre in parametros})
 
@@ -75,3 +78,23 @@ def test_el_compuesto_solo_informa_los_tipos_con_impedimentos():
         TipoImpedimento.PRESTAMOS_EN_CURSO,
     }
     assert VerificadorBajaSede([]).verificar(1) == []
+
+
+@pytest.mark.ca("CA-SED-16", "CA-ACC-10")
+def test_bibliotecarios_asignados_cuenta_solo_los_activos_de_esa_sede_y_limita_la_muestra():
+    uow = UnitOfWorkEnMemoria()
+    for n in range(12):
+        uow.usuarios.agregar(BibliotecarioFactory(id=None, username=f"biblio{n:02d}"))
+    uow.usuarios.agregar(BibliotecarioFactory(id=None, username="inactivo", activo=False))
+    uow.usuarios.agregar(
+        BibliotecarioFactory(id=None, username="otra.sede", sede=SedeRef(2, "NORTE", "Sede Norte"))
+    )
+
+    impedimento = _registrados(uow).verificar(1)
+
+    assert [i.tipo for i in impedimento] == [TipoImpedimento.BIBLIOTECARIOS_ASIGNADOS]
+    unico = impedimento[0]
+    assert unico.cantidad == 12 and len(unico.elementos) == 10 and unico.hay_mas
+    assert all(e.estado == "ACTIVO" for e in unico.elementos)
+    assert unico.elementos[0].referencia == "biblio00"
+    assert _registrados(uow).verificar(3) == []

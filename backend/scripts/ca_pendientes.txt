@@ -3,9 +3,4 @@
 CA-ACC-01  # permiso de registrar préstamos: llega con el módulo de préstamos
 CA-ACC-02  # devoluciones en otra sede: llega con el módulo de devoluciones
 CA-ACC-04  # préstamos propios del socio: llega con el módulo de préstamos
-CA-ACC-05  # alta de bibliotecario sin sede: llega con la API de usuarios del personal (PR 6)
-CA-ACC-09  # asignar a una sede en baja: llega con la API de usuarios del personal (PR 6)
-CA-ACC-10  # bibliotecario dado de baja no cuenta como asignado: PR 6
-CA-ACC-14  # el administrador no puede darse de baja a sí mismo: PR 6
 CA-SED-24  # alta de socio en sede en baja: llega con el módulo de socios
-CA-SED-25  # asignar un bibliotecario a una sede en baja: PR 6
