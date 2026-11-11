@@ -233,6 +233,54 @@ describe('Detalle de sede', () => {
     await waitFor(() => expect(historial.at(-1).url.searchParams.get('page')).toBe('2'));
   });
 
+  it('historial: describe los cierres cargados y quitados', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/sedes/1', sedeAdmin());
+    const cierre = {
+      fecha: '2026-12-24',
+      tipo: 'CIERRE_PARCIAL',
+      hora_desde: '10:00',
+      hora_hasta: '12:00',
+      motivo: 'Reunión',
+    };
+    responder(
+      'get',
+      '/sedes/1/historial',
+      pagina([
+        evento({
+          id: 3,
+          tipo_evento: 'EXCEPCION_AGREGADA',
+          cambios: [
+            { campo: 'excepcion', antes: null, despues: cierre },
+            { campo: 'excepcion', antes: null, despues: { ...cierre, fecha: '2026-12-25' } },
+          ],
+        }),
+        evento({
+          id: 4,
+          tipo_evento: 'EXCEPCION_ELIMINADA',
+          cambios: [
+            {
+              campo: 'excepcion',
+              antes: { ...cierre, tipo: 'CIERRE_TOTAL', hora_desde: null },
+              despues: null,
+            },
+          ],
+        }),
+      ]),
+    );
+    renderizarApp('/sedes/1?tab=historial', { conSesion: true });
+
+    const linea = await screen.findByRole('list', { name: 'Historial de la sede' });
+    const [agregado, quitado] = [...linea.children];
+    expect(agregado).toHaveTextContent('Cierre agregado');
+    expect(agregado).toHaveTextContent(
+      'Cierre: — → 24/12/2026, cierre parcial de 10:00 a 12:00 (Reunión)',
+    );
+    expect(agregado).toHaveTextContent('Cierre: — → 25/12/2026');
+    expect(quitado).toHaveTextContent('Cierre: 24/12/2026, cierre total (Reunión) → —');
+    expect(linea).not.toHaveTextContent('{');
+  });
+
   describe('baja y reactivación', () => {
     it('baja bloqueada: lista los impedimentos por tipo y no ofrece forzar', async () => {
       sesionDe(ADMIN);

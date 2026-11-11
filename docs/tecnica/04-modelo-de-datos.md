@@ -156,7 +156,7 @@ Formato de `cambios` (siempre una lista, vacía si no aplica):
 ]
 ```
 
-En el `ALTA` la lista contiene todos los campos con `antes: null`. En `EXCEPCION_*`, un único elemento `excepcion` con fecha, tipo, horas y motivo.
+En el `ALTA` la lista contiene todos los campos con `antes: null`. En `EXCEPCION_AGREGADA`, un elemento `excepcion` por cada día cargado (un rango de varios días es un solo evento con varios elementos); en `EXCEPCION_ELIMINADA`, el elemento del cierre quitado. Cada uno lleva fecha, tipo, horas y motivo.
 
 Protección de solo inserción: un disparador (`BEFORE UPDATE OR DELETE`) lanza error, y la aplicación no define métodos de actualización ni borrado. Índice `(sede_id, fecha_hora DESC)`. No almacena préstamos, remitos ni reservas: esos procesos tienen sus propios `movimiento_*`.
 

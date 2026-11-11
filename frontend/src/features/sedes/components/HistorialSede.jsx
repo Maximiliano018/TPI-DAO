@@ -9,7 +9,7 @@ import {
   Timeline,
 } from '../../../components/index.js';
 import { estadoDe } from '../../../utils/estados.js';
-import { formatearFechaHora } from '../../../utils/formato.js';
+import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
 import { useHistorialSede } from '../hooks/useSedes.js';
 import estilos from './Sedes.module.css';
 
@@ -23,6 +23,7 @@ export const EVENTOS = {
 };
 
 const CAMPOS = {
+  excepcion: 'Cierre',
   nombre: 'Nombre',
   calle: 'Calle',
   numero: 'Número',
@@ -33,8 +34,19 @@ const CAMPOS = {
   horarios: 'Horarios',
 };
 
+const TIPOS_DE_CIERRE = { CIERRE_TOTAL: 'cierre total', CIERRE_PARCIAL: 'cierre parcial' };
+
+const esCierre = (valor) =>
+  valor && typeof valor === 'object' && 'fecha' in valor && 'tipo' in valor;
+
+/** Valor de un cambio en texto: los cierres se describen; el resto se muestra tal cual. */
 const texto = (valor) => {
   if (valor === null || valor === undefined || valor === '') return '—';
+  if (esCierre(valor)) {
+    const horas = valor.hora_desde ? ` de ${valor.hora_desde} a ${valor.hora_hasta}` : '';
+    const motivo = valor.motivo ? ` (${valor.motivo})` : '';
+    return `${formatearFecha(valor.fecha)}, ${TIPOS_DE_CIERRE[valor.tipo] ?? valor.tipo}${horas}${motivo}`;
+  }
   return typeof valor === 'string' ? valor : JSON.stringify(valor);
 };
 

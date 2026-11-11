@@ -19,6 +19,9 @@ export default defineConfig({
     // Origen de las URL relativas: MSW las resuelve contra `location` (handlers en http://localhost).
     environmentOptions: { jsdom: { url: 'http://localhost/' } },
     globals: true,
+    // Las pruebas de formularios tipean campo por campo y corren axe: con la suite en paralelo
+    // y las pantallas cargándose en frío (React.lazy) pueden pasar los 5 s por defecto.
+    testTimeout: 15000,
     setupFiles: ['./tests/setup.js'],
     include: ['src/**/*.test.{js,jsx}', 'tests/**/*.test.{js,jsx}'],
   },
