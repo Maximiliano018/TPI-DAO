@@ -29,6 +29,8 @@
 }
 .definiciones dt {
   color: var(--color-text-muted);
+  font-family: var(--font-serif);
+  font-weight: 700;
 }
 .definiciones dd {
   margin: 0;
@@ -48,7 +50,8 @@
 }
 .hoy {
   background: var(--color-primary-100);
-  font-weight: 600;
+  font-weight: 700;
+  box-shadow: inset 5px 0 0 var(--color-primary-700);
 }
 .seccion {
   display: flex;

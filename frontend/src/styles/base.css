@@ -12,14 +12,17 @@ body {
   font-size: var(--text-md);
   line-height: 1.5;
   color: var(--color-text);
-  background: var(--color-bg);
+  background-color: var(--color-bg);
+  background-image: var(--textura-papel);
+  background-attachment: fixed;
 }
 
 h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-weight: 700;
   line-height: 1.25;
 }
 
@@ -38,7 +41,7 @@ code,
 
 /* Anillo de foco visible sobre cualquier fondo; nunca se quita sin reemplazarlo. */
 :focus-visible {
-  outline: 2px solid var(--color-primary-700);
+  outline: 3px solid var(--color-primary-700);
   outline-offset: 2px;
 }
 
@@ -76,4 +79,9 @@ code,
     transition: none !important;
     animation: none !important;
   }
+}
+
+::selection {
+  background: var(--color-brass);
+  color: var(--color-wood-900);
 }

@@ -7,8 +7,10 @@
   text-align: center;
 }
 .titulo {
-  margin: 0;
-  font-weight: 600;
+  margin: var(--space-2) 0 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
 }
 .descripcion {
   margin: 0;

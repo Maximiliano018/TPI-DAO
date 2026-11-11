@@ -42,7 +42,9 @@
   margin: 0 0 var(--space-2);
 }
 .nombre {
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  font-weight: 700;
 }
 .subtitulo {
   font-size: var(--text-md);

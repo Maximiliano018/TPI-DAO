@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { Alert, Button, Input } from '../components/index.js';
+import { Alert, Button, Input, Logo } from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
@@ -52,6 +52,9 @@ export default function LoginPage() {
   return (
     <main className={estilos.pagina} id="contenido">
       <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
+        <span className={estilos.escudo}>
+          <Logo tamano={46} />
+        </span>
         <h1 className={estilos.titulo}>{MENSAJES.sistemaCompleto}</h1>
         <p className={estilos.subtitulo}>Ingrese con su usuario y contraseña.</p>
         {aviso && <Alert tono="warning">{aviso}</Alert>}

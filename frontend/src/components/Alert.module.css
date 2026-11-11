@@ -1,12 +1,15 @@
+/* Nota al margen: papel de color con un marcador grueso a la izquierda */
 .alerta {
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius-md);
   border: 1px solid;
-  border-left-width: 4px;
+  border-left-width: 6px;
+  box-shadow: var(--shadow-sm);
 }
 .titulo {
   display: block;
   margin-bottom: var(--space-1);
+  font-family: var(--font-serif);
 }
 .success {
   background: var(--color-success-100);

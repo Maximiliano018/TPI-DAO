@@ -10,6 +10,8 @@ export { default as ErrorState } from './ErrorState.jsx';
 export { default as FilterBar, BusquedaConEspera, FiltroSelect } from './FilterBar.jsx';
 export { default as FormField } from './FormField.jsx';
 export { Checkbox, Input, Select, Textarea } from './controles.jsx';
+export { EstanteriaVacia } from './Ilustraciones.jsx';
+export { default as Logo } from './Logo.jsx';
 export { default as Modal } from './Modal.jsx';
 export { default as PageHeader } from './PageHeader.jsx';
 export { default as Pagination } from './Pagination.jsx';

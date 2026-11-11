@@ -14,8 +14,10 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
+  border-left: 6px solid var(--color-brass);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
+  font-weight: 500;
 }
 .success {
   background: var(--color-success-800);
