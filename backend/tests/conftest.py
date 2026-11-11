@@ -8,6 +8,8 @@ os.environ.setdefault("ENTORNO", "test")
 
 import pytest  # noqa: E402
 
+pytest_plugins = ["tests.base_datos"]
+
 from tests.fakes.reloj import RelojFijo  # noqa: E402
 
 
@@ -18,7 +20,8 @@ def reloj() -> RelojFijo:
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
-    """Marca como ``integration`` todo lo que está en ``tests/integration``."""
+    """Marca como ``integration`` lo que está en ``tests/integration`` o usa la base."""
     for item in items:
-        if "integration" in item.path.parts:
+        usa_base = "sesion" in getattr(item, "fixturenames", ())
+        if "integration" in item.path.parts or usa_base:
             item.add_marker(pytest.mark.integration)

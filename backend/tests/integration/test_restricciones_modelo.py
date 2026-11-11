@@ -17,7 +17,7 @@ from app.db.models import (
     ProvinciaORM,
     UsuarioORM,
 )
-from tests.integration.datos import crear_admin, crear_sede, franja
+from tests.factories.datos_orm import crear_admin, crear_sede, franja
 
 
 def debe_fallar(sesion: Session, accion: Callable[[], object]) -> None:
