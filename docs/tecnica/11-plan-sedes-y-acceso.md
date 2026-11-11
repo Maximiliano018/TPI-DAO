@@ -11,7 +11,7 @@ Primera iteración de código. Entrega el **módulo completo de sedes** y las ba
 | Infraestructura backend | Configuración (`pydantic-settings`), SQLAlchemy 2.0 y sesión por solicitud, Unit of Work, Alembic, formato de errores único, manejadores de excepciones, reloj inyectable |
 | Base de datos | Migraciones `0001` a `0003` ([Modelo de datos](04-modelo-de-datos.md#migraciones-y-datos-de-ejemplo)): catálogo geográfico, usuarios, socios (solo estructura), sedes, horarios, excepciones, historial |
 | Seed | Provincia y localidades de Córdoba, 4 sedes, usuarios administrador, dos bibliotecarios y socio, un socio de demostración |
-| Acceso | Login, `GET /auth/me`, JWT, Argon2id, roles y permisos, dependencia `requiere(Permiso.X)`, usuarios del personal (alta, listado, modificación y reasignación, baja y reactivación) |
+| Acceso | Login, `GET /auth/me`, JWT, Argon2id, roles y permisos, dependencia `requiere(Permiso.X)`; usuarios del personal (alta, listado, modificación y reasignación, baja y reactivación) |
 | Sedes | Dominio, servicio, repositorios, API completa (ver [API](06-api.md#sedes)), excepciones de horario, historial, catálogos de provincias y localidades |
 | Verificación de baja | Puerto, compuesto y verificador de **bibliotecarios** (el único que hoy tiene datos); verificadores falsos para el resto en las pruebas |
 | Pruebas | Estructura completa de [Testing](07-testing-y-calidad.md), fábricas, fakes, contrato, script de trazabilidad de criterios |
@@ -36,15 +36,17 @@ Primera iteración de código. Entrega el **módulo completo de sedes** y las ba
 ```mermaid
 flowchart LR
     I[Infraestructura<br/>backend + pruebas + CI] --> D[Modelo de datos<br/>migraciones + seed]
-    D --> A[Acceso<br/>login, usuarios, permisos]
+    D --> A[Acceso<br/>login, permisos]
     A --> S[Sedes backend<br/>dominio + API]
-    S --> FB[Frontend base<br/>login + layout]
+    S --> U[Usuarios backend<br/>reasignación + verificador]
+    U --> FB[Frontend base<br/>login + layout]
     FB --> FS[Frontend sedes]
+    FS --> FU[Frontend usuarios]
 ```
 
 - **Sedes necesita acceso:** todos sus endpoints exigen rol y la auditoría guarda el usuario que actúa.
 - **Acceso necesita sedes y viceversa en el modelo** (`usuario.sede_id` y `sede.creado_por_id`): por eso las tablas se crean juntas, en una migración, y el dominio de acceso va antes que el de sedes.
-- **El verificador de bibliotecarios depende de usuarios**, y por eso es el único real de esta iteración.
+- **El verificador de bibliotecarios depende de usuarios**, y por eso es el único real de esta iteración (llega en el PR 6, que depende del repositorio de sedes del PR 5).
 - **El frontend base** solo necesita el contrato de la API (`/auth/login`, `/auth/me`); puede desarrollarse contra MSW sin esperar al backend, pero se integra al final de la cadena.
 
 ## Cadena de ramas y PR
@@ -56,11 +58,12 @@ PR **encadenados** (*stacked*): cada rama sale de la anterior y su PR apunta a l
 | 1 | `docs/sedes-y-auth-base` | `main` | Esta documentación: negocio, funcional, técnica y plan | — |
 | 2 | `chore/infra-backend-y-testing` | 1 | Dependencias, configuración, sesión y Unit of Work, Alembic vacío, manejo de errores y `ErrorDeValidacion`, reloj, estructura de `tests/` con fixtures, fábricas y fakes base, script de trazabilidad de CA, workflow de CI, actualización de `CLAUDE.md` con los comandos | — |
 | 3 | `feature/modelo-datos-sedes-acceso` | 2 | Modelos ORM, migraciones `0001` a `0003`, seed (`python -m app.db.seed`), pruebas de integración de restricciones (códigos, CHECK, exclusión de horarios, disparador del historial) | `CA-SED-04` (parte de base) |
-| 4 | `feature/auth-base` | 3 | `Usuario`, `Rol`, `Permiso`, seguridad (hash y JWT), `/auth/login` y `/auth/me`, dependencias, usuarios del personal, verificador de bibliotecarios, pruebas rol × endpoint | `CA-ACC-01` a `13`, `CA-SED-16` (verificador) |
+| 4 | `feature/auth-base` | 3 | `Usuario`, `Rol`, `Permiso`, seguridad (hash y JWT), `/auth/login` y `/auth/me`, dependencias de autenticación y autorización, pruebas rol × endpoint | `CA-ACC-01` a `07`, `11`, `12`, `13` |
 | 5 | `feature/sedes-backend` | 4 | Dominio de sede (objetos de valor, excepciones de horario, eventos), `SedeService`, repositorios, puerto y compuesto de verificación, controladores y DTOs por rol, catálogos, historial, pruebas en todos los niveles | `CA-SED-01` a `47` (los que no dependen de módulos futuros) |
-| 6 | `feature/frontend-base` | 5 | Dependencias, tokens y componentes base, cliente HTTP y `ApiError`, sesión y rutas protegidas, `AppLayout`, login, inicio por rol, MSW y pruebas | — |
-| 7 | `feature/frontend-sedes` | 6 | Pantallas y diálogos del módulo de sedes, hooks, mapa de errores, pruebas | `CA-SED-*` vistos por el usuario |
-| 8 | `feature/frontend-usuarios` | 7 | Pantalla de usuarios del personal: listado con filtros, alta, edición con reasignación de sede, baja y reactivación; enlace desde el diálogo de baja de sede | `CA-ACC-08` a `10` vistos por el usuario |
+| 6 | `feature/usuarios-backend` | 5 | API de usuarios del personal (alta, listado, modificación y reasignación, baja y reactivación), verificador de bibliotecarios asignados, pruebas | `CA-ACC-08` a `10`, `14`, `CA-SED-16`, `22`, `25` |
+| 7 | `feature/frontend-base` | 6 | Dependencias, tokens y componentes base, cliente HTTP y `ApiError`, sesión y rutas protegidas, `AppLayout`, login, inicio por rol, MSW y pruebas | — |
+| 8 | `feature/frontend-sedes` | 7 | Pantallas y diálogos del módulo de sedes, hooks, mapa de errores, pruebas | `CA-SED-*` vistos por el usuario |
+| 9 | `feature/frontend-usuarios` | 8 | Pantalla de usuarios del personal: listado con filtros, alta, edición con reasignación de sede, baja y reactivación; enlace desde el diálogo de baja de sede | `CA-ACC-08` a `10` vistos por el usuario |
 
 Los criterios de sede que dependen de módulos futuros (`CA-SED-05` a `07`, `17` a `20`, `09`, `24`) se prueban en esta iteración con **verificadores falsos** y con el contrato; la prueba con datos reales llega en el PR de cada módulo.
 
@@ -106,7 +109,7 @@ Cada PR de código incluye sus pruebas, la actualización de la documentación a
 
 ## Definición de terminado de la iteración
 
-- Los 8 PR mergeados, con CI en verde.
+- Los 9 PR mergeados, con CI en verde.
 - `docker compose up` levanta la base, aplica migraciones y el seed deja entrar con los cuatro usuarios de demostración.
 - Todos los criterios `CA-SED-*` y `CA-ACC-*` tienen prueba con su marcador (salvo los marcados como pendientes de módulo, listados en el contrato).
 - Un administrador puede, desde la interfaz: ingresar, crear, editar y consultar sedes, cargar horarios y excepciones, dar de baja (con el diálogo de bloqueo) y reactivar, ver el historial, y administrar los usuarios del personal (alta, reasignación de sede, baja y reactivación). Un bibliotecario y un socio ven solo lo que su rol permite.
