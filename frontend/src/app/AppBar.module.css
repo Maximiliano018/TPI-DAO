@@ -1,56 +1,79 @@
+/* Barra de nogal con filete de latón; el nombre en serif como el rótulo de una biblioteca. */
 .barra {
   position: sticky;
   top: 0;
-  z-index: 100;
+  z-index: 300;
   display: flex;
   align-items: center;
   gap: var(--space-3);
   height: var(--appbar-height);
   padding: 0 var(--space-4);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  box-shadow: var(--shadow-sm);
+  color: var(--color-cream);
+  background-color: var(--color-wood-800);
+  background-image: var(--textura-madera);
+  border-bottom: 3px solid var(--color-brass);
+  box-shadow: var(--shadow-md);
+}
+.logo {
+  flex: none;
 }
 .menu {
   min-width: 40px;
   min-height: 40px;
-  background: none;
-  border: 1px solid var(--color-border-strong);
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--color-cream);
+  border: 1px solid var(--color-brass);
   border-radius: var(--radius-md);
   font-size: var(--text-lg);
   cursor: pointer;
 }
 .sistema {
-  font-weight: 600;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: 0.03em;
   flex: 1;
 }
 .sede {
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
+  color: var(--color-brass);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--text-md);
 }
 .usuario {
   position: relative;
 }
 .boton {
   min-height: 40px;
-  background: none;
-  border: 1px solid transparent;
+  color: var(--color-cream);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(214, 173, 69, 0.6);
   border-radius: var(--radius-md);
   padding: 0 var(--space-3);
   font: inherit;
   cursor: pointer;
 }
+.boton:hover,
+.menu:hover {
+  background: rgba(214, 173, 69, 0.22);
+}
+.menu:focus-visible,
+.boton:focus-visible {
+  outline-color: var(--color-brass);
+}
 .panel {
   position: absolute;
   right: 0;
-  top: calc(100% + var(--space-1));
+  top: calc(100% + var(--space-2));
   min-width: 220px;
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
+  color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--color-border-strong);
+  border-top: 3px solid var(--color-primary-700);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
 }
@@ -69,7 +92,11 @@
   }
 }
 @media (max-width: 639px) {
-  .sede {
+  .sede,
+  .sistema {
     display: none;
+  }
+  .usuario {
+    margin-left: auto;
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSesion } from '../auth/SesionContext.jsx';
-import { Button } from '../components/index.js';
+import { Button, Logo } from '../components/index.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { NOMBRE_DE_ROL } from '../utils/roles.js';
 import estilos from './AppBar.module.css';
@@ -42,6 +42,7 @@ export default function AppBar({ menuAbierto, onAlternarMenu }) {
       >
         ☰
       </button>
+      <Logo tamano={34} className={estilos.logo} />
       <span className={estilos.sistema}>{MENSAJES.sistema}</span>
       <span className={estilos.sede} data-testid="sede-del-usuario">
         {usuario.sede ? usuario.sede.nombre : MENSAJES.todaLaRed}

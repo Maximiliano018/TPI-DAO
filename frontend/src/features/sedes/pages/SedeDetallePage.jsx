@@ -143,9 +143,9 @@ export default function SedeDetallePage() {
           </div>
         }
       >
-        <p style={{ margin: 0 }}>
-          <span className={estilos.codigo}>{sede.codigo}</span>{' '}
-          {sede.estado && <EstadoSedeBadge estado={sede.estado} />}{' '}
+        <p style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span className={estilos.codigo}>{sede.codigo}</span>
+          {sede.estado && <EstadoSedeBadge estado={sede.estado} />}
           {sede.estado !== 'BAJA' && <AbiertaBadge abierta={sede.abierta_ahora} />}
         </p>
       </PageHeader>
