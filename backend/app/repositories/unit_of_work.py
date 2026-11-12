@@ -5,6 +5,7 @@ from typing import Protocol
 from sqlalchemy.orm import Session
 
 from app.repositories.interfaces.sede_repository import LocalidadRepository, SedeRepository
+from app.repositories.interfaces.socio_repository import SocioRepository
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
 
 
@@ -14,6 +15,7 @@ class UnitOfWork(Protocol):
     usuarios: UsuarioRepository
     sedes: SedeRepository
     localidades: LocalidadRepository
+    socios: SocioRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -32,12 +34,14 @@ class SqlAlchemyUnitOfWork:
             SqlAlchemyLocalidadRepository,
             SqlAlchemySedeRepository,
         )
+        from app.repositories.impl.socio_repository import SqlAlchemySocioRepository
         from app.repositories.impl.usuario_repository import SqlAlchemyUsuarioRepository
 
         self.sesion = sesion
         self.usuarios: UsuarioRepository = SqlAlchemyUsuarioRepository(sesion)
         self.sedes: SedeRepository = SqlAlchemySedeRepository(sesion)
         self.localidades: LocalidadRepository = SqlAlchemyLocalidadRepository(sesion)
+        self.socios: SocioRepository = SqlAlchemySocioRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()

@@ -42,6 +42,10 @@ class Permiso(StrEnum):
     SEDE_ADMINISTRAR = "SEDE_ADMINISTRAR"
     SEDE_VER_HISTORIAL = "SEDE_VER_HISTORIAL"
     USUARIO_ADMINISTRAR = "USUARIO_ADMINISTRAR"
+    SOCIO_LEER = "SOCIO_LEER"
+    SOCIO_REGISTRAR = "SOCIO_REGISTRAR"
+    SOCIO_ADMINISTRAR = "SOCIO_ADMINISTRAR"
+    SOCIO_VER_PROPIO = "SOCIO_VER_PROPIO"
 
 
 ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
@@ -53,10 +57,20 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.SEDE_ADMINISTRAR,
             Permiso.SEDE_VER_HISTORIAL,
             Permiso.USUARIO_ADMINISTRAR,
+            Permiso.SOCIO_LEER,
+            Permiso.SOCIO_REGISTRAR,
+            Permiso.SOCIO_ADMINISTRAR,
         }
     ),
-    Rol.BIBLIOTECARIO: frozenset({Permiso.SEDE_LEER_PUBLICO, Permiso.SEDE_LEER_BASICO}),
-    Rol.SOCIO: frozenset({Permiso.SEDE_LEER_PUBLICO}),
+    Rol.BIBLIOTECARIO: frozenset(
+        {
+            Permiso.SEDE_LEER_PUBLICO,
+            Permiso.SEDE_LEER_BASICO,
+            Permiso.SOCIO_LEER,
+            Permiso.SOCIO_REGISTRAR,
+        }
+    ),
+    Rol.SOCIO: frozenset({Permiso.SEDE_LEER_PUBLICO, Permiso.SOCIO_VER_PROPIO}),
 }
 
 
@@ -194,6 +208,36 @@ class Usuario:
             rol=rol,
             activo=True,
             sede=sede,
+            password_hash=password_hash,
+            creado_en=ahora,
+            creado_por=actor,
+            actualizado_en=ahora,
+            actualizado_por=actor,
+        )
+
+    @classmethod
+    def crear_cuenta_socio(
+        cls,
+        *,
+        username: str,
+        nombre: str,
+        socio_id: int,
+        password_hash: str,
+        actor: UsuarioRef,
+        ahora: datetime,
+    ) -> "Usuario":
+        """Crea la cuenta de acceso (rol ``SOCIO``) de un socio ya registrado.
+
+        Raises:
+            ErrorDeValidacion: Usuario o nombre inválidos.
+        """
+        return cls(
+            id=None,
+            username=validar_username(username),
+            nombre=validar_nombre_usuario(nombre),
+            rol=Rol.SOCIO,
+            activo=True,
+            socio_id=socio_id,
             password_hash=password_hash,
             creado_en=ahora,
             creado_por=actor,

@@ -1,4 +1,4 @@
-"""Datos de demostración: sedes, usuarios de cada rol y un socio.
+"""Datos de demostración: sedes, usuarios de cada rol y socios.
 
 Uso: ``python -m app.db.seed``. Es idempotente (se puede ejecutar varias veces) y solo corre
 con ``ENTORNO=desarrollo`` o ``ENTORNO=test``, para no cargar usuarios con contraseñas
@@ -23,7 +23,9 @@ from app.db.models import (
     SocioORM,
     UsuarioORM,
 )
+from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
 from app.db.session import crear_fabrica_sesiones
+from app.models.socio import formatear_numero_socio
 from app.utils.texto import normalizar, normalizar_calle, normalizar_numero
 
 ENTORNOS_PERMITIDOS = {"desarrollo", "test"}
@@ -186,34 +188,91 @@ def _crear_sede(sesion: Session, datos: dict, admin: UsuarioORM) -> SedeORM:
     return sede
 
 
-def _crear_socio_demo(sesion: Session, clave: str, admin: UsuarioORM) -> None:
-    if sesion.scalar(select(UsuarioORM).where(UsuarioORM.username == "socio.demo")):
-        return
-    sede_cen = sesion.scalar(select(SedeORM).where(SedeORM.codigo == "CEN"))
-    socio = SocioORM(
-        numero_socio="00001",
-        tipo_documento="DNI",
-        nro_documento="30111222",
-        nombre="Carla",
-        apellido="Soto",
-        email="carla.soto@example.com",
-        sede_alta_id=sede_cen.id,
-        estado="HABILITADO",
+SOCIOS = [
+    {
+        "documento": "30111222",
+        "nombre": "Carla",
+        "apellido": "Soto",
+        "email": "carla.soto@example.com",
+        "telefono": "+543515551111",
+        "sede": "CEN",
+        "usuario": "socio.demo",
+    },
+    {
+        "documento": "28555666",
+        "nombre": "Martín",
+        "apellido": "Ríos",
+        "email": "martin.rios@example.com",
+        "telefono": None,
+        "sede": "NORTE",
+    },
+    {
+        "documento": "35222333",
+        "nombre": "Sofía",
+        "apellido": "Herrera",
+        "email": None,
+        "telefono": "+543584442222",
+        "sede": "SUR_RC",
+        "inhabilitado": "Daño reiterado de material prestado",
+    },
+    {
+        "documento": "27444555",
+        "nombre": "Diego",
+        "apellido": "Luna",
+        "email": "diego.luna@example.com",
+        "telefono": None,
+        "sede": "CEN",
+        "baja": "Se mudó fuera de la provincia",
+    },
+]
+
+
+def _crear_socio(sesion: Session, datos: dict, clave: str, admin: UsuarioORM) -> None:
+    """Crea el socio (con número de la secuencia) y, si corresponde, su cuenta de acceso."""
+    socio = sesion.scalar(
+        select(SocioORM).where(
+            SocioORM.tipo_documento == "DNI", SocioORM.nro_documento == datos["documento"]
+        )
     )
-    sesion.add(socio)
-    sesion.flush()
-    sesion.add(
-        UsuarioORM(
-            username="socio.demo",
-            password_hash=hashear_clave(clave),
-            nombre="Carla Soto",
-            rol="SOCIO",
-            socio_id=socio.id,
-            activo=True,
+    if socio is None:
+        numero = sesion.scalar(SECUENCIA_NUMERO_SOCIO.next_value())
+        inhabilitado = datos.get("inhabilitado")
+        baja = datos.get("baja")
+        estado = "BAJA" if baja else "INHABILITADO" if inhabilitado else "HABILITADO"
+        socio = SocioORM(
+            numero_socio=formatear_numero_socio(int(numero)),
+            tipo_documento="DNI",
+            nro_documento=datos["documento"],
+            nombre=datos["nombre"],
+            apellido=datos["apellido"],
+            email=datos["email"],
+            telefono=datos["telefono"],
+            sede_alta_id=sesion.scalar(select(SedeORM.id).where(SedeORM.codigo == datos["sede"])),
+            estado=estado,
+            motivo_inhabilitacion="ADMINISTRATIVA" if inhabilitado else None,
+            inhabilitacion_administrativa=bool(inhabilitado),
+            motivo_administrativo=inhabilitado,
+            fecha_baja=datetime.now(UTC) if baja else None,
+            motivo_baja=baja,
             creado_por_id=admin.id,
             actualizado_por_id=admin.id,
         )
-    )
+        sesion.add(socio)
+        sesion.flush()
+    username = datos.get("usuario")
+    if username and not sesion.scalar(select(UsuarioORM).where(UsuarioORM.username == username)):
+        sesion.add(
+            UsuarioORM(
+                username=username,
+                password_hash=hashear_clave(clave),
+                nombre=f"{datos['nombre']} {datos['apellido']}",
+                rol="SOCIO",
+                socio_id=socio.id,
+                activo=True,
+                creado_por_id=admin.id,
+                actualizado_por_id=admin.id,
+            )
+        )
 
 
 def cargar(sesion: Session, clave: str) -> None:
@@ -223,7 +282,8 @@ def cargar(sesion: Session, clave: str) -> None:
         _crear_sede(sesion, datos, admin)
     for datos in USUARIOS[1:]:
         _crear_usuario(sesion, datos, clave, admin.id)
-    _crear_socio_demo(sesion, clave, admin)
+    for datos in SOCIOS:
+        _crear_socio(sesion, datos, clave, admin)
 
 
 def main() -> int:

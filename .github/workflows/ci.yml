@@ -46,7 +46,7 @@ jobs:
           alembic upgrade head
           alembic check
       - name: Trazabilidad de criterios de aceptación
-        run: python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC --estricto
+        run: python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC,SOC --estricto
 
   frontend:
     runs-on: ubuntu-latest

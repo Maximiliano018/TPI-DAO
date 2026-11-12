@@ -1,17 +1,13 @@
-"""Usuarios del sistema y socios (estructura mínima para el vínculo usuario-socio)."""
+"""Usuarios del sistema (personal y cuentas de socio)."""
 
-from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
-    Date,
-    DateTime,
     ForeignKey,
     Index,
     String,
-    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,30 +16,6 @@ from app.db.base import Base, ConAuditoriaDeTiempo
 
 if TYPE_CHECKING:
     from app.db.models.sede import SedeORM
-
-
-class SocioORM(ConAuditoriaDeTiempo, Base):
-    """Socio de la red. El módulo de socios completa la lógica; acá solo la estructura."""
-
-    __tablename__ = "socio"
-    __table_args__ = (
-        UniqueConstraint("tipo_documento", "nro_documento"),
-        CheckConstraint("estado IN ('HABILITADO','INHABILITADO')", name="estado_valido"),
-    )
-
-    numero_socio: Mapped[str] = mapped_column(String(15), nullable=False, unique=True)
-    tipo_documento: Mapped[str] = mapped_column(String(10), nullable=False)
-    nro_documento: Mapped[str] = mapped_column(String(20), nullable=False)
-    nombre: Mapped[str] = mapped_column(String(100), nullable=False)
-    apellido: Mapped[str] = mapped_column(String(100), nullable=False)
-    fecha_nacimiento: Mapped[date | None] = mapped_column(Date)
-    email: Mapped[str | None] = mapped_column(String(120))
-    telefono: Mapped[str | None] = mapped_column(String(20))
-    domicilio: Mapped[str | None] = mapped_column(String(200))
-    sede_alta_id: Mapped[int] = mapped_column(ForeignKey("sede.id"), nullable=False)
-    estado: Mapped[str] = mapped_column(String(15), nullable=False, default="HABILITADO")
-    motivo_inhabilitacion: Mapped[str | None] = mapped_column(String(30))
-    fecha_baja: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class UsuarioORM(ConAuditoriaDeTiempo, Base):

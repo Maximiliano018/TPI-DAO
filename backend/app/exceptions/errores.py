@@ -92,6 +92,55 @@ class ExcepcionHorarioSuperpuesta(ReglaDeNegocioViolada):
     codigo = "EXCEPCION_HORARIO_SUPERPUESTA"
 
 
+# --- socios ------------------------------------------------------------------------------------
+
+
+class SocioNoEncontrado(EntidadNoEncontrada):
+    codigo = "SOCIO_NO_ENCONTRADO"
+
+
+class PosibleDuplicado(DuplicadoError):
+    """Otro socio con el mismo nombre, apellido y fecha de nacimiento: hay que confirmar."""
+
+    codigo = "POSIBLE_DUPLICADO"
+
+
+class SocioInhabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_INHABILITADO"
+
+
+class SocioEnBaja(ReglaDeNegocioViolada):
+    codigo = "SOCIO_EN_BAJA"
+
+
+class SocioYaEnBaja(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_EN_BAJA"
+
+
+class SocioYaActivo(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_ACTIVO"
+
+
+class SocioYaHabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_HABILITADO"
+
+
+class SocioYaInhabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_INHABILITADO"
+
+
+class SocioConCausasVigentes(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_CAUSAS_VIGENTES"
+
+
+class SocioConActividadPendiente(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_ACTIVIDAD_PENDIENTE"
+
+
+class SocioConCuenta(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_CUENTA"
+
+
 class ErrorDeValidacion(ErrorDeNegocio):
     """Dato con forma válida pero que incumple una regla de campo (422)."""
 

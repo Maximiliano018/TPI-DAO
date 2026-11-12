@@ -7,7 +7,8 @@ from app.db.models.sede import (
     HorarioSedeORM,
     SedeORM,
 )
-from app.db.models.usuario import SocioORM, UsuarioORM
+from app.db.models.socio import SocioORM
+from app.db.models.usuario import UsuarioORM
 
 __all__ = [
     "ExcepcionHorarioSedeORM",

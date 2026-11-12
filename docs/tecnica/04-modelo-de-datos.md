@@ -179,15 +179,30 @@ Un bibliotecario **dado de baja** (`activo = false`) conserva su `sede_id` como 
 
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
-| numero_socio | VARCHAR(15) | NOT NULL, UNIQUE |
-| tipo_documento, nro_documento | VARCHAR | NOT NULL, **UNIQUE (tipo, número)** |
+| numero_socio | VARCHAR(15) | NOT NULL, UNIQUE; sale de la secuencia `socio_numero_seq` con 5 dígitos (`00045`) |
+| tipo_documento, nro_documento | VARCHAR | NOT NULL, **UNIQUE (tipo, número)**; tipo `DNI`, `LE`, `LC` o `PASAPORTE`; el número se guarda sin puntos |
 | nombre, apellido | VARCHAR(100) | NOT NULL |
-| fecha_nacimiento | DATE | informativa |
-| email, telefono, domicilio | VARCHAR | |
-| sede_alta_id | FK sede | NOT NULL |
-| estado | VARCHAR(15) | `HABILITADO` o `INHABILITADO` |
-| motivo_inhabilitacion | VARCHAR(30) | `PRESTAMO_VENCIDO`, `MULTA_IMPAGA`, `ADMINISTRATIVA`; NOT NULL si inhabilitado |
-| fecha_baja | TIMESTAMPTZ | NULL si está dado de alta; la baja es lógica |
+| fecha_nacimiento | DATE | informativa; junto con nombre y apellido detecta posibles duplicados |
+| email, telefono, domicilio | VARCHAR | al menos correo o teléfono (lo valida el dominio); teléfono en E.164 |
+| sede_alta_id | FK sede | NOT NULL; sede activa al registrarlo (dato de registro, no limita dónde opera) |
+| estado | VARCHAR(15) | `HABILITADO`, `INHABILITADO` o `BAJA` |
+| motivo_inhabilitacion | VARCHAR(30) | `ADMINISTRATIVA`, `PRESTAMO_VENCIDO` o `MULTA_IMPAGA`: la causa vigente de mayor prioridad. NOT NULL si y solo si está inhabilitado |
+| inhabilitacion_administrativa | BOOLEAN | NOT NULL, por defecto falso; la decisión del administrador, que solo él levanta |
+| motivo_administrativo | VARCHAR(300) | texto del administrador; NOT NULL si y solo si hay inhabilitación administrativa |
+| fecha_baja, motivo_baja | TIMESTAMPTZ, VARCHAR(300) | NOT NULL si y solo si `estado = 'BAJA'`; la baja es lógica |
+| creado_por_id, actualizado_por_id | FK usuario | auditoría (`RF-ACC-07`) |
+
+Las causas automáticas (préstamo vencido, multa impaga) **no se guardan como decisión**: el servicio las recalcula con los préstamos y multas del socio en cada evento (`Socio.reevaluar`). La administrativa sí se guarda, porque no surge de otros datos. Si hay varias causas, `motivo_inhabilitacion` muestra la de mayor prioridad (administrativa, préstamo vencido, multa impaga).
+
+```sql
+CHECK ((estado = 'INHABILITADO') = (motivo_inhabilitacion IS NOT NULL))
+CHECK (inhabilitacion_administrativa = (motivo_administrativo IS NOT NULL))
+CHECK (NOT inhabilitacion_administrativa OR motivo_inhabilitacion = 'ADMINISTRATIVA')
+CHECK ((estado = 'BAJA' AND fecha_baja IS NOT NULL AND motivo_baja IS NOT NULL)
+    OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL))
+```
+
+La cuenta de acceso del socio es una fila de `usuario` con `rol = 'SOCIO'` y `socio_id`; la crea el personal desde la ficha del socio.
 
 ### categoria, autor, libro, libro_autor
 
@@ -367,6 +382,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0001_catalogos_geograficos` | `btree_gist`, `provincia`, `localidad` |
 | `0002_sedes_y_acceso` | `usuario`, `socio` (solo estructura; su módulo llega después), `sede`, `horario_sede`, `excepcion_horario_sede`, `historial_sede` con sus restricciones, exclusiones, índices y disparador de solo inserción. Las claves foráneas circulares (`usuario.sede_id` ↔ `sede.creado_por_id`) se resuelven creando las tablas y agregando las claves en la misma migración |
 | `0003_seed_localidades` (datos) | Provincia de Córdoba y su lista de localidades |
+| `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
 
 ### Seed de demostración
 
@@ -377,7 +393,7 @@ Un comando (`python -m app.db.seed`) carga datos de ejemplo de forma **idempoten
 | Provincia y localidades | Provincia de Córdoba con la ciudad de Córdoba (capital) y las principales localidades de la provincia. La carga completa del catálogo oficial es una migración de datos posterior |
 | Sedes | 4: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto (activas) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA`, con motivo, para mostrar el estado) |
 | Usuarios | `admin` (administrador), `bibliotecario.cen` (bibliotecario de `CEN`), `bibliotecario.norte` (bibliotecario de `NORTE`) y `socio.demo` (socio) |
-| Socio | Un socio de demostración enlazado con `socio.demo` y con sede de alta `CEN` |
+| Socios | Cuatro: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa) y Diego Luna (dado de baja) |
 | Contraseña | La define `SEED_PASSWORD` en `.env` (sin valor por defecto en el repositorio; `.env.example` tiene un marcador) |
 
 Los datos del seed son distintos de los fixtures de los tests y los tests no los usan.

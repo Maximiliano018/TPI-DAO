@@ -30,6 +30,7 @@ class UsuarioSesionResponse(BaseModel):
     rol: str
     sede_id: int | None
     sede: SedeResumenResponse | None
+    socio_id: int | None = None
     permisos: list[str]
 
     @classmethod
@@ -48,6 +49,7 @@ class UsuarioSesionResponse(BaseModel):
             rol=usuario.rol.value,
             sede_id=usuario.sede_id,
             sede=sede,
+            socio_id=usuario.socio_id,
             permisos=sorted(p.value for p in usuario.permisos),
         )
 

@@ -74,6 +74,7 @@ class UnitOfWorkEnMemoria:
         self.usuarios = usuarios or UsuarioRepositorioEnMemoria()
         self.sedes = SedeRepositorioEnMemoria()
         self.localidades = LocalidadRepositorioEnMemoria([CORDOBA, RIO_CUARTO])
+        self.socios = SocioRepositorioEnMemoria()
         self.confirmaciones = 0
         self.reversiones = 0
 
@@ -219,3 +220,86 @@ class LocalidadRepositorioEnMemoria:
 
     def provincias(self) -> list[tuple[int, str]]:
         return sorted({(loc.provincia_id, loc.provincia) for loc in self._localidades.values()})
+
+
+# --- socios -----------------------------------------------------------------------------------
+
+from datetime import date  # noqa: E402
+
+from app.models.socio import Documento, SituacionSocio, Socio, formatear_numero_socio  # noqa: E402
+from app.repositories.interfaces.socio_repository import FiltroSocios  # noqa: E402
+
+
+class SocioRepositorioEnMemoria:
+    """Implementa ``SocioRepository`` sin base de datos.
+
+    ``situaciones`` permite simular préstamos, multas y reservas de cada socio.
+    """
+
+    def __init__(self) -> None:
+        self.socios: dict[int, Socio] = {}
+        self.situaciones: dict[int, SituacionSocio] = {}
+        self._numero = 0
+
+    def siguiente_numero(self) -> str:
+        self._numero += 1
+        return formatear_numero_socio(self._numero)
+
+    def agregar(self, socio: Socio) -> None:
+        if self.buscar_por_documento(socio.datos.documento) is not None:
+            raise DuplicadoError("Ya existe un socio con ese documento.")
+        socio.id = socio.id or max(self.socios, default=0) + 1
+        self.socios[socio.id] = socio
+
+    def guardar(self, socio: Socio) -> None:
+        assert socio.id in self.socios
+
+    def obtener(self, socio_id: int) -> Socio | None:
+        return self.socios.get(socio_id)
+
+    obtener_para_modificar = obtener
+
+    def buscar_por_documento(
+        self, documento: Documento, excluir_id: int | None = None
+    ) -> Socio | None:
+        return next(
+            (
+                s
+                for s in self.socios.values()
+                if s.datos.documento == documento and s.id != excluir_id
+            ),
+            None,
+        )
+
+    def buscar_por_persona(
+        self, nombre: str, apellido: str, fecha_nacimiento: date, excluir_id: int | None = None
+    ) -> list[Socio]:
+        return [
+            s
+            for s in self.socios.values()
+            if normalizar(s.datos.nombre) == nombre
+            and normalizar(s.datos.apellido) == apellido
+            and s.datos.fecha_nacimiento == fecha_nacimiento
+            and s.id != excluir_id
+        ]
+
+    def listar(self, filtro: FiltroSocios, page: int, size: int) -> tuple[list[Socio], int]:
+        socios = list(self.socios.values())
+        if filtro.estado:
+            socios = [s for s in socios if s.estado == filtro.estado]
+        if filtro.documento:
+            socios = [s for s in socios if s.datos.documento.numero == filtro.documento]
+        if filtro.texto:
+            socios = [
+                s
+                for s in socios
+                if filtro.texto in normalizar(s.datos.nombre_completo)
+                or filtro.texto in s.numero_socio
+                or filtro.texto in s.datos.documento.numero.lower()
+            ]
+        socios.sort(key=lambda s: (normalizar(s.datos.apellido), normalizar(s.datos.nombre)))
+        inicio = (page - 1) * size
+        return socios[inicio : inicio + size], len(socios)
+
+    def situacion(self, socio_id: int) -> SituacionSocio:
+        return self.situaciones.get(socio_id, SituacionSocio())

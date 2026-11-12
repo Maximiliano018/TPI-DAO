@@ -14,6 +14,7 @@ from app.models.usuario import Permiso, Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.auth_service import AuthService
 from app.services.sede_service import SedeService
+from app.services.socio_service import SocioService
 from app.services.usuario_service import UsuarioService
 from app.services.verificadores_baja_sede import VerificadorBibliotecariosAsignados
 from app.utils.reloj import Reloj, RelojSistema
@@ -58,6 +59,12 @@ def get_usuario_service(
     uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
 ) -> UsuarioService:
     return UsuarioService(uow, reloj)
+
+
+def get_socio_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> SocioService:
+    return SocioService(uow, reloj)
 
 
 def usuario_actual(

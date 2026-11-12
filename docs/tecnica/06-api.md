@@ -87,6 +87,8 @@ Roles: todos. Devuelve el usuario autenticado con el mismo formato que `usuario`
   "permisos": ["SEDE_LEER_BASICO"] }
 ```
 
+Para un socio, `socio_id` trae el id de su ficha (`null` para el personal), así el frontend abre «mis datos» con `GET /socios/{socio_id}`.
+
 Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja). Cerrar sesión no tiene endpoint: el cliente descarta el token.
 
 ## Resumen de endpoints
@@ -115,14 +117,16 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /socios` | A, B | Alta | RF-SOC-01, 02 |
-| `GET /socios` | A, B | Búsqueda; `?q=`, `?documento=`, `?estado=` | RF-SOC-04 |
-| `GET /socios/{id}` | A, B, S | Detalle y situación | RF-SOC-10 |
+| `POST /socios` | A, B | Alta (el bibliotecario en su sede; el administrador indica `sede_alta_id`) | RF-SOC-01, 02 |
+| `GET /socios` | A, B | Búsqueda paginada; `?q=` (número, documento o nombre), `?documento=`, `?estado=` | RF-SOC-04 |
+| `GET /socios/posibles-duplicados` | A, B | Búsqueda previa al alta; `?tipo_documento=&nro_documento=` y `?nombre=&apellido=&fecha_nacimiento=` | RF-SOC-02 |
+| `GET /socios/{id}` | A, B, S | Ficha y situación (el socio, solo la propia) | RF-SOC-10 |
 | `PUT /socios/{id}` | A, B | Modificar | RF-SOC-03 |
-| `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa | RF-SOC-06 |
-| `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes | RF-SOC-05, 06 |
-| `POST /socios/{id}/baja` | A | Baja lógica | RF-SOC-09 |
+| `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa con motivo | RF-SOC-06 |
+| `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes; solo A levanta la administrativa | RF-SOC-05, 06 |
+| `POST /socios/{id}/baja` | A | Baja lógica con motivo | RF-SOC-09 |
 | `POST /socios/{id}/reactivar` | A | Reactivar | RF-SOC-09 |
+| `POST /socios/{id}/cuenta` | A, B | Crear la cuenta de acceso del socio (rol `SOCIO`) | RF-ACC-01 |
 
 ### Catálogo
 
@@ -479,18 +483,40 @@ Request:
   "apellido": "Gómez",
   "fecha_nacimiento": "1995-04-12",
   "email": "lucia@example.com",
-  "telefono": "351-5000000",
-  "domicilio": "San Martín 123"
+  "telefono": "+543515000000",
+  "domicilio": "San Martín 123",
+  "sede_alta_id": null,
+  "confirmar_posible_duplicado": false
 }
 ```
 
-Response `201`:
+| Campo | Regla |
+|-------|-------|
+| `tipo_documento` | `DNI`, `LE`, `LC` o `PASAPORTE` |
+| `nro_documento` | DNI, LE y LC: 7 u 8 dígitos (se aceptan puntos). Pasaporte: 6 a 9 letras o números |
+| `nombre`, `apellido` | Obligatorios, hasta 100 caracteres |
+| `fecha_nacimiento` | Opcional; no futura ni anterior a 1900 |
+| `email`, `telefono` | Al menos uno de los dos. El teléfono en formato internacional (E.164) |
+| `sede_alta_id` | Solo el administrador (obligatorio); el bibliotecario registra en su sede |
+| `confirmar_posible_duplicado` | `true` para registrar aunque haya otro socio con el mismo nombre y fecha de nacimiento |
+
+Response `201` (`Location: /api/v1/socios/45`): el socio completo, con `numero_socio` (`"00045"`), `estado` (`"HABILITADO"`), `sede_alta_id`, auditoría y `cuenta` (`null` hasta que se cree).
+
+Errores, en este orden: `422 VALIDACION` (forma) → `409 DUPLICADO` (documento repetido; `detalles[0]` trae `socio_id`, `numero_socio`, `estado` y `puede_reactivarse`, verdadero si está dado de baja) → `409 POSIBLE_DUPLICADO` (mismo nombre, apellido y fecha de nacimiento, sin confirmar; `detalles` lista los parecidos) → `404 SEDE_NO_ENCONTRADA` / `409 SEDE_EN_BAJA`.
+
+`GET /socios/{id}` agrega la situación:
 
 ```json
-{ "id": 45, "numero_socio": "00045", "estado": "HABILITADO", "sede_alta_id": 2 }
+{ "id": 45, "numero_socio": "00045", "estado": "INHABILITADO", "motivo_inhabilitacion": "PRESTAMO_VENCIDO",
+  "causas_inhabilitacion": ["PRESTAMO_VENCIDO"], "motivo_administrativo": null,
+  "situacion": { "prestamos_activos": 1, "prestamos_vencidos": 1, "multas_pendientes": 0, "reservas_activas": 0 } }
 ```
 
-Errores: `409 DUPLICADO` (devuelve el socio existente en `detalles`; si estaba dado de baja, indica que puede reactivarse).
+Un socio que consulta la ficha de otro recibe `404 SOCIO_NO_ENCONTRADO` (no se revela si existe).
+
+Estados: `POST /socios/{id}/inhabilitar` y `/baja` reciben `{ "motivo": "..." }` (5 a 300 caracteres). Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa).
+
+`POST /socios/{id}/cuenta` recibe `{ "username": "lucia.gomez", "password": "••••••••••" }` con las mismas reglas que el alta de personal. Errores: `409 SOCIO_CON_CUENTA`, `409 DUPLICADO` (usuario repetido), `409 SOCIO_EN_BAJA`.
 
 ### `POST /libros` y `POST /ejemplares`
 

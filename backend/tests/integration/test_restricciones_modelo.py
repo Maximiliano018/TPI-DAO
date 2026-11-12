@@ -261,6 +261,9 @@ def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Sessio
     assert {"admin", "bibliotecario.cen", "bibliotecario.norte", "socio.demo"} <= usuarios
     codigos = set(sesion.scalars(text("SELECT codigo FROM sede")))
     assert {"CEN", "NORTE", "SUR_RC", "OESTE_VCP"} <= codigos
+    socios = dict(sesion.execute(text("SELECT nro_documento, estado FROM socio")).all())
+    assert {d["documento"] for d in seed.SOCIOS} <= set(socios)
+    assert (socios["35222333"], socios["27444555"]) == ("INHABILITADO", "BAJA")
 
 
 def test_el_seed_se_niega_fuera_de_desarrollo_y_test(monkeypatch: pytest.MonkeyPatch):
