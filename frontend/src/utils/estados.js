@@ -13,6 +13,31 @@ export const ESTADOS = {
     INHABILITADO: { tono: 'danger', texto: 'Inhabilitado' },
     BAJA: { tono: 'neutral', texto: 'Dado de baja' },
   },
+  ejemplar: {
+    DISPONIBLE: { tono: 'success', texto: 'Disponible' },
+    APARTADO: { tono: 'info', texto: 'Apartado' },
+    RESERVADO: { tono: 'info', texto: 'Reservado' },
+    PRESTADO: { tono: 'warning', texto: 'Prestado' },
+    EN_TRANSITO: { tono: 'info', texto: 'En tránsito' },
+    EN_REVISION: { tono: 'danger', texto: 'En revisión' },
+    BAJA: { tono: 'neutral', texto: 'Dado de baja' },
+  },
+};
+
+/** Estado físico de un ejemplar. */
+export const ESTADOS_FISICOS = {
+  NUEVO: 'Nuevo',
+  BUENO: 'Bueno',
+  REGULAR: 'Regular',
+  DANADO: 'Dañado',
+};
+
+/** Tipo de material del catálogo. */
+export const TIPOS_DE_MATERIAL = {
+  LIBRO: 'Libro',
+  REVISTA: 'Revista',
+  OBRA_DE_REFERENCIA: 'Obra de referencia',
+  OTRO: 'Otro',
 };
 
 /** Causa de inhabilitación de un socio, para mostrar. */

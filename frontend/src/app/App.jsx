@@ -17,6 +17,14 @@ const SociosPage = lazy(() => import('../features/socios/pages/SociosPage.jsx'))
 const SocioDetallePage = lazy(() => import('../features/socios/pages/SocioDetallePage.jsx'));
 const SocioFormPage = lazy(() => import('../features/socios/pages/SocioFormPage.jsx'));
 const MisDatosPage = lazy(() => import('../features/socios/pages/MisDatosPage.jsx'));
+const CatalogoPage = lazy(() => import('../features/catalogo/pages/CatalogoPage.jsx'));
+const LibroDetallePage = lazy(() => import('../features/catalogo/pages/LibroDetallePage.jsx'));
+const LibroFormPage = lazy(() => import('../features/catalogo/pages/LibroFormPage.jsx'));
+const EjemplaresPage = lazy(() => import('../features/catalogo/pages/EjemplaresPage.jsx'));
+const EjemplarDetallePage = lazy(
+  () => import('../features/catalogo/pages/EjemplarDetallePage.jsx'),
+);
+const EjemplarFormPage = lazy(() => import('../features/catalogo/pages/EjemplarFormPage.jsx'));
 
 /** Rutas de la aplicación. Cada módulo suma las suyas con `React.lazy`. */
 export default function App() {
@@ -97,6 +105,52 @@ export default function App() {
             </RutaProtegida>
           }
         />
+        <Route
+          path="catalogo"
+          element={
+            <RutaProtegida permiso={PERMISOS.CATALOGO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<CatalogoPage />} />
+          <Route path=":id" element={<LibroDetallePage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.CATALOGO_ADMINISTRAR}>
+                <LibroFormPage modo="crear" />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path=":id/editar"
+            element={
+              <RutaProtegida permiso={PERMISOS.CATALOGO_ADMINISTRAR}>
+                <LibroFormPage modo="editar" />
+              </RutaProtegida>
+            }
+          />
+        </Route>
+        <Route
+          path="ejemplares"
+          element={
+            <RutaProtegida permiso={PERMISOS.EJEMPLAR_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<EjemplaresPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.EJEMPLAR_ADMINISTRAR}>
+                <EjemplarFormPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<EjemplarDetallePage />} />
+        </Route>
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

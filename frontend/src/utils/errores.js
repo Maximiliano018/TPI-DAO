@@ -28,6 +28,11 @@ export const MENSAJES_DE_ERROR = {
   SOCIO_YA_HABILITADO: 'El socio ya estaba habilitado. Se actualizó la pantalla',
   SOCIO_YA_INHABILITADO: 'El socio ya estaba inhabilitado por decisión administrativa',
   SOCIO_CON_CUENTA: 'El socio ya tiene una cuenta de acceso',
+  LIBRO_NO_ENCONTRADO: 'El libro solicitado no existe',
+  EJEMPLAR_NO_ENCONTRADO: 'El ejemplar solicitado no existe',
+  EJEMPLAR_CODIGO_DUPLICADO: 'Ya existe un ejemplar con ese código de inventario en la red',
+  CATEGORIA_INVALIDA: 'Elija una categoría de la lista',
+  TRANSICION_INVALIDA: 'La operación no corresponde al estado actual. Se actualizó la pantalla',
 };
 
 // Códigos cuyo mensaje del servidor es más preciso que uno fijo (traen el socio o la causa).
@@ -36,6 +41,9 @@ const USAR_MENSAJE_DEL_SERVIDOR = new Set([
   'SOCIO_CON_CAUSAS_VIGENTES',
   'SOCIO_CON_ACTIVIDAD_PENDIENTE',
   'SOCIO_INHABILITADO',
+  'LIBRO_DUPLICADO',
+  'LIBRO_CON_EJEMPLARES',
+  'EJEMPLAR_NO_DISPONIBLE',
 ]);
 
 /** Mensaje a mostrar para un `ApiError` (o cualquier error). */

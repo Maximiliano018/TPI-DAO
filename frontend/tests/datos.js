@@ -7,6 +7,10 @@ export const ADMIN = {
   sede_id: null,
   sede: null,
   permisos: [
+    'CATALOGO_ADMINISTRAR',
+    'CATALOGO_LEER',
+    'EJEMPLAR_ADMINISTRAR',
+    'EJEMPLAR_LEER',
     'SEDE_ADMINISTRAR',
     'SEDE_LEER_BASICO',
     'SEDE_LEER_COMPLETO',
@@ -25,7 +29,15 @@ export const BIBLIOTECARIO = {
   rol: 'BIBLIOTECARIO',
   sede_id: 1,
   sede: { id: 1, codigo: 'CEN', nombre: 'Sede Central' },
-  permisos: ['SEDE_LEER_BASICO', 'SEDE_LEER_PUBLICO', 'SOCIO_LEER', 'SOCIO_REGISTRAR'],
+  permisos: [
+    'CATALOGO_LEER',
+    'EJEMPLAR_ADMINISTRAR',
+    'EJEMPLAR_LEER',
+    'SEDE_LEER_BASICO',
+    'SEDE_LEER_PUBLICO',
+    'SOCIO_LEER',
+    'SOCIO_REGISTRAR',
+  ],
 };
 
 export const SOCIO = {
@@ -35,7 +47,7 @@ export const SOCIO = {
   sede_id: null,
   sede: null,
   socio_id: 45,
-  permisos: ['SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
+  permisos: ['CATALOGO_LEER', 'SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
 };
 
 const SEMANA = [1, 2, 3, 4, 5, 6, 7].map((dia) => ({
@@ -200,6 +212,62 @@ export function socio(over = {}) {
       multas_pendientes: 0,
       reservas_activas: 0,
     },
+    ...over,
+  };
+}
+
+/** Libro con el formato de la API; `over` pisa cualquier campo. */
+export function libro(over = {}) {
+  return {
+    id: 12,
+    isbn: '9789500705783',
+    titulo: 'Rayuela',
+    autores: ['Julio Cortázar'],
+    editorial: 'Sudamericana',
+    anio_edicion: 1963,
+    categoria: { id: 1, nombre: 'Literatura argentina' },
+    tipo_material: 'LIBRO',
+    ejemplares: 3,
+    disponibles: 1,
+    creado_en: '2026-10-14T15:30:00Z',
+    creado_por: { id: 1, nombre: 'Ana Admin' },
+    actualizado_en: '2026-10-14T15:30:00Z',
+    actualizado_por: { id: 1, nombre: 'Ana Admin' },
+    ...over,
+  };
+}
+
+export const CATEGORIAS = [
+  { id: 1, nombre: 'Literatura argentina' },
+  { id: 2, nombre: 'Historia' },
+];
+
+/** Ejemplar con el formato de `GET /ejemplares/{id}` (con historial). */
+export function ejemplar(over = {}) {
+  return {
+    id: 301,
+    codigo_inventario: 'CEN-000123',
+    libro_id: 12,
+    libro: 'Rayuela',
+    sede_propietaria_id: 1,
+    sede_propietaria: 'Sede Central',
+    sede_actual_id: 1,
+    sede_actual: 'Sede Central',
+    estado_fisico: 'BUENO',
+    estado: 'DISPONIBLE',
+    observaciones: null,
+    fecha_baja: null,
+    motivo_baja: null,
+    version: 1,
+    historial: [
+      {
+        estado_anterior: null,
+        estado_nuevo: 'DISPONIBLE',
+        fecha_hora: '2026-10-14T15:30:00Z',
+        usuario: { id: 2, nombre: 'Lucía Gómez' },
+        observacion: 'Alta',
+      },
+    ],
     ...over,
   };
 }
