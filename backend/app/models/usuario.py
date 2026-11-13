@@ -65,6 +65,8 @@ class Permiso(StrEnum):
     MULTA_LEER = "MULTA_LEER"
     MULTA_SALDAR = "MULTA_SALDAR"
     MULTA_VER_PROPIAS = "MULTA_VER_PROPIAS"
+    REPORTE_SEDE = "REPORTE_SEDE"
+    REPORTE_RED = "REPORTE_RED"
 
 
 ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
@@ -91,6 +93,8 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.RESERVA_LEER,
             Permiso.MULTA_LEER,
             Permiso.MULTA_SALDAR,
+            Permiso.REPORTE_SEDE,
+            Permiso.REPORTE_RED,
         }
     ),
     Rol.BIBLIOTECARIO: frozenset(
@@ -112,6 +116,7 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.DEVOLUCION_REGISTRAR,
             Permiso.MULTA_LEER,
             Permiso.MULTA_SALDAR,
+            Permiso.REPORTE_SEDE,
         }
     ),
     Rol.SOCIO: frozenset(

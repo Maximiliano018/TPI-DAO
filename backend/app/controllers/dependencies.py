@@ -18,6 +18,7 @@ from app.services.devolucion_service import DevolucionService
 from app.services.parametro_service import ParametroService
 from app.services.prestamo_service import PrestamoService
 from app.services.remito_service import RemitoService
+from app.services.reports.reporte_service import ReporteService
 from app.services.reserva_service import ReservaService
 from app.services.sede_service import SedeService
 from app.services.socio_service import SocioService
@@ -121,6 +122,12 @@ def get_devolucion_service(
     uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
 ) -> DevolucionService:
     return DevolucionService(uow, reloj)
+
+
+def get_reporte_service(
+    sesion: Session = Depends(sesion_por_solicitud), reloj: Reloj = Depends(get_reloj)
+) -> ReporteService:
+    return ReporteService(sesion, reloj)
 
 
 def usuario_actual(
