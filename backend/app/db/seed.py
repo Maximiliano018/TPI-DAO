@@ -1,4 +1,4 @@
-"""Datos de demostración: sedes, usuarios de cada rol, socios y catálogo.
+"""Datos de demostración: sedes, usuarios de cada rol, socios, catálogo y actividad.
 
 Uso: ``python -m app.db.seed``. Es idempotente (se puede ejecutar varias veces) y solo corre
 con ``ENTORNO=desarrollo`` o ``ENTORNO=test``, para no cargar usuarios con contraseñas
@@ -30,6 +30,7 @@ from app.db.models import (
     UsuarioORM,
 )
 from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
+from app.db.seed_actividad import cargar_actividad
 from app.db.session import crear_fabrica_sesiones
 from app.models.socio import formatear_numero_socio
 from app.utils.texto import normalizar, normalizar_calle, normalizar_numero
@@ -96,6 +97,12 @@ USUARIOS = [
         "nombre": "Marcos Ruiz",
         "rol": "BIBLIOTECARIO",
         "sede": "NORTE",
+    },
+    {
+        "username": "bibliotecario.rc",
+        "nombre": "Paula Sosa",
+        "rol": "BIBLIOTECARIO",
+        "sede": "SUR_RC",
     },
 ]
 
@@ -229,6 +236,30 @@ SOCIOS = [
         "telefono": None,
         "sede": "CEN",
         "baja": "Se mudó fuera de la provincia",
+    },
+    {
+        "documento": "31777888",
+        "nombre": "Julián",
+        "apellido": "Ortiz",
+        "email": "julian.ortiz@example.com",
+        "telefono": None,
+        "sede": "SUR_RC",
+    },
+    {
+        "documento": "33666777",
+        "nombre": "Valentina",
+        "apellido": "Paz",
+        "email": "valentina.paz@example.com",
+        "telefono": "+543514443333",
+        "sede": "NORTE",
+    },
+    {
+        "documento": "36888999",
+        "nombre": "Camila",
+        "apellido": "Ferreyra",
+        "email": "camila.ferreyra@example.com",
+        "telefono": None,
+        "sede": "CEN",
     },
 ]
 
@@ -431,6 +462,8 @@ def cargar(sesion: Session, clave: str) -> None:
     for datos in SOCIOS:
         _crear_socio(sesion, datos, clave, admin)
     _crear_catalogo(sesion, admin)
+    sesion.commit()
+    cargar_actividad(sesion)
 
 
 def main() -> int:

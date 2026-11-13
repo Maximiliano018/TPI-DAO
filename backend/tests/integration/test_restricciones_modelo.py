@@ -265,9 +265,43 @@ def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Sessio
     assert {d["documento"] for d in seed.SOCIOS} <= set(socios)
     assert (socios["35222333"], socios["27444555"]) == ("INHABILITADO", "BAJA")
     libros = sesion.scalar(text("SELECT count(*) FROM libro"))
-    ejemplares = sesion.scalar(text("SELECT count(*) FROM ejemplar WHERE estado = 'DISPONIBLE'"))
+    ejemplares = sesion.scalar(text("SELECT count(*) FROM ejemplar"))
     assert libros == len(seed.LIBROS)
     assert ejemplares == sum(sum(e.values()) for *_, e in seed.LIBROS)
+
+
+def test_el_seed_carga_actividad_para_los_reportes(sesion: Session):
+    seed.cargar(sesion, "clave-de-demo")
+    prestamos = sesion.scalar(text("SELECT count(*) FROM prestamo"))
+    seed.cargar(sesion, "clave-de-demo")
+
+    assert sesion.scalar(text("SELECT count(*) FROM prestamo")) == prestamos
+    estados = dict(
+        sesion.execute(text("SELECT estado, count(*) FROM prestamo GROUP BY estado")).all()
+    )
+    assert estados == {
+        "ACTIVO": 3,
+        "VENCIDO": 1,
+        "DEVUELTO": 3,
+        "CANCELADO": 1,
+        "EN_ENVIO": 1,
+    }
+    multas = dict(sesion.execute(text("SELECT estado, monto_total FROM multa")).all())
+    assert {k: str(v) for k, v in multas.items()} == {"SALDADA": "400.00", "PENDIENTE": "800.00"}
+    remitos = dict(
+        sesion.execute(text("SELECT estado, count(*) FROM remito GROUP BY estado")).all()
+    )
+    assert remitos == {
+        "RECIBIDO": 5,
+        "DANADO": 1,
+        "EXTRAVIADO": 1,
+        "GENERADO": 1,
+        "DESPACHADO": 1,
+    }
+    assert sesion.scalar(text("SELECT estado FROM reserva")) == "PENDIENTE"
+    socios = dict(sesion.execute(text("SELECT nro_documento, estado FROM socio")).all())
+    # Camila debe la multa; Julián tiene «Facundo» vencido.
+    assert (socios["36888999"], socios["31777888"]) == ("INHABILITADO", "INHABILITADO")
 
 
 def test_el_seed_se_niega_fuera_de_desarrollo_y_test(monkeypatch: pytest.MonkeyPatch):

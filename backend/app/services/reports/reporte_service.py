@@ -364,7 +364,7 @@ class ReporteService:
             .join(EjemplarORM, EjemplarORM.id == PrestamoORM.ejemplar_id)
             .join(LibroORM, LibroORM.id == EjemplarORM.libro_id)
             .where(*condiciones)
-            .order_by(MultaORM.estado.desc(), MultaORM.fecha_generacion.desc())
+            .order_by(MultaORM.estado, MultaORM.fecha_generacion.desc())
         ).all()
         return [
             MultaDelReporte(

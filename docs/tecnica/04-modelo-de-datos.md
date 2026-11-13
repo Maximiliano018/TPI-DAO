@@ -398,9 +398,10 @@ Un comando (`python -m app.db.seed`) carga datos de ejemplo de forma **idempoten
 |------|-----------|
 | Provincia y localidades | Provincia de Córdoba con la ciudad de Córdoba (capital) y las principales localidades de la provincia. La carga completa del catálogo oficial es una migración de datos posterior |
 | Sedes | 4: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto (activas) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA`, con motivo, para mostrar el estado) |
-| Usuarios | `admin` (administrador), `bibliotecario.cen` (bibliotecario de `CEN`), `bibliotecario.norte` (bibliotecario de `NORTE`) y `socio.demo` (socio) |
-| Catálogo | Ocho libros (con ISBN) y 14 ejemplares disponibles repartidos entre `CEN`, `NORTE` y `SUR_RC` |
-| Socios | Cuatro: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa) y Diego Luna (dado de baja) |
+| Usuarios | `admin` (administrador), `bibliotecario.cen`, `bibliotecario.norte` y `bibliotecario.rc` (uno por sede activa) y `socio.demo` (socio) |
+| Catálogo | Ocho libros (con ISBN) y 14 ejemplares repartidos entre `CEN`, `NORTE` y `SUR_RC` |
+| Socios | Siete: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa), Diego Luna (dado de baja), Julián Ortiz (`SUR_RC`), Valentina Paz (`NORTE`) y Camila Ferreyra (`CEN`) |
+| Actividad | 45 días de historia generada con los casos de uso reales (`app/db/seed_actividad.py`) y un reloj que avanza hasta hoy: préstamos locales y entre sedes, remitos de envío, retorno y traslado (uno recibido dañado y otro extraviado), devoluciones en término y tardías, una multa saldada y otra pendiente, un préstamo vencido y una reserva en espera. Así los reportes R1 a R6 tienen datos. Solo se carga si todavía no hay préstamos |
 | Contraseña | La define `SEED_PASSWORD` en `.env` (sin valor por defecto en el repositorio; `.env.example` tiene un marcador) |
 
 Los datos del seed son distintos de los fixtures de los tests y los tests no los usan.
