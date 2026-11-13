@@ -15,6 +15,8 @@ export const ADMIN = {
     'PRESTAMO_LEER',
     'REMITO_EXTRAVIO',
     'REMITO_LEER',
+    'MULTA_LEER',
+    'MULTA_SALDAR',
     'RESERVA_LEER',
     'SEDE_ADMINISTRAR',
     'SEDE_LEER_BASICO',
@@ -37,8 +39,11 @@ export const BIBLIOTECARIO = {
   sede: { id: 1, codigo: 'CEN', nombre: 'Sede Central' },
   permisos: [
     'CATALOGO_LEER',
+    'DEVOLUCION_REGISTRAR',
     'EJEMPLAR_ADMINISTRAR',
     'EJEMPLAR_LEER',
+    'MULTA_LEER',
+    'MULTA_SALDAR',
     'PRESTAMO_LEER',
     'PRESTAMO_REGISTRAR',
     'REMITO_EXTRAVIO',
@@ -62,6 +67,7 @@ export const SOCIO = {
   socio_id: 45,
   permisos: [
     'CATALOGO_LEER',
+    'MULTA_VER_PROPIAS',
     'PRESTAMO_VER_PROPIOS',
     'RESERVA_PROPIA',
     'SEDE_LEER_PUBLICO',
@@ -325,6 +331,8 @@ export function prestamo(over = {}) {
       },
     ],
     remitos: [],
+    devolucion: null,
+    multa: null,
     ...over,
   };
 }
@@ -389,6 +397,26 @@ export function reserva(over = {}) {
     codigo_ejemplar: null,
     vencimiento_retiro: null,
     prestamo_id: null,
+    ...over,
+  };
+}
+
+/** Multa con el formato de la API; `over` pisa cualquier campo. */
+export function multa(over = {}) {
+  return {
+    id: 14,
+    prestamo_id: 118,
+    numero_prestamo: 'P-2026-000118',
+    socio_id: 45,
+    socio: 'Sol Socia',
+    libro: 'Rayuela',
+    dias_atraso: 5,
+    monto_por_dia: '200.00',
+    monto_total: '1000.00',
+    estado: 'PENDIENTE',
+    fecha_generacion: '2026-11-15T15:00:00Z',
+    fecha_saldada: null,
+    saldada_por: null,
     ...over,
   };
 }

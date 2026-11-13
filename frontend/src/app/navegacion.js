@@ -14,6 +14,8 @@ export const ITEMS_DE_MENU = [
   { to: '/reservas', texto: 'Reservas', permiso: PERMISOS.RESERVA_LEER },
   { to: '/reservas', texto: 'Mis reservas', permiso: PERMISOS.RESERVA_PROPIA },
   { to: '/remitos', texto: 'Remitos', permiso: PERMISOS.REMITO_LEER },
+  { to: '/multas', texto: 'Multas', permiso: PERMISOS.MULTA_LEER },
+  { to: '/multas', texto: 'Mis multas', permiso: PERMISOS.MULTA_VER_PROPIAS },
   { to: '/socios', texto: 'Socios', permiso: PERMISOS.SOCIO_LEER },
   { to: '/mis-datos', texto: 'Mis datos', permiso: PERMISOS.SOCIO_VER_PROPIO },
   { to: '/usuarios', texto: 'Usuarios', permiso: PERMISOS.USUARIO_ADMINISTRAR },

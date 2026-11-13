@@ -30,6 +30,7 @@ describe('AppLayout', () => {
       'Préstamos',
       'Reservas',
       'Remitos',
+      'Multas',
       'Socios',
       'Usuarios',
       'Parámetros',

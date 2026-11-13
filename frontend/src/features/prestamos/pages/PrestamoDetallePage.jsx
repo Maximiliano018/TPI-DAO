@@ -16,11 +16,17 @@ import {
 } from '../../../components/index.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { mensajeDeError } from '../../../utils/errores.js';
-import { MOTIVOS_DE_REMITO, TIPOS_DE_PRESTAMO, estadoDe } from '../../../utils/estados.js';
-import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
+import {
+  ESTADOS_RECIBIDOS,
+  MOTIVOS_DE_REMITO,
+  TIPOS_DE_PRESTAMO,
+  estadoDe,
+} from '../../../utils/estados.js';
+import { formatearFecha, formatearFechaHora, formatearMonto } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
+import DevolucionDialog from '../../devoluciones/components/DevolucionDialog.jsx';
 import EstadoBadge from '../components/EstadoBadge.jsx';
 import {
   useCancelarPrestamo,
@@ -77,6 +83,10 @@ function Acciones({ prestamo }) {
   const cancelar = useCancelarPrestamo();
   if (!tienePermiso(PERMISOS.PRESTAMO_REGISTRAR)) return null;
   const enDestino = usuario.sede_id === prestamo.sede_destino_id;
+  const puedeDevolver =
+    enDestino &&
+    tienePermiso(PERMISOS.DEVOLUCION_REGISTRAR) &&
+    ['ACTIVO', 'VENCIDO'].includes(prestamo.estado);
   const enSede = enDestino || usuario.sede_id === prestamo.sede_origen_id;
   const { estado, tipo } = prestamo;
   const puedeEntregar =
@@ -87,6 +97,9 @@ function Acciones({ prestamo }) {
   return (
     <>
       {puedeEntregar && <Button onClick={() => setDialogo('entregar')}>Entregar al socio</Button>}
+      {puedeDevolver && (
+        <Button onClick={() => setDialogo('devolver')}>Registrar devolución</Button>
+      )}
       {enDestino && estado === 'ACTIVO' && (
         <Button variante="secondary" onClick={() => setDialogo('renovar')}>
           Renovar
@@ -97,6 +110,7 @@ function Acciones({ prestamo }) {
           Cancelar
         </Button>
       )}
+      {dialogo === 'devolver' && <DevolucionDialog prestamo={prestamo} onCerrar={cerrar} />}
       {dialogo === 'entregar' && (
         <Accion
           titulo={`Entregar ${prestamo.codigo_ejemplar}`}
@@ -233,6 +247,37 @@ export default function PrestamoDetallePage() {
               <dd>{prestamo.renovaciones}</dd>
             </dl>
           </Card>
+          {prestamo.devolucion && (
+            <Card titulo="Devolución">
+              <dl className={estilos.definiciones}>
+                <dt>Fecha</dt>
+                <dd>{formatearFechaHora(prestamo.devolucion.fecha_hora)}</dd>
+                <dt>Llegó</dt>
+                <dd>{ESTADOS_RECIBIDOS[prestamo.devolucion.estado_fisico_recibido]}</dd>
+                <dt>Atraso</dt>
+                <dd>
+                  {prestamo.devolucion.dias_atraso
+                    ? `${prestamo.devolucion.dias_atraso} día(s)`
+                    : 'En término'}
+                </dd>
+                {prestamo.devolucion.observaciones && (
+                  <>
+                    <dt>Observaciones</dt>
+                    <dd>{prestamo.devolucion.observaciones}</dd>
+                  </>
+                )}
+                {prestamo.multa && (
+                  <>
+                    <dt>Multa</dt>
+                    <dd>
+                      {formatearMonto(prestamo.multa.monto_total)}{' '}
+                      <EstadoBadge entidad="multa" estado={prestamo.multa.estado} />
+                    </dd>
+                  </>
+                )}
+              </dl>
+            </Card>
+          )}
           {prestamo.remitos.length > 0 && (
             <Card titulo="Envíos">
               <ul className={inicio.lista}>

@@ -48,6 +48,10 @@ export const ESTADOS = {
     CANCELADA: { tono: 'neutral', texto: 'Cancelada' },
     VENCIDA: { tono: 'warning', texto: 'Vencida' },
   },
+  multa: {
+    PENDIENTE: { tono: 'danger', texto: 'Pendiente' },
+    SALDADA: { tono: 'success', texto: 'Saldada' },
+  },
 };
 
 export const TIPOS_DE_PRESTAMO = { LOCAL: 'Local', INTERBIBLIOTECARIO: 'Entre sedes' };
@@ -59,6 +63,14 @@ export const ESTADOS_FISICOS = {
   BUENO: 'Bueno',
   REGULAR: 'Regular',
   DANADO: 'Dañado',
+};
+
+/** Cómo llegó el ejemplar en una devolución. */
+export const ESTADOS_RECIBIDOS = {
+  BUENO: 'Bueno',
+  REGULAR: 'Regular',
+  DANADO: 'Dañado',
+  EXTRAVIADO: 'Extraviado (no lo entrega)',
 };
 
 /** Tipo de material del catálogo. */
