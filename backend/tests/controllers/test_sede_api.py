@@ -1,6 +1,7 @@
 """API de sedes: permisos por rol, forma de las respuestas y formato de errores."""
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select
@@ -9,6 +10,11 @@ from app.db.models import LocalidadORM
 from app.utils.texto import normalizar
 
 BASE = "/api/v1/sedes"
+
+
+def _hoy() -> date:
+    """Hoy en la zona de negocio (el CI corre en UTC: de 21 a 24 h ya sería mañana)."""
+    return datetime.now(ZoneInfo("America/Argentina/Cordoba")).date()
 
 
 @pytest.fixture
@@ -512,7 +518,7 @@ def test_baja_con_version_vieja_se_rechaza(cliente, h_admin, localidad_id):
 
 
 def _fecha(dias: int) -> str:
-    return (date.today() + timedelta(days=dias)).isoformat()
+    return (_hoy() + timedelta(days=dias)).isoformat()
 
 
 @pytest.mark.ca("CA-SED-29", "CA-SED-33", "CA-SED-34")
@@ -600,7 +606,7 @@ def test_las_excepciones_pasadas_las_ve_solo_el_administrador_y_no_se_borran(
     sede = _alta(cliente, h_admin, localidad_id).json()
     pasada = ExcepcionHorarioSedeORM(
         sede_id=sede["id"],
-        fecha=date.today() - timedelta(days=3),
+        fecha=_hoy() - timedelta(days=3),
         tipo="CIERRE_TOTAL",
         creado_por_id=sede["creado_por"]["id"],
     )
