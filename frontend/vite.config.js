@@ -5,13 +5,15 @@ import { readFileSync } from 'node:fs';
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8'));
 
 // La API del backend se consume en /api; en desarrollo se redirige al puerto 8000.
+// Se usa 127.0.0.1 y no `localhost`: en Windows Node resuelve `localhost` a ::1 (IPv6) y uvicorn
+// escucha solo en IPv4, así que el proxy respondía 500.
 export default defineConfig({
   plugins: [react()],
   define: { __APP_VERSION__: JSON.stringify(version) },
   server: {
     port: 5173,
     proxy: {
-      '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      '/api': { target: 'http://127.0.0.1:8000', changeOrigin: true },
     },
   },
   test: {

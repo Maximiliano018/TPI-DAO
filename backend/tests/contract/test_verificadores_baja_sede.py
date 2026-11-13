@@ -22,13 +22,7 @@ from tests.fakes.repositorios import UnitOfWorkEnMemoria
 
 # Tipos cuyo módulo todavía no existe. Solo puede achicarse: cada módulo quita el suyo al
 # registrar su verificador (y agrega sus pruebas de contrato).
-TIPOS_PENDIENTES_DE_MODULO: set[TipoImpedimento] = {
-    TipoImpedimento.PRESTAMOS_EN_CURSO,
-    TipoImpedimento.REMITOS_ABIERTOS,
-    TipoImpedimento.RESERVAS_PENDIENTES,
-    TipoImpedimento.EJEMPLARES_EN_SEDE,
-    TipoImpedimento.EJEMPLARES_PROPIOS_FUERA,
-}
+TIPOS_PENDIENTES_DE_MODULO: set[TipoImpedimento] = set()
 
 
 def _registrados(uow=None) -> VerificadorBajaSede:

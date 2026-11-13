@@ -1,7 +1,6 @@
 """Cliente HTTP contra la API con la base de pruebas (transacción por prueba)."""
 
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,9 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.config.security import crear_token, hashear_clave
+from app.controllers.dependencies import get_reloj
 from app.db.models import UsuarioORM
 from app.db.session import sesion_por_solicitud
 from app.main import app
+from tests.fakes.reloj import RELOJ_DE_PRUEBAS
 
 CLAVE = "Clave-de-prueba-1"
 
@@ -20,6 +21,7 @@ CLAVE = "Clave-de-prueba-1"
 def cliente(sesion: Session) -> Iterator[TestClient]:
     """TestClient cuyas solicitudes usan la sesión transaccional de la prueba."""
     app.dependency_overrides[sesion_por_solicitud] = lambda: sesion
+    app.dependency_overrides[get_reloj] = lambda: RELOJ_DE_PRUEBAS
     yield TestClient(app, raise_server_exceptions=False)
     app.dependency_overrides.clear()
 
@@ -59,7 +61,7 @@ def autenticar() -> Callable[..., dict[str, str]]:
             usuario_id=usuario.id,
             rol=usuario.rol,
             sede_id=usuario.sede_id,
-            ahora=ahora or datetime.now(UTC),
+            ahora=ahora or RELOJ_DE_PRUEBAS.ahora(),
             minutos=minutos,
             clave=get_settings().secret_key,
         )

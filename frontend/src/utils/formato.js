@@ -17,6 +17,14 @@ export function fechaLocalISO(fecha = new Date()) {
   return format(fecha, 'yyyy-MM-dd');
 }
 
+const PESOS = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' });
+
+/** Monto en pesos (`$ 1.000,00`) a partir del decimal en texto de la API. */
+export function formatearMonto(valor) {
+  if (valor === null || valor === undefined || valor === '') return '';
+  return PESOS.format(Number(valor));
+}
+
 export const DIAS = [
   { numero: 1, nombre: 'Lunes' },
   { numero: 2, nombre: 'Martes' },

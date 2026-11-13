@@ -1,4 +1,4 @@
-"""Datos de demostración: sedes, usuarios de cada rol y un socio.
+"""Datos de demostración: sedes, usuarios de cada rol, socios, catálogo y actividad.
 
 Uso: ``python -m app.db.seed``. Es idempotente (se puede ejecutar varias veces) y solo corre
 con ``ENTORNO=desarrollo`` o ``ENTORNO=test``, para no cargar usuarios con contraseñas
@@ -16,14 +16,23 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.config.security import hashear_clave
 from app.db.models import (
+    AutorORM,
+    CategoriaORM,
+    EjemplarORM,
     HistorialSedeORM,
     HorarioSedeORM,
+    LibroAutorORM,
+    LibroORM,
     LocalidadORM,
+    MovimientoEjemplarORM,
     SedeORM,
     SocioORM,
     UsuarioORM,
 )
+from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
+from app.db.seed_actividad import cargar_actividad
 from app.db.session import crear_fabrica_sesiones
+from app.models.socio import formatear_numero_socio
 from app.utils.texto import normalizar, normalizar_calle, normalizar_numero
 
 ENTORNOS_PERMITIDOS = {"desarrollo", "test"}
@@ -88,6 +97,12 @@ USUARIOS = [
         "nombre": "Marcos Ruiz",
         "rol": "BIBLIOTECARIO",
         "sede": "NORTE",
+    },
+    {
+        "username": "bibliotecario.rc",
+        "nombre": "Paula Sosa",
+        "rol": "BIBLIOTECARIO",
+        "sede": "SUR_RC",
     },
 ]
 
@@ -186,34 +201,255 @@ def _crear_sede(sesion: Session, datos: dict, admin: UsuarioORM) -> SedeORM:
     return sede
 
 
-def _crear_socio_demo(sesion: Session, clave: str, admin: UsuarioORM) -> None:
-    if sesion.scalar(select(UsuarioORM).where(UsuarioORM.username == "socio.demo")):
-        return
-    sede_cen = sesion.scalar(select(SedeORM).where(SedeORM.codigo == "CEN"))
-    socio = SocioORM(
-        numero_socio="00001",
-        tipo_documento="DNI",
-        nro_documento="30111222",
-        nombre="Carla",
-        apellido="Soto",
-        email="carla.soto@example.com",
-        sede_alta_id=sede_cen.id,
-        estado="HABILITADO",
+SOCIOS = [
+    {
+        "documento": "30111222",
+        "nombre": "Carla",
+        "apellido": "Soto",
+        "email": "carla.soto@example.com",
+        "telefono": "+543515551111",
+        "sede": "CEN",
+        "usuario": "socio.demo",
+    },
+    {
+        "documento": "28555666",
+        "nombre": "Martín",
+        "apellido": "Ríos",
+        "email": "martin.rios@example.com",
+        "telefono": None,
+        "sede": "NORTE",
+    },
+    {
+        "documento": "35222333",
+        "nombre": "Sofía",
+        "apellido": "Herrera",
+        "email": None,
+        "telefono": "+543584442222",
+        "sede": "SUR_RC",
+        "inhabilitado": "Daño reiterado de material prestado",
+    },
+    {
+        "documento": "27444555",
+        "nombre": "Diego",
+        "apellido": "Luna",
+        "email": "diego.luna@example.com",
+        "telefono": None,
+        "sede": "CEN",
+        "baja": "Se mudó fuera de la provincia",
+    },
+    {
+        "documento": "31777888",
+        "nombre": "Julián",
+        "apellido": "Ortiz",
+        "email": "julian.ortiz@example.com",
+        "telefono": None,
+        "sede": "SUR_RC",
+    },
+    {
+        "documento": "33666777",
+        "nombre": "Valentina",
+        "apellido": "Paz",
+        "email": "valentina.paz@example.com",
+        "telefono": "+543514443333",
+        "sede": "NORTE",
+    },
+    {
+        "documento": "36888999",
+        "nombre": "Camila",
+        "apellido": "Ferreyra",
+        "email": "camila.ferreyra@example.com",
+        "telefono": None,
+        "sede": "CEN",
+    },
+]
+
+
+def _crear_socio(sesion: Session, datos: dict, clave: str, admin: UsuarioORM) -> None:
+    """Crea el socio (con número de la secuencia) y, si corresponde, su cuenta de acceso."""
+    socio = sesion.scalar(
+        select(SocioORM).where(
+            SocioORM.tipo_documento == "DNI", SocioORM.nro_documento == datos["documento"]
+        )
     )
-    sesion.add(socio)
-    sesion.flush()
-    sesion.add(
-        UsuarioORM(
-            username="socio.demo",
-            password_hash=hashear_clave(clave),
-            nombre="Carla Soto",
-            rol="SOCIO",
-            socio_id=socio.id,
-            activo=True,
+    if socio is None:
+        numero = sesion.scalar(SECUENCIA_NUMERO_SOCIO.next_value())
+        inhabilitado = datos.get("inhabilitado")
+        baja = datos.get("baja")
+        estado = "BAJA" if baja else "INHABILITADO" if inhabilitado else "HABILITADO"
+        socio = SocioORM(
+            numero_socio=formatear_numero_socio(int(numero)),
+            tipo_documento="DNI",
+            nro_documento=datos["documento"],
+            nombre=datos["nombre"],
+            apellido=datos["apellido"],
+            email=datos["email"],
+            telefono=datos["telefono"],
+            sede_alta_id=sesion.scalar(select(SedeORM.id).where(SedeORM.codigo == datos["sede"])),
+            estado=estado,
+            motivo_inhabilitacion="ADMINISTRATIVA" if inhabilitado else None,
+            inhabilitacion_administrativa=bool(inhabilitado),
+            motivo_administrativo=inhabilitado,
+            fecha_baja=datetime.now(UTC) if baja else None,
+            motivo_baja=baja,
             creado_por_id=admin.id,
             actualizado_por_id=admin.id,
         )
-    )
+        sesion.add(socio)
+        sesion.flush()
+    username = datos.get("usuario")
+    if username and not sesion.scalar(select(UsuarioORM).where(UsuarioORM.username == username)):
+        sesion.add(
+            UsuarioORM(
+                username=username,
+                password_hash=hashear_clave(clave),
+                nombre=f"{datos['nombre']} {datos['apellido']}",
+                rol="SOCIO",
+                socio_id=socio.id,
+                activo=True,
+                creado_por_id=admin.id,
+                actualizado_por_id=admin.id,
+            )
+        )
+
+
+LIBROS = [
+    # (ISBN, título, autores, editorial, año, categoría, ejemplares por sede)
+    (
+        "9789500705783",
+        "Rayuela",
+        ["Julio Cortázar"],
+        "Sudamericana",
+        1963,
+        "Literatura argentina",
+        {"CEN": 2, "NORTE": 1},
+    ),
+    (
+        "9789875801233",
+        "Ficciones",
+        ["Jorge Luis Borges"],
+        "Emecé",
+        1944,
+        "Literatura argentina",
+        {"CEN": 1, "SUR_RC": 1},
+    ),
+    (
+        "9789504912347",
+        "El túnel",
+        ["Ernesto Sabato"],
+        "Seix Barral",
+        1948,
+        "Literatura argentina",
+        {"NORTE": 2},
+    ),
+    (
+        "9789877384567",
+        "Cien años de soledad",
+        ["Gabriel García Márquez"],
+        "Sudamericana",
+        1967,
+        "Literatura latinoamericana",
+        {"CEN": 1, "NORTE": 1, "SUR_RC": 1},
+    ),
+    (
+        "9789506443214",
+        "Facundo",
+        ["Domingo Faustino Sarmiento"],
+        "Losada",
+        1845,
+        "Historia",
+        {"SUR_RC": 1},
+    ),
+    (
+        "9789874045676",
+        "Martín Fierro",
+        ["José Hernández"],
+        "Colihue",
+        1872,
+        "Literatura argentina",
+        {"CEN": 1},
+    ),
+    (
+        "9789503728895",
+        "Las venas abiertas de América Latina",
+        ["Eduardo Galeano"],
+        "Siglo XXI",
+        1971,
+        "Ciencias sociales",
+        {"NORTE": 1},
+    ),
+    (
+        "9780132350884",
+        "Clean Code",
+        ["Robert C. Martin"],
+        "Prentice Hall",
+        2008,
+        "Tecnología e informática",
+        {"CEN": 1},
+    ),
+]
+
+
+def _autor(sesion: Session, nombre: str) -> AutorORM:
+    clave = normalizar(nombre)
+    autor = sesion.scalar(select(AutorORM).where(AutorORM.nombre_normalizado == clave))
+    if autor is None:
+        autor = AutorORM(nombre=nombre, nombre_normalizado=clave)
+        sesion.add(autor)
+        sesion.flush()
+    return autor
+
+
+def _crear_catalogo(sesion: Session, admin: UsuarioORM) -> None:
+    """Libros con ejemplares disponibles en las sedes activas (códigos ``SEDE-LIBRO-n``)."""
+    for isbn, titulo, autores, editorial, anio, categoria, ejemplares in LIBROS:
+        libro = sesion.scalar(select(LibroORM).where(LibroORM.isbn == isbn))
+        if libro is None:
+            libro = LibroORM(
+                isbn=isbn,
+                titulo=titulo,
+                titulo_normalizado=normalizar(titulo),
+                editorial=editorial,
+                anio_edicion=anio,
+                categoria_id=sesion.scalar(
+                    select(CategoriaORM.id).where(CategoriaORM.nombre == categoria)
+                ),
+                tipo_material="LIBRO",
+                creado_por_id=admin.id,
+                actualizado_por_id=admin.id,
+            )
+            libro.autores = [
+                LibroAutorORM(autor=_autor(sesion, nombre), orden=i)
+                for i, nombre in enumerate(autores, start=1)
+            ]
+            sesion.add(libro)
+            sesion.flush()
+        for codigo_sede, cantidad in ejemplares.items():
+            sede_id = sesion.scalar(select(SedeORM.id).where(SedeORM.codigo == codigo_sede))
+            for n in range(1, cantidad + 1):
+                codigo = f"{codigo_sede.replace('_', '')}-{isbn[-6:]}-{n}"
+                if sesion.scalar(
+                    select(EjemplarORM).where(EjemplarORM.codigo_inventario == codigo)
+                ):
+                    continue
+                ejemplar = EjemplarORM(
+                    codigo_inventario=codigo,
+                    libro_id=libro.id,
+                    sede_propietaria_id=sede_id,
+                    sede_actual_id=sede_id,
+                    estado_fisico="BUENO",
+                    estado="DISPONIBLE",
+                    version=1,
+                )
+                sesion.add(ejemplar)
+                sesion.flush()
+                sesion.add(
+                    MovimientoEjemplarORM(
+                        ejemplar_id=ejemplar.id,
+                        estado_nuevo="DISPONIBLE",
+                        usuario_id=admin.id,
+                        observacion="Alta (datos de demostración)",
+                    )
+                )
 
 
 def cargar(sesion: Session, clave: str) -> None:
@@ -223,7 +459,11 @@ def cargar(sesion: Session, clave: str) -> None:
         _crear_sede(sesion, datos, admin)
     for datos in USUARIOS[1:]:
         _crear_usuario(sesion, datos, clave, admin.id)
-    _crear_socio_demo(sesion, clave, admin)
+    for datos in SOCIOS:
+        _crear_socio(sesion, datos, clave, admin)
+    _crear_catalogo(sesion, admin)
+    sesion.commit()
+    cargar_actividad(sesion)
 
 
 def main() -> int:

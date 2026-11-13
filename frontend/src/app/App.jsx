@@ -13,6 +13,30 @@ const SedeDetallePage = lazy(() => import('../features/sedes/pages/SedeDetallePa
 const SedeFormPage = lazy(() => import('../features/sedes/pages/SedeFormPage.jsx'));
 const UsuariosPage = lazy(() => import('../features/usuarios/pages/UsuariosPage.jsx'));
 const UsuarioFormPage = lazy(() => import('../features/usuarios/pages/UsuarioFormPage.jsx'));
+const SociosPage = lazy(() => import('../features/socios/pages/SociosPage.jsx'));
+const SocioDetallePage = lazy(() => import('../features/socios/pages/SocioDetallePage.jsx'));
+const SocioFormPage = lazy(() => import('../features/socios/pages/SocioFormPage.jsx'));
+const MisDatosPage = lazy(() => import('../features/socios/pages/MisDatosPage.jsx'));
+const CatalogoPage = lazy(() => import('../features/catalogo/pages/CatalogoPage.jsx'));
+const LibroDetallePage = lazy(() => import('../features/catalogo/pages/LibroDetallePage.jsx'));
+const LibroFormPage = lazy(() => import('../features/catalogo/pages/LibroFormPage.jsx'));
+const EjemplaresPage = lazy(() => import('../features/catalogo/pages/EjemplaresPage.jsx'));
+const EjemplarDetallePage = lazy(
+  () => import('../features/catalogo/pages/EjemplarDetallePage.jsx'),
+);
+const EjemplarFormPage = lazy(() => import('../features/catalogo/pages/EjemplarFormPage.jsx'));
+const PrestamosPage = lazy(() => import('../features/prestamos/pages/PrestamosPage.jsx'));
+const PrestamoDetallePage = lazy(
+  () => import('../features/prestamos/pages/PrestamoDetallePage.jsx'),
+);
+const NuevoPrestamoPage = lazy(() => import('../features/prestamos/pages/NuevoPrestamoPage.jsx'));
+const RemitosPage = lazy(() => import('../features/remitos/pages/RemitosPage.jsx'));
+const RemitoDetallePage = lazy(() => import('../features/remitos/pages/RemitoDetallePage.jsx'));
+const NuevoRemitoPage = lazy(() => import('../features/remitos/pages/NuevoRemitoPage.jsx'));
+const ReservasPage = lazy(() => import('../features/reservas/pages/ReservasPage.jsx'));
+const MultasPage = lazy(() => import('../features/devoluciones/pages/MultasPage.jsx'));
+const ReportesPage = lazy(() => import('../features/reportes/pages/ReportesPage.jsx'));
+const ParametrosPage = lazy(() => import('../features/sistema/pages/ParametrosPage.jsx'));
 
 /** Rutas de la aplicación. Cada módulo suma las suyas con `React.lazy`. */
 export default function App() {
@@ -58,6 +82,129 @@ export default function App() {
           <Route path="nuevo" element={<UsuarioFormPage modo="crear" />} />
           <Route path=":id/editar" element={<UsuarioFormPage modo="editar" />} />
         </Route>
+        <Route
+          path="socios"
+          element={
+            <RutaProtegida permiso={PERMISOS.SOCIO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<SociosPage />} />
+          <Route path=":id" element={<SocioDetallePage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.SOCIO_REGISTRAR}>
+                <SocioFormPage modo="crear" />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path=":id/editar"
+            element={
+              <RutaProtegida permiso={PERMISOS.SOCIO_REGISTRAR}>
+                <SocioFormPage modo="editar" />
+              </RutaProtegida>
+            }
+          />
+        </Route>
+        <Route
+          path="mis-datos"
+          element={
+            <RutaProtegida permiso={PERMISOS.SOCIO_VER_PROPIO}>
+              <MisDatosPage />
+            </RutaProtegida>
+          }
+        />
+        <Route
+          path="catalogo"
+          element={
+            <RutaProtegida permiso={PERMISOS.CATALOGO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<CatalogoPage />} />
+          <Route path=":id" element={<LibroDetallePage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.CATALOGO_ADMINISTRAR}>
+                <LibroFormPage modo="crear" />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path=":id/editar"
+            element={
+              <RutaProtegida permiso={PERMISOS.CATALOGO_ADMINISTRAR}>
+                <LibroFormPage modo="editar" />
+              </RutaProtegida>
+            }
+          />
+        </Route>
+        <Route
+          path="ejemplares"
+          element={
+            <RutaProtegida permiso={PERMISOS.EJEMPLAR_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<EjemplaresPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.EJEMPLAR_ADMINISTRAR}>
+                <EjemplarFormPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<EjemplarDetallePage />} />
+        </Route>
+        <Route path="prestamos">
+          <Route index element={<PrestamosPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.PRESTAMO_REGISTRAR}>
+                <NuevoPrestamoPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<PrestamoDetallePage />} />
+        </Route>
+        <Route
+          path="remitos"
+          element={
+            <RutaProtegida permiso={PERMISOS.REMITO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<RemitosPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.REMITO_OPERAR}>
+                <NuevoRemitoPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<RemitoDetallePage />} />
+        </Route>
+        <Route path="reservas" element={<ReservasPage />} />
+        <Route path="multas" element={<MultasPage />} />
+        <Route path="reportes" element={<ReportesPage />} />
+        <Route
+          path="parametros"
+          element={
+            <RutaProtegida permiso={PERMISOS.PARAMETROS_ADMINISTRAR}>
+              <ParametrosPage />
+            </RutaProtegida>
+          }
+        />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

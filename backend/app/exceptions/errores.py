@@ -92,6 +92,125 @@ class ExcepcionHorarioSuperpuesta(ReglaDeNegocioViolada):
     codigo = "EXCEPCION_HORARIO_SUPERPUESTA"
 
 
+# --- socios ------------------------------------------------------------------------------------
+
+
+class SocioNoEncontrado(EntidadNoEncontrada):
+    codigo = "SOCIO_NO_ENCONTRADO"
+
+
+class PosibleDuplicado(DuplicadoError):
+    """Otro socio con el mismo nombre, apellido y fecha de nacimiento: hay que confirmar."""
+
+    codigo = "POSIBLE_DUPLICADO"
+
+
+class SocioInhabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_INHABILITADO"
+
+
+class SocioEnBaja(ReglaDeNegocioViolada):
+    codigo = "SOCIO_EN_BAJA"
+
+
+class SocioYaEnBaja(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_EN_BAJA"
+
+
+class SocioYaActivo(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_ACTIVO"
+
+
+class SocioYaHabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_HABILITADO"
+
+
+class SocioYaInhabilitado(ReglaDeNegocioViolada):
+    codigo = "SOCIO_YA_INHABILITADO"
+
+
+class SocioConCausasVigentes(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_CAUSAS_VIGENTES"
+
+
+class SocioConActividadPendiente(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_ACTIVIDAD_PENDIENTE"
+
+
+class SocioConCuenta(ReglaDeNegocioViolada):
+    codigo = "SOCIO_CON_CUENTA"
+
+
+# --- catálogo y estados ------------------------------------------------------------------------
+
+
+class TransicionInvalida(ReglaDeNegocioViolada):
+    """Operación que el estado actual de la entidad no admite (patrón State)."""
+
+    codigo = "TRANSICION_INVALIDA"
+
+
+class LibroNoEncontrado(EntidadNoEncontrada):
+    codigo = "LIBRO_NO_ENCONTRADO"
+
+
+class EjemplarNoEncontrado(EntidadNoEncontrada):
+    codigo = "EJEMPLAR_NO_ENCONTRADO"
+
+
+class LibroDuplicado(DuplicadoError):
+    codigo = "LIBRO_DUPLICADO"
+
+
+class EjemplarCodigoDuplicado(DuplicadoError):
+    codigo = "EJEMPLAR_CODIGO_DUPLICADO"
+
+
+class LibroConEjemplares(ReglaDeNegocioViolada):
+    codigo = "LIBRO_CON_EJEMPLARES"
+
+
+class EjemplarNoDisponible(ReglaDeNegocioViolada):
+    codigo = "EJEMPLAR_NO_DISPONIBLE"
+
+
+# --- préstamos y remitos ---------------------------------------------------------------------
+
+
+class PrestamoNoEncontrado(EntidadNoEncontrada):
+    codigo = "PRESTAMO_NO_ENCONTRADO"
+
+
+class RemitoNoEncontrado(EntidadNoEncontrada):
+    codigo = "REMITO_NO_ENCONTRADO"
+
+
+class LimitePrestamosExcedido(ReglaDeNegocioViolada):
+    codigo = "LIMITE_PRESTAMOS"
+
+
+class LibroYaPrestado(ReglaDeNegocioViolada):
+    codigo = "LIBRO_REPETIDO"
+
+
+class RenovacionNoPermitida(ReglaDeNegocioViolada):
+    codigo = "RENOVACION_NO_PERMITIDA"
+
+
+class EjemplarEnOtroRemito(ReglaDeNegocioViolada):
+    codigo = "EJEMPLAR_EN_OTRO_REMITO"
+
+
+class EjemplarNoRecibido(ReglaDeNegocioViolada):
+    """El préstamo interbibliotecario todavía no llegó a la sede destino."""
+
+    codigo = "EJEMPLAR_NO_RECIBIDO"
+
+
+class PlazoDeTransitoVigente(ReglaDeNegocioViolada):
+    codigo = "PLAZO_DE_TRANSITO_VIGENTE"
+
+
 class ErrorDeValidacion(ErrorDeNegocio):
     """Dato con forma válida pero que incumple una regla de campo (422)."""
 
@@ -124,3 +243,47 @@ class CredencialesInvalidas(ErrorDeNegocio):
 
 class TokenInvalido(ErrorDeNegocio):
     codigo = "TOKEN_INVALIDO"
+
+
+class CategoriaInvalida(ErrorDeValidacion):
+    codigo = "CATEGORIA_INVALIDA"
+
+
+class EjemplarNoPerteneceASede(ErrorDeValidacion):
+    codigo = "EJEMPLAR_FUERA_DE_SEDE_ORIGEN"
+
+
+class RemitoInvalido(ErrorDeValidacion):
+    """Líneas o sedes de un remito que no cumplen las reglas de armado."""
+
+    codigo = "REMITO_INVALIDO"
+
+
+# --- reservas -----------------------------------------------------------------------------------
+
+
+class ReservaNoEncontrada(EntidadNoEncontrada):
+    codigo = "RESERVA_NO_ENCONTRADA"
+
+
+class HayEjemplaresDisponibles(ReglaDeNegocioViolada):
+    codigo = "HAY_EJEMPLARES_DISPONIBLES"
+
+
+class ReservaDuplicada(ReglaDeNegocioViolada):
+    codigo = "RESERVA_DUPLICADA"
+
+
+class LimiteReservasExcedido(ReglaDeNegocioViolada):
+    codigo = "LIMITE_RESERVAS"
+
+
+class LibroSinEjemplares(ReglaDeNegocioViolada):
+    codigo = "LIBRO_SIN_EJEMPLARES"
+
+
+# --- devoluciones y multas ----------------------------------------------------------------------
+
+
+class MultaNoEncontrada(EntidadNoEncontrada):
+    codigo = "MULTA_NO_ENCONTRADA"

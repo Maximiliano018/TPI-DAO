@@ -7,8 +7,14 @@ from sqlalchemy import select
 
 from app.db.models import LocalidadORM
 from app.utils.texto import normalizar
+from tests.fakes.reloj import HOY_DE_PRUEBAS
 
 BASE = "/api/v1/sedes"
+
+
+def _hoy() -> date:
+    """El «hoy» del reloj que usa la API en las pruebas (zona de negocio)."""
+    return HOY_DE_PRUEBAS
 
 
 @pytest.fixture
@@ -512,7 +518,7 @@ def test_baja_con_version_vieja_se_rechaza(cliente, h_admin, localidad_id):
 
 
 def _fecha(dias: int) -> str:
-    return (date.today() + timedelta(days=dias)).isoformat()
+    return (_hoy() + timedelta(days=dias)).isoformat()
 
 
 @pytest.mark.ca("CA-SED-29", "CA-SED-33", "CA-SED-34")
@@ -600,7 +606,7 @@ def test_las_excepciones_pasadas_las_ve_solo_el_administrador_y_no_se_borran(
     sede = _alta(cliente, h_admin, localidad_id).json()
     pasada = ExcepcionHorarioSedeORM(
         sede_id=sede["id"],
-        fecha=date.today() - timedelta(days=3),
+        fecha=_hoy() - timedelta(days=3),
         tipo="CIERRE_TOTAL",
         creado_por_id=sede["creado_por"]["id"],
     )

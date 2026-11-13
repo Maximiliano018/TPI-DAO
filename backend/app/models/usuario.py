@@ -42,6 +42,31 @@ class Permiso(StrEnum):
     SEDE_ADMINISTRAR = "SEDE_ADMINISTRAR"
     SEDE_VER_HISTORIAL = "SEDE_VER_HISTORIAL"
     USUARIO_ADMINISTRAR = "USUARIO_ADMINISTRAR"
+    SOCIO_LEER = "SOCIO_LEER"
+    SOCIO_REGISTRAR = "SOCIO_REGISTRAR"
+    SOCIO_ADMINISTRAR = "SOCIO_ADMINISTRAR"
+    SOCIO_VER_PROPIO = "SOCIO_VER_PROPIO"
+    CATALOGO_LEER = "CATALOGO_LEER"
+    CATALOGO_ADMINISTRAR = "CATALOGO_ADMINISTRAR"
+    EJEMPLAR_LEER = "EJEMPLAR_LEER"
+    EJEMPLAR_ADMINISTRAR = "EJEMPLAR_ADMINISTRAR"
+    PRESTAMO_REGISTRAR = "PRESTAMO_REGISTRAR"
+    PRESTAMO_LEER = "PRESTAMO_LEER"
+    PRESTAMO_VER_PROPIOS = "PRESTAMO_VER_PROPIOS"
+    REMITO_OPERAR = "REMITO_OPERAR"
+    REMITO_LEER = "REMITO_LEER"
+    REMITO_EXTRAVIO = "REMITO_EXTRAVIO"
+    TAREAS_EJECUTAR = "TAREAS_EJECUTAR"
+    PARAMETROS_ADMINISTRAR = "PARAMETROS_ADMINISTRAR"
+    RESERVA_REGISTRAR = "RESERVA_REGISTRAR"
+    RESERVA_LEER = "RESERVA_LEER"
+    RESERVA_PROPIA = "RESERVA_PROPIA"
+    DEVOLUCION_REGISTRAR = "DEVOLUCION_REGISTRAR"
+    MULTA_LEER = "MULTA_LEER"
+    MULTA_SALDAR = "MULTA_SALDAR"
+    MULTA_VER_PROPIAS = "MULTA_VER_PROPIAS"
+    REPORTE_SEDE = "REPORTE_SEDE"
+    REPORTE_RED = "REPORTE_RED"
 
 
 ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
@@ -53,10 +78,57 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.SEDE_ADMINISTRAR,
             Permiso.SEDE_VER_HISTORIAL,
             Permiso.USUARIO_ADMINISTRAR,
+            Permiso.SOCIO_LEER,
+            Permiso.SOCIO_REGISTRAR,
+            Permiso.SOCIO_ADMINISTRAR,
+            Permiso.CATALOGO_LEER,
+            Permiso.CATALOGO_ADMINISTRAR,
+            Permiso.EJEMPLAR_LEER,
+            Permiso.EJEMPLAR_ADMINISTRAR,
+            Permiso.PRESTAMO_LEER,
+            Permiso.REMITO_LEER,
+            Permiso.REMITO_EXTRAVIO,
+            Permiso.TAREAS_EJECUTAR,
+            Permiso.PARAMETROS_ADMINISTRAR,
+            Permiso.RESERVA_LEER,
+            Permiso.MULTA_LEER,
+            Permiso.MULTA_SALDAR,
+            Permiso.REPORTE_SEDE,
+            Permiso.REPORTE_RED,
         }
     ),
-    Rol.BIBLIOTECARIO: frozenset({Permiso.SEDE_LEER_PUBLICO, Permiso.SEDE_LEER_BASICO}),
-    Rol.SOCIO: frozenset({Permiso.SEDE_LEER_PUBLICO}),
+    Rol.BIBLIOTECARIO: frozenset(
+        {
+            Permiso.SEDE_LEER_PUBLICO,
+            Permiso.SEDE_LEER_BASICO,
+            Permiso.SOCIO_LEER,
+            Permiso.SOCIO_REGISTRAR,
+            Permiso.CATALOGO_LEER,
+            Permiso.EJEMPLAR_LEER,
+            Permiso.EJEMPLAR_ADMINISTRAR,
+            Permiso.PRESTAMO_REGISTRAR,
+            Permiso.PRESTAMO_LEER,
+            Permiso.REMITO_OPERAR,
+            Permiso.REMITO_LEER,
+            Permiso.REMITO_EXTRAVIO,
+            Permiso.RESERVA_REGISTRAR,
+            Permiso.RESERVA_LEER,
+            Permiso.DEVOLUCION_REGISTRAR,
+            Permiso.MULTA_LEER,
+            Permiso.MULTA_SALDAR,
+            Permiso.REPORTE_SEDE,
+        }
+    ),
+    Rol.SOCIO: frozenset(
+        {
+            Permiso.SEDE_LEER_PUBLICO,
+            Permiso.SOCIO_VER_PROPIO,
+            Permiso.CATALOGO_LEER,
+            Permiso.PRESTAMO_VER_PROPIOS,
+            Permiso.RESERVA_PROPIA,
+            Permiso.MULTA_VER_PROPIAS,
+        }
+    ),
 }
 
 
@@ -194,6 +266,36 @@ class Usuario:
             rol=rol,
             activo=True,
             sede=sede,
+            password_hash=password_hash,
+            creado_en=ahora,
+            creado_por=actor,
+            actualizado_en=ahora,
+            actualizado_por=actor,
+        )
+
+    @classmethod
+    def crear_cuenta_socio(
+        cls,
+        *,
+        username: str,
+        nombre: str,
+        socio_id: int,
+        password_hash: str,
+        actor: UsuarioRef,
+        ahora: datetime,
+    ) -> "Usuario":
+        """Crea la cuenta de acceso (rol ``SOCIO``) de un socio ya registrado.
+
+        Raises:
+            ErrorDeValidacion: Usuario o nombre inválidos.
+        """
+        return cls(
+            id=None,
+            username=validar_username(username),
+            nombre=validar_nombre_usuario(nombre),
+            rol=Rol.SOCIO,
+            activo=True,
+            socio_id=socio_id,
             password_hash=password_hash,
             creado_en=ahora,
             creado_por=actor,

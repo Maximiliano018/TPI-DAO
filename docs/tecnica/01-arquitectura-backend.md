@@ -150,6 +150,25 @@ El dominio lanza excepciones propias con un código estable; la capa `controller
 | `ExcepcionHorarioSuperpuesta` | `EXCEPCION_HORARIO_SUPERPUESTA` | 409 |
 | `ConflictoDeVersion` | `CONFLICTO_DE_VERSION` | 409 |
 | `TokenInvalido` | `TOKEN_INVALIDO` | 401 |
+| `SocioNoEncontrado` | `SOCIO_NO_ENCONTRADO` | 404 |
+| `PosibleDuplicado` | `POSIBLE_DUPLICADO` | 409 |
+| `SocioEnBaja` / `SocioYaEnBaja` / `SocioYaActivo` | `SOCIO_EN_BAJA` / `SOCIO_YA_EN_BAJA` / `SOCIO_YA_ACTIVO` | 409 |
+| `SocioYaHabilitado` / `SocioYaInhabilitado` | `SOCIO_YA_HABILITADO` / `SOCIO_YA_INHABILITADO` | 409 |
+| `SocioConCausasVigentes` | `SOCIO_CON_CAUSAS_VIGENTES` | 409 |
+| `SocioConActividadPendiente` | `SOCIO_CON_ACTIVIDAD_PENDIENTE` | 409 |
+| `SocioConCuenta` | `SOCIO_CON_CUENTA` | 409 |
+| `LibroNoEncontrado` / `EjemplarNoEncontrado` | `LIBRO_NO_ENCONTRADO` / `EJEMPLAR_NO_ENCONTRADO` | 404 |
+| `LibroDuplicado` / `EjemplarCodigoDuplicado` | `LIBRO_DUPLICADO` / `EJEMPLAR_CODIGO_DUPLICADO` | 409 |
+| `LibroConEjemplares` | `LIBRO_CON_EJEMPLARES` | 409 |
+| `CategoriaInvalida` | `CATEGORIA_INVALIDA` | 422 |
+| `PrestamoNoEncontrado` / `RemitoNoEncontrado` | `PRESTAMO_NO_ENCONTRADO` / `REMITO_NO_ENCONTRADO` | 404 |
+| `LibroYaPrestado` | `LIBRO_REPETIDO` | 409 |
+| `RenovacionNoPermitida` | `RENOVACION_NO_PERMITIDA` | 409 |
+| `EjemplarNoRecibido` | `EJEMPLAR_NO_RECIBIDO` | 409 |
+| `PlazoDeTransitoVigente` | `PLAZO_DE_TRANSITO_VIGENTE` | 409 |
+| `RemitoInvalido` | `REMITO_INVALIDO` | 422 |
+| `ReservaNoEncontrada` | `RESERVA_NO_ENCONTRADA` | 404 |
+| `LibroSinEjemplares` | `LIBRO_SIN_EJEMPLARES` | 409 |
 
 La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `exceptions/`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
 

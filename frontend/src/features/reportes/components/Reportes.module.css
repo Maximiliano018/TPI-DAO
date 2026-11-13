@@ -1,0 +1,65 @@
+/* Reportes: indicadores como fichas de registro y secciones con su tabla */
+.reporte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+.descripcion {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+.indicadores {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.indicador {
+  position: relative;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-6) var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+.indicador::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  right: 14px;
+  width: 14px;
+  height: 28px;
+  background: var(--color-marcador);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 76%, 0 100%);
+}
+.etiqueta {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 400;
+  color: var(--color-text-muted);
+}
+.valor {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--color-primary-800);
+}
+.seccion {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.encabezado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+.titulo {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: var(--text-xl);
+}

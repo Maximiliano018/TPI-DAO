@@ -21,11 +21,53 @@ export const MENSAJES_DE_ERROR = {
   USUARIO_NO_ENCONTRADO: 'El usuario solicitado no existe',
   USUARIO_YA_EN_BAJA: 'El usuario ya estaba dado de baja. Se actualizó la pantalla',
   USUARIO_YA_ACTIVO: 'El usuario ya estaba activo. Se actualizó la pantalla',
+  SOCIO_NO_ENCONTRADO: 'El socio solicitado no existe',
+  SOCIO_EN_BAJA: 'El socio está dado de baja. Reactívelo para continuar',
+  SOCIO_YA_EN_BAJA: 'El socio ya estaba dado de baja. Se actualizó la pantalla',
+  SOCIO_YA_ACTIVO: 'El socio no estaba dado de baja. Se actualizó la pantalla',
+  SOCIO_YA_HABILITADO: 'El socio ya estaba habilitado. Se actualizó la pantalla',
+  SOCIO_YA_INHABILITADO: 'El socio ya estaba inhabilitado por decisión administrativa',
+  SOCIO_CON_CUENTA: 'El socio ya tiene una cuenta de acceso',
+  LIBRO_NO_ENCONTRADO: 'El libro solicitado no existe',
+  EJEMPLAR_NO_ENCONTRADO: 'El ejemplar solicitado no existe',
+  EJEMPLAR_CODIGO_DUPLICADO: 'Ya existe un ejemplar con ese código de inventario en la red',
+  CATEGORIA_INVALIDA: 'Elija una categoría de la lista',
+  TRANSICION_INVALIDA: 'La operación no corresponde al estado actual. Se actualizó la pantalla',
+  PRESTAMO_NO_ENCONTRADO: 'El préstamo solicitado no existe',
+  REMITO_NO_ENCONTRADO: 'El remito solicitado no existe',
+  RESERVA_NO_ENCONTRADA: 'La reserva solicitada no existe',
+  RESERVA_DUPLICADA: 'El socio ya tiene una reserva activa de este libro',
 };
+
+// Códigos cuyo mensaje del servidor es más preciso que uno fijo (traen el socio o la causa).
+const USAR_MENSAJE_DEL_SERVIDOR = new Set([
+  'POSIBLE_DUPLICADO',
+  'SOCIO_CON_CAUSAS_VIGENTES',
+  'SOCIO_CON_ACTIVIDAD_PENDIENTE',
+  'SOCIO_INHABILITADO',
+  'LIBRO_DUPLICADO',
+  'LIBRO_CON_EJEMPLARES',
+  'EJEMPLAR_NO_DISPONIBLE',
+  'LIMITE_PRESTAMOS',
+  'LIBRO_REPETIDO',
+  'RENOVACION_NO_PERMITIDA',
+  'EJEMPLAR_NO_RECIBIDO',
+  'EJEMPLAR_EN_OTRO_REMITO',
+  'EJEMPLAR_FUERA_DE_SEDE_ORIGEN',
+  'PLAZO_DE_TRANSITO_VIGENTE',
+  'REMITO_INVALIDO',
+  'SEDE_CON_ACTIVIDAD_PENDIENTE',
+  'HAY_EJEMPLARES_DISPONIBLES',
+  'LIMITE_RESERVAS',
+  'LIBRO_SIN_EJEMPLARES',
+]);
 
 /** Mensaje a mostrar para un `ApiError` (o cualquier error). */
 export function mensajeDeError(error) {
   if (!error) return '';
+  if (USAR_MENSAJE_DEL_SERVIDOR.has(error.codigo) && error.mensaje) return error.mensaje;
+  // La transición inválida trae el estado actual en el mensaje del servidor.
+  if (error.codigo === 'TRANSICION_INVALIDA' && error.mensaje) return error.mensaje;
   if (error.codigo && MENSAJES_DE_ERROR[error.codigo]) return MENSAJES_DE_ERROR[error.codigo];
   return error.mensaje || error.message || 'Ocurrió un error inesperado. Reintente.';
 }

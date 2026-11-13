@@ -179,36 +179,54 @@ Un bibliotecario **dado de baja** (`activo = false`) conserva su `sede_id` como 
 
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
-| numero_socio | VARCHAR(15) | NOT NULL, UNIQUE |
-| tipo_documento, nro_documento | VARCHAR | NOT NULL, **UNIQUE (tipo, número)** |
+| numero_socio | VARCHAR(15) | NOT NULL, UNIQUE; sale de la secuencia `socio_numero_seq` con 5 dígitos (`00045`) |
+| tipo_documento, nro_documento | VARCHAR | NOT NULL, **UNIQUE (tipo, número)**; tipo `DNI`, `LE`, `LC` o `PASAPORTE`; el número se guarda sin puntos |
 | nombre, apellido | VARCHAR(100) | NOT NULL |
-| fecha_nacimiento | DATE | informativa |
-| email, telefono, domicilio | VARCHAR | |
-| sede_alta_id | FK sede | NOT NULL |
-| estado | VARCHAR(15) | `HABILITADO` o `INHABILITADO` |
-| motivo_inhabilitacion | VARCHAR(30) | `PRESTAMO_VENCIDO`, `MULTA_IMPAGA`, `ADMINISTRATIVA`; NOT NULL si inhabilitado |
-| fecha_baja | TIMESTAMPTZ | NULL si está dado de alta; la baja es lógica |
+| fecha_nacimiento | DATE | informativa; junto con nombre y apellido detecta posibles duplicados |
+| email, telefono, domicilio | VARCHAR | al menos correo o teléfono (lo valida el dominio); teléfono en E.164 |
+| sede_alta_id | FK sede | NOT NULL; sede activa al registrarlo (dato de registro, no limita dónde opera) |
+| estado | VARCHAR(15) | `HABILITADO`, `INHABILITADO` o `BAJA` |
+| motivo_inhabilitacion | VARCHAR(30) | `ADMINISTRATIVA`, `PRESTAMO_VENCIDO` o `MULTA_IMPAGA`: la causa vigente de mayor prioridad. NOT NULL si y solo si está inhabilitado |
+| inhabilitacion_administrativa | BOOLEAN | NOT NULL, por defecto falso; la decisión del administrador, que solo él levanta |
+| motivo_administrativo | VARCHAR(300) | texto del administrador; NOT NULL si y solo si hay inhabilitación administrativa |
+| fecha_baja, motivo_baja | TIMESTAMPTZ, VARCHAR(300) | NOT NULL si y solo si `estado = 'BAJA'`; la baja es lógica |
+| creado_por_id, actualizado_por_id | FK usuario | auditoría (`RF-ACC-07`) |
+
+Las causas automáticas (préstamo vencido, multa impaga) **no se guardan como decisión**: el servicio las recalcula con los préstamos y multas del socio en cada evento (`Socio.reevaluar`). La administrativa sí se guarda, porque no surge de otros datos. Si hay varias causas, `motivo_inhabilitacion` muestra la de mayor prioridad (administrativa, préstamo vencido, multa impaga).
+
+```sql
+CHECK ((estado = 'INHABILITADO') = (motivo_inhabilitacion IS NOT NULL))
+CHECK (inhabilitacion_administrativa = (motivo_administrativo IS NOT NULL))
+CHECK (NOT inhabilitacion_administrativa OR motivo_inhabilitacion = 'ADMINISTRATIVA')
+CHECK ((estado = 'BAJA' AND fecha_baja IS NOT NULL AND motivo_baja IS NOT NULL)
+    OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL))
+```
+
+La cuenta de acceso del socio es una fila de `usuario` con `rol = 'SOCIO'` y `socio_id`; la crea el personal desde la ficha del socio.
 
 ### categoria, autor, libro, libro_autor
 
 | Tabla | Columnas clave | Restricciones |
 |-------|----------------|---------------|
-| categoria | nombre | UNIQUE |
-| autor | nombre | |
-| libro | isbn, titulo, editorial, anio_edicion, categoria_id, tipo_material, clave_natural | `isbn` UNIQUE (admite NULL); `clave_natural` UNIQUE, calculada como título + autor + editorial + año cuando no hay ISBN |
-| libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id) |
+| categoria | nombre | UNIQUE; catálogo cerrado que carga la migración `0005` |
+| autor | nombre, nombre_normalizado | `nombre_normalizado` UNIQUE: el mismo autor escrito con o sin tildes es uno solo |
+| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO` |
+| libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id); se borra con el libro |
+
+Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que son historial).
 
 ### ejemplar
 
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
-| codigo_inventario | VARCHAR(30) | NOT NULL, **UNIQUE en toda la red** |
+| codigo_inventario | VARCHAR(30) | NOT NULL, **UNIQUE en toda la red**, `CHECK (codigo_inventario ~ '^[A-Z0-9][A-Z0-9-]{2,29}$')` |
 | libro_id | FK libro | NOT NULL |
-| sede_propietaria_id | FK sede | NOT NULL |
-| sede_actual_id | FK sede | NOT NULL |
+| sede_propietaria_id | FK sede | NOT NULL; la sede dueña (cambia solo con un traslado) |
+| sede_actual_id | FK sede | NOT NULL; dónde está físicamente |
 | estado_fisico | VARCHAR(10) | `NUEVO`, `BUENO`, `REGULAR`, `DANADO` |
 | estado | VARCHAR(15) | `DISPONIBLE`, `RESERVADO`, `APARTADO`, `PRESTADO`, `EN_TRANSITO`, `EN_REVISION`, `BAJA` |
-| fecha_baja, motivo_baja | | NOT NULL si `estado = 'BAJA'` |
+| observaciones | VARCHAR(300) | |
+| fecha_baja, motivo_baja | | NOT NULL si y solo si `estado = 'BAJA'` |
 | version | INT | control de concurrencia optimista |
 
 ### movimiento_ejemplar, movimiento_prestamo, movimiento_remito
@@ -224,7 +242,7 @@ Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 | usuario_id | FK usuario |
 | observacion | TEXT |
 
-Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito.
+Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito. Un disparador (`historial_solo_insercion`, creado en `0005`) rechaza cualquier `UPDATE` o `DELETE` sobre estas tablas.
 
 ### prestamo
 
@@ -367,6 +385,10 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0001_catalogos_geograficos` | `btree_gist`, `provincia`, `localidad` |
 | `0002_sedes_y_acceso` | `usuario`, `socio` (solo estructura; su módulo llega después), `sede`, `horario_sede`, `excepcion_horario_sede`, `historial_sede` con sus restricciones, exclusiones, índices y disparador de solo inserción. Las claves foráneas circulares (`usuario.sede_id` ↔ `sede.creado_por_id`) se resuelven creando las tablas y agregando las claves en la misma migración |
 | `0003_seed_localidades` (datos) | Provincia de Córdoba y su lista de localidades |
+| `0007_reservas` | `reserva` (índice único parcial de reserva activa por socio y libro, cola por `(libro_id, estado, fecha_reserva)`), su secuencia, y `prestamo.registrado_por_id` admite NULL: el sistema genera el préstamo entre sedes al asignar una reserva |
+| `0006_prestamos_y_remitos` | `parametro` (con los valores iniciales), `prestamo` (índice único parcial por ejemplar abierto), `remito`, `detalle_remito` (con `resultado` de la recepción: `RECIBIDO`, `DANADO`, `DESTRUIDO`), `movimiento_prestamo` y `movimiento_remito` (solo inserción), `incidencia` y las secuencias de números de préstamo y remito |
+| `0005_catalogo` | `categoria` (con las categorías iniciales), `autor`, `libro`, `libro_autor`, `ejemplar` y `movimiento_ejemplar` con su disparador de solo inserción |
+| `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
 
 ### Seed de demostración
 
@@ -376,8 +398,10 @@ Un comando (`python -m app.db.seed`) carga datos de ejemplo de forma **idempoten
 |------|-----------|
 | Provincia y localidades | Provincia de Córdoba con la ciudad de Córdoba (capital) y las principales localidades de la provincia. La carga completa del catálogo oficial es una migración de datos posterior |
 | Sedes | 4: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto (activas) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA`, con motivo, para mostrar el estado) |
-| Usuarios | `admin` (administrador), `bibliotecario.cen` (bibliotecario de `CEN`), `bibliotecario.norte` (bibliotecario de `NORTE`) y `socio.demo` (socio) |
-| Socio | Un socio de demostración enlazado con `socio.demo` y con sede de alta `CEN` |
+| Usuarios | `admin` (administrador), `bibliotecario.cen`, `bibliotecario.norte` y `bibliotecario.rc` (uno por sede activa) y `socio.demo` (socio) |
+| Catálogo | Ocho libros (con ISBN) y 14 ejemplares repartidos entre `CEN`, `NORTE` y `SUR_RC` |
+| Socios | Siete: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa), Diego Luna (dado de baja), Julián Ortiz (`SUR_RC`), Valentina Paz (`NORTE`) y Camila Ferreyra (`CEN`) |
+| Actividad | 45 días de historia generada con los casos de uso reales (`app/db/seed_actividad.py`) y un reloj que avanza hasta hoy: préstamos locales y entre sedes, remitos de envío, retorno y traslado (uno recibido dañado y otro extraviado), devoluciones en término y tardías, una multa saldada y otra pendiente, un préstamo vencido y una reserva en espera. Así los reportes R1 a R6 tienen datos. Solo se carga si todavía no hay préstamos |
 | Contraseña | La define `SEED_PASSWORD` en `.env` (sin valor por defecto en el repositorio; `.env.example` tiene un marcador) |
 
 Los datos del seed son distintos de los fixtures de los tests y los tests no los usan.

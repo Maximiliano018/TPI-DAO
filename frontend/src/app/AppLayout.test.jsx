@@ -11,7 +11,7 @@ function menu() {
 }
 
 describe('AppLayout', () => {
-  it('el administrador ve Inicio, Sedes y Usuarios; la sede es «Toda la red»', async () => {
+  it('el administrador ve todos los módulos del personal; la sede es «Toda la red»', async () => {
     sesionDe(ADMIN);
     responder('get', '/sedes/resumen', { total: 0, activas: 0, en_baja: 0 });
     responder('get', '/sedes', pagina([]));
@@ -22,7 +22,20 @@ describe('AppLayout', () => {
       within(menu())
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Inicio', 'Sedes', 'Usuarios']);
+    ).toEqual([
+      'Inicio',
+      'Sedes',
+      'Catálogo',
+      'Ejemplares',
+      'Préstamos',
+      'Reservas',
+      'Remitos',
+      'Multas',
+      'Socios',
+      'Reportes',
+      'Usuarios',
+      'Parámetros',
+    ]);
     expect(screen.getByTestId('sede-del-usuario')).toHaveTextContent('Toda la red');
   });
 

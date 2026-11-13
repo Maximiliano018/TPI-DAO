@@ -87,6 +87,8 @@ Roles: todos. Devuelve el usuario autenticado con el mismo formato que `usuario`
   "permisos": ["SEDE_LEER_BASICO"] }
 ```
 
+Para un socio, `socio_id` trae el id de su ficha (`null` para el personal), así el frontend abre «mis datos» con `GET /socios/{socio_id}`.
+
 Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja). Cerrar sesión no tiene endpoint: el cliente descarta el token.
 
 ## Resumen de endpoints
@@ -115,30 +117,36 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /socios` | A, B | Alta | RF-SOC-01, 02 |
-| `GET /socios` | A, B | Búsqueda; `?q=`, `?documento=`, `?estado=` | RF-SOC-04 |
-| `GET /socios/{id}` | A, B, S | Detalle y situación | RF-SOC-10 |
+| `POST /socios` | A, B | Alta (el bibliotecario en su sede; el administrador indica `sede_alta_id`) | RF-SOC-01, 02 |
+| `GET /socios` | A, B | Búsqueda paginada; `?q=` (número, documento o nombre), `?documento=`, `?estado=` | RF-SOC-04 |
+| `GET /socios/posibles-duplicados` | A, B | Búsqueda previa al alta; `?tipo_documento=&nro_documento=` y `?nombre=&apellido=&fecha_nacimiento=` | RF-SOC-02 |
+| `GET /socios/{id}` | A, B, S | Ficha y situación (el socio, solo la propia) | RF-SOC-10 |
 | `PUT /socios/{id}` | A, B | Modificar | RF-SOC-03 |
-| `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa | RF-SOC-06 |
-| `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes | RF-SOC-05, 06 |
-| `POST /socios/{id}/baja` | A | Baja lógica | RF-SOC-09 |
+| `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa con motivo | RF-SOC-06 |
+| `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes; solo A levanta la administrativa | RF-SOC-05, 06 |
+| `POST /socios/{id}/baja` | A | Baja lógica con motivo | RF-SOC-09 |
 | `POST /socios/{id}/reactivar` | A | Reactivar | RF-SOC-09 |
+| `POST /socios/{id}/cuenta` | A, B | Crear la cuenta de acceso del socio (rol `SOCIO`) | RF-ACC-01 |
 
 ### Catálogo
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
+| `GET /categorias` | A, B, S | Catálogo cerrado de categorías | RF-CAT-01 |
 | `POST /libros` | A | Alta de libro | RF-CAT-01, 02 |
-| `GET /libros` | A, B, S | Búsqueda; `?q=`, `?isbn=`, `?categoria_id=` | RF-CAT-09 |
+| `GET /libros` | A, B, S | Búsqueda; `?q=` (título, autor o ISBN), `?categoria_id=`, `?tipo_material=`; cada libro trae `ejemplares` y `disponibles` | RF-CAT-09 |
 | `GET /libros/{id}` | A, B, S | Detalle | RF-CAT-09 |
 | `PUT /libros/{id}` | A | Modificar | RF-CAT-01 |
-| `GET /libros/{id}/disponibilidad` | A, B, S | Disponibilidad por sede | RF-CAT-09, 10 |
-| `POST /ejemplares` | A, B | Alta de ejemplar | RF-CAT-03, 04 |
-| `GET /ejemplares` | A, B | Listado; `?sede_id=`, `?estado=`, `?libro_id=` | RF-CAT-04 |
+| `DELETE /libros/{id}` | A | Eliminar un libro sin ejemplares (`409 LIBRO_CON_EJEMPLARES` si tiene) | RF-CAT-08 |
+| `GET /libros/{id}/disponibilidad` | A, B, S | Disponibilidad por sede activa | RF-CAT-09, 10 |
+| `POST /ejemplares` | A, B | Alta de ejemplar (el bibliotecario, en su sede; el administrador indica `sede_id`) | RF-CAT-03, 04 |
+| `GET /ejemplares` | A, B | Listado; `?sede_id=` (propietaria o actual), `?estado=`, `?libro_id=`, `?codigo=` | RF-CAT-04 |
 | `GET /ejemplares/{id}` | A, B | Detalle e historial | RF-CAT-06 |
-| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones | RF-CAT-04 |
-| `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo | RF-CAT-07 |
-| `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible | RF-DEV-10 |
+| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones (con `version`) | RF-CAT-04 |
+| `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo (con `version`); solo `DISPONIBLE` o `EN_REVISION` | RF-CAT-07 |
+| `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible (con `version`) | RF-DEV-10 |
+
+El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propietaria es la suya (`403 FORBIDDEN`). La disponibilidad cuenta los ejemplares por **sede propietaria activa**, sin los dados de baja; `otros` agrupa los apartados y en revisión.
 
 ### Préstamos
 
@@ -149,7 +157,7 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito | RF-PRE-15 |
 | `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
 | `POST /prestamos/{id}/renovar` | B | Renovación | RF-PRE-14 |
-| `POST /prestamos/{id}/cancelar` | B | Cancelar antes de la entrega | RF-PRE-13 |
+| `POST /prestamos/{id}/cancelar` | B | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno | RF-PRE-13 |
 | `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11 |
 | `POST /admin/tareas/detectar-vencidos` | A | Ejecuta la detección de vencidos (también corre sola cada día) | RF-PRE-12 |
 
@@ -162,6 +170,7 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `GET /remitos/{id}` | A, B, S | Detalle y movimientos | RF-REM-14 |
 | `POST /remitos/{id}/empaquetar` | B (sede origen) | | RF-REM-05, 07 |
 | `POST /remitos/{id}/despachar` | B (sede origen) | | RF-REM-08 |
+| `POST /remitos/{id}/en-transito` | B (sede origen) | Marca el envío en viaje (si no, la recepción completa ese paso) | RF-REM-05 |
 | `POST /remitos/{id}/recibir` | B (sede destino) | Recepción con estado por línea | RF-REM-09, 13 |
 | `POST /remitos/{id}/anular` | B (sede origen) | Antes del despacho | RF-REM-11 |
 | `POST /remitos/{id}/extraviado` | A, B | Si venció el plazo de tránsito | RF-REM-12 |
@@ -174,7 +183,8 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `GET /reservas` | A, B, S | Listado; `?libro_id=`, `?estado=` | RF-RES-12 |
 | `GET /reservas/{id}` | A, B, S | Detalle y posición en la cola | RF-RES-12 |
 | `POST /reservas/{id}/cancelar` | B, S | | RF-RES-10 |
-| `POST /reservas/{id}/retirar` | B | Entrega y crea el préstamo | RF-RES-11 |
+| `POST /reservas/{id}/retirar` | B (sede de retiro) | Entrega y crea el préstamo activo | RF-RES-11 |
+| `POST /admin/tareas/vencer-reservas` | A | Vence las reservas no retiradas (también corre sola cada día) | RF-RES-09 |
 
 ### Multas
 
@@ -194,7 +204,9 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `GET /reportes/disponibilidad-por-sede` | A, B, S | R5 | RF-REP-05 |
 | `GET /reportes/prestamos-activos-y-en-transito` | A, B | R6 | RF-REP-06 |
 
-Todos aceptan `?desde=`, `?hasta=` y `?sede_id=` donde corresponda; un bibliotecario queda limitado a su sede. Con `Accept: text/csv` exportan CSV (opcional, RF-REP-10).
+Todos aceptan `?desde=`, `?hasta=` (días completos, inclusive) y `?sede_id=` donde corresponda; un bibliotecario queda limitado a su sede aunque pida otra (CU-REP-01, A4). Un rango con `hasta` anterior a `desde` responde `422 VALIDACION`; sin datos, la respuesta es `200` con listas vacías. R3 acepta además `?categoria_id=` y `?limite=` (10 por defecto); R4, `?socio_id=` y `?estado_multa=`; R5, `?libro_id=`, `?categoria_id=` y paginación. La exportación a CSV (opcional, RF-REP-10) la arma el frontend con el mismo resultado.
+
+Permisos: `REPORTE_SEDE` (administrador y bibliotecario) para R1, R4 y R6; `REPORTE_RED` (solo administrador) para R2 y R3; R5 solo exige `CATALOGO_LEER` (todos los roles).
 
 ### Usuarios y parámetros
 
@@ -206,7 +218,7 @@ Todos aceptan `?desde=`, `?hasta=` y `?sede_id=` donde corresponda; un bibliotec
 | `PUT /usuarios/{id}` | A | Modificar nombre y, si es bibliotecario, **reasignar a otra sede activa**. El rol no se cambia | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/baja` | A | Baja lógica (desvincula al bibliotecario de su sede) | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/reactivar` | A | Reactivar; rechaza si su sede está en baja | RF-ACC-06, 09 |
-| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio | — |
+| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio (`{ "valor": "21" }`); rigen desde la siguiente operación | — |
 
 ---
 
@@ -479,18 +491,40 @@ Request:
   "apellido": "Gómez",
   "fecha_nacimiento": "1995-04-12",
   "email": "lucia@example.com",
-  "telefono": "351-5000000",
-  "domicilio": "San Martín 123"
+  "telefono": "+543515000000",
+  "domicilio": "San Martín 123",
+  "sede_alta_id": null,
+  "confirmar_posible_duplicado": false
 }
 ```
 
-Response `201`:
+| Campo | Regla |
+|-------|-------|
+| `tipo_documento` | `DNI`, `LE`, `LC` o `PASAPORTE` |
+| `nro_documento` | DNI, LE y LC: 7 u 8 dígitos (se aceptan puntos). Pasaporte: 6 a 9 letras o números |
+| `nombre`, `apellido` | Obligatorios, hasta 100 caracteres |
+| `fecha_nacimiento` | Opcional; no futura ni anterior a 1900 |
+| `email`, `telefono` | Al menos uno de los dos. El teléfono en formato internacional (E.164) |
+| `sede_alta_id` | Solo el administrador (obligatorio); el bibliotecario registra en su sede |
+| `confirmar_posible_duplicado` | `true` para registrar aunque haya otro socio con el mismo nombre y fecha de nacimiento |
+
+Response `201` (`Location: /api/v1/socios/45`): el socio completo, con `numero_socio` (`"00045"`), `estado` (`"HABILITADO"`), `sede_alta_id`, auditoría y `cuenta` (`null` hasta que se cree).
+
+Errores, en este orden: `422 VALIDACION` (forma) → `409 DUPLICADO` (documento repetido; `detalles[0]` trae `socio_id`, `numero_socio`, `estado` y `puede_reactivarse`, verdadero si está dado de baja) → `409 POSIBLE_DUPLICADO` (mismo nombre, apellido y fecha de nacimiento, sin confirmar; `detalles` lista los parecidos) → `404 SEDE_NO_ENCONTRADA` / `409 SEDE_EN_BAJA`.
+
+`GET /socios/{id}` agrega la situación:
 
 ```json
-{ "id": 45, "numero_socio": "00045", "estado": "HABILITADO", "sede_alta_id": 2 }
+{ "id": 45, "numero_socio": "00045", "estado": "INHABILITADO", "motivo_inhabilitacion": "PRESTAMO_VENCIDO",
+  "causas_inhabilitacion": ["PRESTAMO_VENCIDO"], "motivo_administrativo": null,
+  "situacion": { "prestamos_activos": 1, "prestamos_vencidos": 1, "multas_pendientes": 0, "reservas_activas": 0 } }
 ```
 
-Errores: `409 DUPLICADO` (devuelve el socio existente en `detalles`; si estaba dado de baja, indica que puede reactivarse).
+Un socio que consulta la ficha de otro recibe `404 SOCIO_NO_ENCONTRADO` (no se revela si existe).
+
+Estados: `POST /socios/{id}/inhabilitar` y `/baja` reciben `{ "motivo": "..." }` (5 a 300 caracteres). Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa).
+
+`POST /socios/{id}/cuenta` recibe `{ "username": "lucia.gomez", "password": "••••••••••" }` con las mismas reglas que el alta de personal. Errores: `409 SOCIO_CON_CUENTA`, `409 DUPLICADO` (usuario repetido), `409 SOCIO_EN_BAJA`.
 
 ### `POST /libros` y `POST /ejemplares`
 
@@ -508,7 +542,7 @@ Request de libro:
 }
 ```
 
-Response `201`: `{ "id": 12, "isbn": "9780132350884", "titulo": "Clean Code" }`
+Response `201`: el libro con `id`, `isbn` (sin guiones), `categoria` `{id, nombre}`, `ejemplares` y `disponibles`. Errores: `409 LIBRO_DUPLICADO` (mismo ISBN o, sin ISBN, mismo título, autor, editorial y año; `detalles[0].libro_id` indica el existente), `422 VALIDACION` (ISBN con verificador inválido, sin título o sin autores), `422 CATEGORIA_INVALIDA`.
 
 Request de ejemplar (la sede propietaria es la del bibliotecario; el administrador la indica):
 
@@ -519,8 +553,12 @@ Request de ejemplar (la sede propietaria es la del bibliotecario; el administrad
 Response `201`:
 
 ```json
-{ "id": 301, "codigo_inventario": "CEN-000123", "sede_propietaria_id": 2, "estado": "DISPONIBLE" }
+{ "id": 301, "codigo_inventario": "CEN-000123", "libro_id": 12, "libro": "Clean Code",
+  "sede_propietaria_id": 2, "sede_actual_id": 2, "estado_fisico": "BUENO", "estado": "DISPONIBLE",
+  "version": 1 }
 ```
+
+Errores: `409 EJEMPLAR_CODIGO_DUPLICADO`, `409 SEDE_EN_BAJA`, `404 LIBRO_NO_ENCONTRADO`, `403 FORBIDDEN` (bibliotecario que indica otra sede). `GET /ejemplares/{id}` agrega `historial`: lista de `{estado_anterior, estado_nuevo, fecha_hora, usuario, observacion}`.
 
 ### `GET /libros/{id}/disponibilidad`
 
@@ -532,8 +570,8 @@ Response `200`:
   "titulo": "Clean Code",
   "total_red": { "totales": 5, "disponibles": 2 },
   "por_sede": [
-    { "sede_id": 1, "sede": "Central", "totales": 3, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 1 },
-    { "sede_id": 2, "sede": "Norte", "totales": 2, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 0 }
+    { "sede_id": 1, "sede": "Central", "totales": 3, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 1, "otros": 0 },
+    { "sede_id": 2, "sede": "Norte", "totales": 2, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 0, "otros": 0 }
   ]
 }
 ```
@@ -580,8 +618,10 @@ Request: sin cuerpo. Response `200`:
 Request:
 
 ```json
-{ "estado_fisico": "BUENO", "observaciones": "Sin daños" }
+{ "estado_fisico": "BUENO", "observaciones": "Sin daños", "fecha_hora": "2026-11-15T10:30:00-03:00" }
 ```
+
+`estado_fisico` es `BUENO`, `REGULAR`, `DANADO` o `EXTRAVIADO` (los dos últimos exigen observaciones). `fecha_hora` es opcional: si falta se toma el momento actual; sirve para registrar después una devolución que ocurrió antes.
 
 Response `201`:
 
@@ -590,12 +630,23 @@ Response `201`:
   "prestamo": { "id": 118, "estado": "DEVUELTO" },
   "devolucion": { "id": 60, "dias_atraso": 5, "estado_fisico_recibido": "BUENO" },
   "multa": { "id": 14, "dias_atraso": 5, "monto_por_dia": "200.00", "monto_total": "1000.00", "estado": "PENDIENTE" },
-  "remito_retorno": { "id": 52, "estado": "GENERADO" },
+  "remito_retorno": { "id": 52, "numero": "RM-2026-000052", "motivo": "RETORNO", "estado": "GENERADO" },
+  "reserva_asignada": null,
   "socio": { "id": 45, "estado": "INHABILITADO", "motivo": "MULTA_IMPAGA" }
 }
 ```
 
-`multa` y `remito_retorno` son `null` cuando no corresponden (devolución en término o préstamo local). Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto), `403 FORBIDDEN` (sede distinta de la de destino), `422` (fecha o estado físico inválidos).
+`multa`, `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, u observaciones faltantes).
+
+Qué pasa con el ejemplar según el estado recibido, todo en la misma transacción:
+
+| Estado recibido | Préstamo local | Préstamo interbibliotecario |
+|-----------------|----------------|-----------------------------|
+| `BUENO`, `REGULAR` | `DISPONIBLE` en la sede (o asignado a la primera reserva del libro) | `APARTADO` y remito de retorno a la sede propietaria; al recibirse, `DISPONIBLE` allí |
+| `DANADO` | `EN_REVISION` con incidencia `DANIO` | Remito de retorno con incidencia `DANIO`; al recibirse dañado en su sede pasa a `EN_REVISION` sin otra incidencia |
+| `EXTRAVIADO` | `BAJA` con incidencia `EXTRAVIO` | `BAJA` con incidencia `EXTRAVIO` |
+
+Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse. Al saldarla (`POST /multas/{id}/saldar`, `409 TRANSICION_INVALIDA` si ya estaba saldada) se reevalúa la habilitación del socio.
 
 ### `POST /remitos` — generar remito
 
@@ -654,7 +705,11 @@ Request (estado por línea):
 }
 ```
 
-Response `200`: `{ "id": 51, "estado": "RECIBIDO", "incidencias": [{ "ejemplar_id": 305, "tipo": "DANIO" }] }`
+Cada línea lleva `estado_fisico` y, si llegó inutilizable, `"destruido": true`; un daño o una destrucción exige `observacion` (`422 REMITO_INVALIDO`). Hay que verificar todas las líneas del remito.
+
+Response `200`: el remito con `estado` (`RECIBIDO`, `DANADO` o `DESTRUIDO` según la peor línea), el resultado de cada línea, `movimientos` e `incidencias` (`[{ "ejemplar_id": 305, "tipo": "DANIO", ... }]`).
+
+Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` en destino hasta la entrega al socio (`POST /prestamos/{id}/entregar`, que inicia el plazo); en un **retorno**, `DISPONIBLE` en su sede; en un **traslado**, cambia la sede propietaria y queda `DISPONIBLE`. Una línea dañada deja el ejemplar `EN_REVISION` y una destruida en `BAJA`, con incidencia, y cancelan el préstamo del envío.
 
 ### `GET /remitos/{id}` — con trazabilidad
 
@@ -681,7 +736,9 @@ Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omi
 
 Response `201`: `{ "id": 9, "numero": "RS-2026-000009", "estado": "PENDIENTE", "posicion_en_cola": 3 }`
 
-Errores: `409 HAY_EJEMPLARES_DISPONIBLES`, `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`.
+Errores: `409 HAY_EJEMPLARES_DISPONIBLES` (hay disponibles en la sede de retiro), `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`, `409 LIBRO_SIN_EJEMPLARES` (no hay ejemplares activos en la red).
+
+**Asignación automática.** Cuando un ejemplar vuelve a quedar disponible (devolución, anulación de un envío, cancelación de un préstamo, reparación, retorno recibido o reserva vencida), el mismo caso de uso se lo ofrece a la primera reserva pendiente del libro (FIFO) de un socio habilitado. Si el ejemplar está en la sede de retiro, la reserva pasa a `DISPONIBLE_PARA_RETIRO` por 3 días y el ejemplar a `RESERVADO`; si está en otra sede, se crea el préstamo interbibliotecario hacia la sede de retiro y la reserva queda `CUMPLIDA` con su `prestamo_id`. La reserva de un socio inhabilitado se saltea y sigue esperando; la de una sede de retiro dada de baja se cancela.
 
 ### `GET /reportes/movimiento-entre-sedes` (R1)
 
@@ -695,15 +752,21 @@ Response `200`:
   "hasta": "2026-09-30",
   "rutas": [
     {
+      "sede_origen_id": 1,
       "sede_origen": "Central",
+      "sede_destino_id": 2,
       "sede_destino": "Norte",
       "envios": 8,
       "ejemplares": 11,
       "tiempo_promedio_transito_dias": 2.4
     }
-  ]
+  ],
+  "total_envios": 8,
+  "total_ejemplares": 11
 }
 ```
+
+Cuentan los remitos que llegaron en el período (recibidos, con o sin incidencias); el tránsito es `fecha_recepcion − fecha_despacho`. Los que siguen en camino no entran.
 
 ### `GET /reportes/envios-e-incidencias` (R2)
 
@@ -716,9 +779,29 @@ Response `200`:
   "extraviados": 1,
   "danados": 1,
   "destruidos": 0,
-  "tasa_exito": 0.8
+  "tasa_exito": 0.8,
+  "tasa_incidencias": 0.2,
+  "por_sede": [{ "sede_id": 1, "sede": "Central", "total_envios": 10, "recibidos": 8, "tasa_exito": 0.8 }]
 }
 ```
+
+Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`) despachados en el período, agrupados por sede origen; los anulados y los abiertos no entran. Sin envíos, las tasas son `null`.
+
+### `GET /reportes/vencidos-y-multas` (R4)
+
+```json
+{
+  "fecha": "2026-11-12",
+  "monto_por_dia": "200.00",
+  "vencidos": [{ "numero": "P-2026-000118", "socio": "Lucía Pérez", "dias_atraso": 4, "multa_acumulada": "800.00" }],
+  "multas": [{ "numero_prestamo": "P-2026-000090", "estado": "PENDIENTE", "monto_total": "1000.00" }],
+  "total_acumulado_vencidos": "800.00",
+  "total_multas_pendientes": "1000.00",
+  "total_adeudado": "1800.00"
+}
+```
+
+La multa acumulada de un vencido usa el monto por día vigente; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada).
 
 ## Documentación de endpoints en el código
 

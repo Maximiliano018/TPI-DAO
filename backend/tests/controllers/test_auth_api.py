@@ -1,12 +1,13 @@
 """API de autenticación: login, usuario actual y formato de errores."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import pytest
 
 from app.models.usuario import Permiso
 from tests.controllers.conftest import CLAVE
 from tests.factories.datos_orm import crear_admin, crear_sede
+from tests.fakes.reloj import RELOJ_DE_PRUEBAS
 
 
 def test_login_correcto_devuelve_token_y_usuario_con_permisos(cliente, crear_usuario):
@@ -51,7 +52,26 @@ def test_me_devuelve_la_sede_del_bibliotecario(cliente, sesion, crear_usuario, a
 
     assert r.status_code == 200
     assert r.json()["sede"] == {"id": sede.id, "codigo": "NORTE", "nombre": "Sede Norte"}
-    assert r.json()["permisos"] == ["SEDE_LEER_BASICO", "SEDE_LEER_PUBLICO"]
+    assert r.json()["permisos"] == [
+        "CATALOGO_LEER",
+        "DEVOLUCION_REGISTRAR",
+        "EJEMPLAR_ADMINISTRAR",
+        "EJEMPLAR_LEER",
+        "MULTA_LEER",
+        "MULTA_SALDAR",
+        "PRESTAMO_LEER",
+        "PRESTAMO_REGISTRAR",
+        "REMITO_EXTRAVIO",
+        "REMITO_LEER",
+        "REMITO_OPERAR",
+        "REPORTE_SEDE",
+        "RESERVA_LEER",
+        "RESERVA_REGISTRAR",
+        "SEDE_LEER_BASICO",
+        "SEDE_LEER_PUBLICO",
+        "SOCIO_LEER",
+        "SOCIO_REGISTRAR",
+    ]
 
 
 @pytest.mark.ca("CA-ACC-11")
@@ -66,7 +86,7 @@ def test_sin_token_o_con_token_invalido_responde_401(cliente):
 @pytest.mark.ca("CA-ACC-11")
 def test_un_token_vencido_responde_401(cliente, crear_usuario, autenticar):
     usuario = crear_usuario("ADMIN")
-    pasado = datetime.now(UTC) - timedelta(hours=2)
+    pasado = RELOJ_DE_PRUEBAS.ahora() - timedelta(hours=2)
 
     r = cliente.get("/api/v1/auth/me", headers=autenticar(usuario, ahora=pasado, minutos=60))
 

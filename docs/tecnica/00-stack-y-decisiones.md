@@ -67,6 +67,8 @@ Las reglas viven en el dominio y no en la interfaz, como pide el enunciado. Deta
 
 Dos procesos deben correr solos: marcar préstamos vencidos y vencer reservas no retiradas. Se resuelven con **APScheduler** dentro del proceso del backend (una tarea al día más una ejecución al iniciar), y las mismas funciones se pueden invocar desde un endpoint administrativo o desde tests. No se agrega una cola de mensajes porque no hace falta a esta escala.
 
+Implementación: `app/tareas.py` arranca el programador en el ciclo de vida de FastAPI (salvo con `ENTORNO=test`) y cada tarea usa su propia sesión y transacción; el administrador las ejecuta a mano con `POST /admin/tareas/...`.
+
 ### D8. Zona horaria y dinero
 
 - Las marcas de tiempo se guardan en UTC con zona (`TIMESTAMPTZ`).
