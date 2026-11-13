@@ -33,6 +33,8 @@ export const MENSAJES_DE_ERROR = {
   EJEMPLAR_CODIGO_DUPLICADO: 'Ya existe un ejemplar con ese código de inventario en la red',
   CATEGORIA_INVALIDA: 'Elija una categoría de la lista',
   TRANSICION_INVALIDA: 'La operación no corresponde al estado actual. Se actualizó la pantalla',
+  PRESTAMO_NO_ENCONTRADO: 'El préstamo solicitado no existe',
+  REMITO_NO_ENCONTRADO: 'El remito solicitado no existe',
 };
 
 // Códigos cuyo mensaje del servidor es más preciso que uno fijo (traen el socio o la causa).
@@ -44,12 +46,23 @@ const USAR_MENSAJE_DEL_SERVIDOR = new Set([
   'LIBRO_DUPLICADO',
   'LIBRO_CON_EJEMPLARES',
   'EJEMPLAR_NO_DISPONIBLE',
+  'LIMITE_PRESTAMOS',
+  'LIBRO_REPETIDO',
+  'RENOVACION_NO_PERMITIDA',
+  'EJEMPLAR_NO_RECIBIDO',
+  'EJEMPLAR_EN_OTRO_REMITO',
+  'EJEMPLAR_FUERA_DE_SEDE_ORIGEN',
+  'PLAZO_DE_TRANSITO_VIGENTE',
+  'REMITO_INVALIDO',
+  'SEDE_CON_ACTIVIDAD_PENDIENTE',
 ]);
 
 /** Mensaje a mostrar para un `ApiError` (o cualquier error). */
 export function mensajeDeError(error) {
   if (!error) return '';
   if (USAR_MENSAJE_DEL_SERVIDOR.has(error.codigo) && error.mensaje) return error.mensaje;
+  // La transición inválida trae el estado actual en el mensaje del servidor.
+  if (error.codigo === 'TRANSICION_INVALIDA' && error.mensaje) return error.mensaje;
   if (error.codigo && MENSAJES_DE_ERROR[error.codigo]) return MENSAJES_DE_ERROR[error.codigo];
   return error.mensaje || error.message || 'Ocurrió un error inesperado. Reintente.';
 }

@@ -22,7 +22,17 @@ describe('AppLayout', () => {
       within(menu())
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Inicio', 'Sedes', 'Catálogo', 'Ejemplares', 'Socios', 'Usuarios']);
+    ).toEqual([
+      'Inicio',
+      'Sedes',
+      'Catálogo',
+      'Ejemplares',
+      'Préstamos',
+      'Remitos',
+      'Socios',
+      'Usuarios',
+      'Parámetros',
+    ]);
     expect(screen.getByTestId('sede-del-usuario')).toHaveTextContent('Toda la red');
   });
 

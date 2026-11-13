@@ -9,7 +9,11 @@ export const ITEMS_DE_MENU = [
   { to: '/sedes', texto: 'Sedes' },
   { to: '/catalogo', texto: 'Catálogo', permiso: PERMISOS.CATALOGO_LEER },
   { to: '/ejemplares', texto: 'Ejemplares', permiso: PERMISOS.EJEMPLAR_LEER },
+  { to: '/prestamos', texto: 'Préstamos', permiso: PERMISOS.PRESTAMO_LEER },
+  { to: '/prestamos', texto: 'Mis préstamos', permiso: PERMISOS.PRESTAMO_VER_PROPIOS },
+  { to: '/remitos', texto: 'Remitos', permiso: PERMISOS.REMITO_LEER },
   { to: '/socios', texto: 'Socios', permiso: PERMISOS.SOCIO_LEER },
   { to: '/mis-datos', texto: 'Mis datos', permiso: PERMISOS.SOCIO_VER_PROPIO },
   { to: '/usuarios', texto: 'Usuarios', permiso: PERMISOS.USUARIO_ADMINISTRAR },
+  { to: '/parametros', texto: 'Parámetros', permiso: PERMISOS.PARAMETROS_ADMINISTRAR },
 ];

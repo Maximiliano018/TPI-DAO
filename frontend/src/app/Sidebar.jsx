@@ -59,7 +59,7 @@ export default function Sidebar({ abierto, onCerrar }) {
       >
         <ul className={estilos.pila}>
           {items.map((item) => (
-            <li key={item.to} className={estilos.libro}>
+            <li key={item.texto} className={estilos.libro}>
               <NavLink
                 to={item.to}
                 end={item.fin}

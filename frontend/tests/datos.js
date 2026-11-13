@@ -11,6 +11,10 @@ export const ADMIN = {
     'CATALOGO_LEER',
     'EJEMPLAR_ADMINISTRAR',
     'EJEMPLAR_LEER',
+    'PARAMETROS_ADMINISTRAR',
+    'PRESTAMO_LEER',
+    'REMITO_EXTRAVIO',
+    'REMITO_LEER',
     'SEDE_ADMINISTRAR',
     'SEDE_LEER_BASICO',
     'SEDE_LEER_COMPLETO',
@@ -19,6 +23,7 @@ export const ADMIN = {
     'SOCIO_ADMINISTRAR',
     'SOCIO_LEER',
     'SOCIO_REGISTRAR',
+    'TAREAS_EJECUTAR',
     'USUARIO_ADMINISTRAR',
   ],
 };
@@ -33,6 +38,11 @@ export const BIBLIOTECARIO = {
     'CATALOGO_LEER',
     'EJEMPLAR_ADMINISTRAR',
     'EJEMPLAR_LEER',
+    'PRESTAMO_LEER',
+    'PRESTAMO_REGISTRAR',
+    'REMITO_EXTRAVIO',
+    'REMITO_LEER',
+    'REMITO_OPERAR',
     'SEDE_LEER_BASICO',
     'SEDE_LEER_PUBLICO',
     'SOCIO_LEER',
@@ -47,7 +57,7 @@ export const SOCIO = {
   sede_id: null,
   sede: null,
   socio_id: 45,
-  permisos: ['CATALOGO_LEER', 'SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
+  permisos: ['CATALOGO_LEER', 'PRESTAMO_VER_PROPIOS', 'SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
 };
 
 const SEMANA = [1, 2, 3, 4, 5, 6, 7].map((dia) => ({
@@ -268,6 +278,85 @@ export function ejemplar(over = {}) {
         observacion: 'Alta',
       },
     ],
+    ...over,
+  };
+}
+
+/** Préstamo con el formato de `GET /prestamos/{id}` (con historial y remitos). */
+export function prestamo(over = {}) {
+  return {
+    id: 118,
+    numero: 'P-2026-000118',
+    tipo: 'LOCAL',
+    estado: 'SOLICITADO',
+    socio_id: 45,
+    socio: 'Sol Socia',
+    numero_socio: '00045',
+    ejemplar_id: 301,
+    codigo_ejemplar: 'CEN-000123',
+    libro_id: 12,
+    libro: 'Rayuela',
+    sede_origen_id: 1,
+    sede_origen: 'Sede Central',
+    sede_destino_id: 1,
+    sede_destino: 'Sede Central',
+    fecha_solicitud: '2026-11-10T15:00:00Z',
+    fecha_inicio: null,
+    fecha_vencimiento: null,
+    fecha_devolucion: null,
+    renovaciones: 0,
+    registrado_por: { id: 2, nombre: 'Lucía Gómez' },
+    historial: [
+      {
+        estado_anterior: null,
+        estado_nuevo: 'SOLICITADO',
+        fecha_hora: '2026-11-10T15:00:00Z',
+        usuario: { id: 2, nombre: 'Lucía Gómez' },
+        observacion: 'Solicitud registrada',
+      },
+    ],
+    remitos: [],
+    ...over,
+  };
+}
+
+/** Remito con el formato de `GET /remitos/{id}` (con movimientos e incidencias). */
+export function remito(over = {}) {
+  return {
+    id: 51,
+    numero: 'R-2026-000051',
+    motivo: 'ENVIO',
+    estado: 'GENERADO',
+    sede_origen_id: 1,
+    sede_origen: 'Sede Central',
+    sede_destino_id: 2,
+    sede_destino: 'Sede Norte',
+    fecha_generacion: '2026-11-10T15:00:00Z',
+    fecha_despacho: null,
+    fecha_recepcion: null,
+    observaciones: null,
+    lineas: [
+      {
+        ejemplar_id: 301,
+        codigo_ejemplar: 'CEN-000123',
+        libro: 'Rayuela',
+        prestamo_id: 118,
+        estado_fisico_salida: 'BUENO',
+        estado_fisico_llegada: null,
+        resultado: null,
+        observacion: null,
+      },
+    ],
+    movimientos: [
+      {
+        estado_anterior: null,
+        estado_nuevo: 'GENERADO',
+        fecha_hora: '2026-11-10T15:00:00Z',
+        usuario: { id: 2, nombre: 'Lucía Gómez' },
+        observacion: 'Remito generado',
+      },
+    ],
+    incidencias: [],
     ...over,
   };
 }

@@ -25,6 +25,15 @@ const EjemplarDetallePage = lazy(
   () => import('../features/catalogo/pages/EjemplarDetallePage.jsx'),
 );
 const EjemplarFormPage = lazy(() => import('../features/catalogo/pages/EjemplarFormPage.jsx'));
+const PrestamosPage = lazy(() => import('../features/prestamos/pages/PrestamosPage.jsx'));
+const PrestamoDetallePage = lazy(
+  () => import('../features/prestamos/pages/PrestamoDetallePage.jsx'),
+);
+const NuevoPrestamoPage = lazy(() => import('../features/prestamos/pages/NuevoPrestamoPage.jsx'));
+const RemitosPage = lazy(() => import('../features/remitos/pages/RemitosPage.jsx'));
+const RemitoDetallePage = lazy(() => import('../features/remitos/pages/RemitoDetallePage.jsx'));
+const NuevoRemitoPage = lazy(() => import('../features/remitos/pages/NuevoRemitoPage.jsx'));
+const ParametrosPage = lazy(() => import('../features/sistema/pages/ParametrosPage.jsx'));
 
 /** Rutas de la aplicación. Cada módulo suma las suyas con `React.lazy`. */
 export default function App() {
@@ -151,6 +160,45 @@ export default function App() {
           />
           <Route path=":id" element={<EjemplarDetallePage />} />
         </Route>
+        <Route path="prestamos">
+          <Route index element={<PrestamosPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.PRESTAMO_REGISTRAR}>
+                <NuevoPrestamoPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<PrestamoDetallePage />} />
+        </Route>
+        <Route
+          path="remitos"
+          element={
+            <RutaProtegida permiso={PERMISOS.REMITO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<RemitosPage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.REMITO_OPERAR}>
+                <NuevoRemitoPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path=":id" element={<RemitoDetallePage />} />
+        </Route>
+        <Route
+          path="parametros"
+          element={
+            <RutaProtegida permiso={PERMISOS.PARAMETROS_ADMINISTRAR}>
+              <ParametrosPage />
+            </RutaProtegida>
+          }
+        />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>

@@ -22,7 +22,29 @@ export const ESTADOS = {
     EN_REVISION: { tono: 'danger', texto: 'En revisión' },
     BAJA: { tono: 'neutral', texto: 'Dado de baja' },
   },
+  prestamo: {
+    SOLICITADO: { tono: 'info', texto: 'Solicitado' },
+    EN_ENVIO: { tono: 'info', texto: 'En envío' },
+    ACTIVO: { tono: 'success', texto: 'Activo' },
+    VENCIDO: { tono: 'danger', texto: 'Vencido' },
+    DEVUELTO: { tono: 'neutral', texto: 'Devuelto' },
+    CANCELADO: { tono: 'neutral', texto: 'Cancelado' },
+  },
+  remito: {
+    GENERADO: { tono: 'info', texto: 'Generado' },
+    EMPAQUETADO: { tono: 'info', texto: 'Empaquetado' },
+    DESPACHADO: { tono: 'warning', texto: 'Despachado' },
+    EN_TRANSITO: { tono: 'warning', texto: 'En tránsito' },
+    RECIBIDO: { tono: 'success', texto: 'Recibido' },
+    EXTRAVIADO: { tono: 'danger', texto: 'Extraviado' },
+    DANADO: { tono: 'danger', texto: 'Recibido con daño' },
+    DESTRUIDO: { tono: 'danger', texto: 'Recibido destruido' },
+    ANULADO: { tono: 'neutral', texto: 'Anulado' },
+  },
 };
+
+export const TIPOS_DE_PRESTAMO = { LOCAL: 'Local', INTERBIBLIOTECARIO: 'Entre sedes' };
+export const MOTIVOS_DE_REMITO = { ENVIO: 'Envío', RETORNO: 'Retorno', TRASLADO: 'Traslado' };
 
 /** Estado físico de un ejemplar. */
 export const ESTADOS_FISICOS = {

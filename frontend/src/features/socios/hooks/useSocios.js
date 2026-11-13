@@ -20,11 +20,12 @@ export const claves = {
   duplicados: (criterio) => ['socios', 'duplicados', criterio],
 };
 
-export function useSocios(filtros = {}) {
+export function useSocios(filtros = {}, opciones = {}) {
   return useQuery({
     queryKey: claves.lista(filtros),
     queryFn: () => listarSocios(filtros),
     placeholderData: keepPreviousData,
+    ...opciones,
   });
 }
 
