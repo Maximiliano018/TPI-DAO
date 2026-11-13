@@ -280,3 +280,10 @@ class LimiteReservasExcedido(ReglaDeNegocioViolada):
 
 class LibroSinEjemplares(ReglaDeNegocioViolada):
     codigo = "LIBRO_SIN_EJEMPLARES"
+
+
+# --- devoluciones y multas ----------------------------------------------------------------------
+
+
+class MultaNoEncontrada(EntidadNoEncontrada):
+    codigo = "MULTA_NO_ENCONTRADA"

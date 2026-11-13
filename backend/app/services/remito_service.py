@@ -19,7 +19,7 @@ from app.exceptions import (
     RemitoInvalido,
     RemitoNoEncontrado,
 )
-from app.models.ejemplar import Ejemplar
+from app.models.ejemplar import Ejemplar, EstadoFisico
 from app.models.incidencia import Incidencia, OrigenIncidencia, TipoIncidencia
 from app.models.paginacion import Pagina
 from app.models.prestamo import Prestamo
@@ -210,6 +210,8 @@ class RemitoService:
         * recibido en un **traslado**: cambia de sede propietaria y queda ``Disponible``;
         * **dañado**: ``En revisión`` con incidencia; **destruido**: ``Baja`` con incidencia.
           En ambos casos el préstamo del envío se cancela.
+        * **retorno de un ejemplar devuelto dañado**: pasa a ``En revisión`` en su sede sin otra
+          incidencia (ya se registró en la devolución).
         """
         with self._transaccion():
             remito = self._de_mi_sede(actor, remito_id, origen=False)
@@ -229,6 +231,8 @@ class RemitoService:
                         if remito.motivo == MotivoRemito.TRASLADO:
                             ejemplar.trasladar_a(remito.sede_destino_id)
                         ejemplar.liberar(yo, ahora, texto)
+                elif _danio_ya_informado(remito, linea):
+                    ejemplar.enviar_a_revision(yo, ahora, f"{texto}: dañado en la devolución")
                 else:
                     self._incidencia_de_recepcion(remito, linea, ejemplar, yo)
                 self._uow.ejemplares.guardar(ejemplar)
@@ -461,6 +465,15 @@ class RemitoService:
     def _releer(self, remito: Remito) -> Remito:
         assert remito.id is not None
         return self._uow.remitos.obtener(remito.id) or remito
+
+
+def _danio_ya_informado(remito: Remito, linea: LineaRemito) -> bool:
+    """Retorno de un ejemplar que el socio devolvió dañado y llega igual."""
+    return (
+        remito.motivo == MotivoRemito.RETORNO
+        and linea.resultado == ResultadoLinea.DANADO
+        and linea.estado_fisico_salida == EstadoFisico.DANADO
+    )
 
 
 def _ref(usuario: Usuario) -> UsuarioRef:

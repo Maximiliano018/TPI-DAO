@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import PrestamoORM, ReservaORM, SocioORM, UsuarioORM
+from app.db.models import MultaORM, PrestamoORM, ReservaORM, SocioORM, UsuarioORM
 from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
 from app.exceptions import DuplicadoError
 from app.models.socio import (
@@ -161,7 +161,7 @@ class SqlAlchemySocioRepository:
         return self._mapear(filas), total or 0
 
     def situacion(self, socio_id: int) -> SituacionSocio:
-        """Cuenta los préstamos en curso y vencidos (multas y reservas las suman sus módulos)."""
+        """Cuenta préstamos en curso y vencidos, multas pendientes y reservas activas."""
         por_estado = dict(
             self._sesion.execute(
                 select(PrestamoORM.estado, func.count(PrestamoORM.id))
@@ -179,9 +179,15 @@ class SqlAlchemySocioRepository:
                 ReservaORM.estado.in_(["PENDIENTE", "DISPONIBLE_PARA_RETIRO"]),
             )
         )
+        multas = self._sesion.scalar(
+            select(func.count(MultaORM.id)).where(
+                MultaORM.socio_id == socio_id, MultaORM.estado == "PENDIENTE"
+            )
+        )
         return SituacionSocio(
             prestamos_activos=sum(por_estado.values()),
             prestamos_vencidos=vencidos,
+            multas_pendientes=multas or 0,
             reservas_activas=reservas or 0,
         )
 

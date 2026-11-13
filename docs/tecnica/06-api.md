@@ -616,8 +616,10 @@ Request: sin cuerpo. Response `200`:
 Request:
 
 ```json
-{ "estado_fisico": "BUENO", "observaciones": "Sin daños" }
+{ "estado_fisico": "BUENO", "observaciones": "Sin daños", "fecha_hora": "2026-11-15T10:30:00-03:00" }
 ```
+
+`estado_fisico` es `BUENO`, `REGULAR`, `DANADO` o `EXTRAVIADO` (los dos últimos exigen observaciones). `fecha_hora` es opcional: si falta se toma el momento actual; sirve para registrar después una devolución que ocurrió antes.
 
 Response `201`:
 
@@ -626,12 +628,23 @@ Response `201`:
   "prestamo": { "id": 118, "estado": "DEVUELTO" },
   "devolucion": { "id": 60, "dias_atraso": 5, "estado_fisico_recibido": "BUENO" },
   "multa": { "id": 14, "dias_atraso": 5, "monto_por_dia": "200.00", "monto_total": "1000.00", "estado": "PENDIENTE" },
-  "remito_retorno": { "id": 52, "estado": "GENERADO" },
+  "remito_retorno": { "id": 52, "numero": "RM-2026-000052", "motivo": "RETORNO", "estado": "GENERADO" },
+  "reserva_asignada": null,
   "socio": { "id": 45, "estado": "INHABILITADO", "motivo": "MULTA_IMPAGA" }
 }
 ```
 
-`multa` y `remito_retorno` son `null` cuando no corresponden (devolución en término o préstamo local). Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto), `403 FORBIDDEN` (sede distinta de la de destino), `422` (fecha o estado físico inválidos).
+`multa`, `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, u observaciones faltantes).
+
+Qué pasa con el ejemplar según el estado recibido, todo en la misma transacción:
+
+| Estado recibido | Préstamo local | Préstamo interbibliotecario |
+|-----------------|----------------|-----------------------------|
+| `BUENO`, `REGULAR` | `DISPONIBLE` en la sede (o asignado a la primera reserva del libro) | `APARTADO` y remito de retorno a la sede propietaria; al recibirse, `DISPONIBLE` allí |
+| `DANADO` | `EN_REVISION` con incidencia `DANIO` | Remito de retorno con incidencia `DANIO`; al recibirse dañado en su sede pasa a `EN_REVISION` sin otra incidencia |
+| `EXTRAVIADO` | `BAJA` con incidencia `EXTRAVIO` | `BAJA` con incidencia `EXTRAVIO` |
+
+Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse. Al saldarla (`POST /multas/{id}/saldar`, `409 TRANSICION_INVALIDA` si ya estaba saldada) se reevalúa la habilitación del socio.
 
 ### `POST /remitos` — generar remito
 

@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.controllers import (
     auth_controller,
     catalogo_controller,
+    devolucion_controller,
     prestamo_controller,
     remito_controller,
     reserva_controller,
@@ -50,6 +51,7 @@ def crear_app() -> FastAPI:
     app.include_router(prestamo_controller.router)
     app.include_router(remito_controller.router)
     app.include_router(reserva_controller.router)
+    app.include_router(devolucion_controller.router)
     return app
 
 

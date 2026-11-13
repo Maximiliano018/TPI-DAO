@@ -8,6 +8,7 @@ from app.db.models.catalogo import (
     LibroORM,
     MovimientoEjemplarORM,
 )
+from app.db.models.devolucion import DevolucionORM, MultaORM
 from app.db.models.geografia import LocalidadORM, ProvinciaORM
 from app.db.models.prestamo import (
     DetalleRemitoORM,
@@ -30,6 +31,8 @@ from app.db.models.usuario import UsuarioORM
 
 __all__ = [
     "DetalleRemitoORM",
+    "DevolucionORM",
+    "MultaORM",
     "IncidenciaORM",
     "MovimientoPrestamoORM",
     "MovimientoRemitoORM",

@@ -66,6 +66,8 @@ stateDiagram-v2
 
 **Recepción de un préstamo interbibliotecario.** Al recibirse el remito de envío, el ejemplar queda `Apartado` en la sede destino hasta que el socio lo retira; recién con esa entrega pasa a `Prestado` y empieza el plazo. Así el traslado no consume el plazo del socio (RF-PRE-09) y, si el socio no lo retira, el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno (CU-PRE-02, A6).
 
+**Devolución dañada de un préstamo interbibliotecario.** El ejemplar no queda en revisión en la sede destino (no es suya y no puede repararlo): vuelve `Apartado` con el remito de retorno y, al recibirse dañado en su sede, pasa a `EnRevision` sin otra incidencia, porque el daño ya se registró en la devolución.
+
 Efecto al volver a `Disponible`: el sistema revisa la cola de reservas del libro y, si hay una elegible, pasa a `Reservado` (ver [Reservas](../funcional/06-reservas.md)).
 
 ## Préstamo

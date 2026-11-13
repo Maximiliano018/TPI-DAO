@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel
 
+from app.dtos.response.devolucion_response import DevolucionResponse, MultaResponse
 from app.dtos.response.sede_response import UsuarioRefResponse
 from app.models.incidencia import Incidencia
 from app.models.paginacion import Pagina
@@ -168,10 +169,12 @@ class RemitoResumenResponse(BaseModel):
 
 
 class PrestamoDetalleResponse(PrestamoResponse):
-    """Préstamo con su historial y los remitos de ida y vuelta (RF-PRE-15)."""
+    """Préstamo con su historial, los remitos de ida y vuelta, la devolución y la multa."""
 
     historial: list[MovimientoResponse]
     remitos: list[RemitoResumenResponse]
+    devolucion: DevolucionResponse | None = None
+    multa: MultaResponse | None = None
 
     @classmethod
     def desde_detalle(cls, d: DetallePrestamo) -> "PrestamoDetalleResponse":
@@ -179,6 +182,8 @@ class PrestamoDetalleResponse(PrestamoResponse):
             **PrestamoResponse.desde(d.prestamo).model_dump(),
             historial=[MovimientoResponse.desde(m) for m in d.historial],
             remitos=[RemitoResumenResponse.desde(r) for r in d.remitos],
+            devolucion=DevolucionResponse.desde(d.devolucion) if d.devolucion else None,
+            multa=MultaResponse.desde(d.multa) if d.multa else None,
         )
 
 

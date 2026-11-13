@@ -1,3 +1,2 @@
 # Criterios de aceptación que dependen de módulos que todavía no existen.
 # Esta lista solo puede achicarse: cada módulo quita los suyos al agregar sus pruebas.
-CA-ACC-02  # devoluciones en otra sede: llega con el módulo de devoluciones

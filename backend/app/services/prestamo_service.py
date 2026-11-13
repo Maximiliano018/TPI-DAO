@@ -12,6 +12,7 @@ from app.exceptions import (
     SocioNoEncontrado,
     TransicionInvalida,
 )
+from app.models.devolucion import Devolucion, Multa
 from app.models.ejemplar import Ejemplar
 from app.models.factories.prestamo_factory import PrestamoFactory
 from app.models.paginacion import Pagina
@@ -32,6 +33,8 @@ class DetallePrestamo:
     prestamo: Prestamo
     historial: list[MovimientoPrestamo]
     remitos: list[Remito]
+    devolucion: Devolucion | None = None
+    multa: Multa | None = None
 
 
 class PrestamoService:
@@ -213,7 +216,7 @@ class PrestamoService:
     # --- lectura --------------------------------------------------------------------------
 
     def detalle(self, actor: Usuario, prestamo_id: int) -> DetallePrestamo:
-        """Préstamo con su historial y sus remitos (RF-PRE-15).
+        """Préstamo con su historial, sus remitos, la devolución y la multa (RF-PRE-15, DEV-13).
 
         El socio ve solo los propios; el bibliotecario, los de su sede como origen o destino.
         """
@@ -224,6 +227,8 @@ class PrestamoService:
             prestamo,
             self._uow.prestamos.historial(prestamo_id),
             self._uow.remitos.de_prestamo(prestamo_id),
+            self._uow.devoluciones.de_prestamo(prestamo_id),
+            self._uow.multas.de_prestamo(prestamo_id),
         )
 
     def listar(
