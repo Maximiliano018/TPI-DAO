@@ -1,20 +1,20 @@
 """API de sedes: permisos por rol, forma de las respuestas y formato de errores."""
 
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, timedelta
 
 import pytest
 from sqlalchemy import select
 
 from app.db.models import LocalidadORM
 from app.utils.texto import normalizar
+from tests.fakes.reloj import HOY_DE_PRUEBAS
 
 BASE = "/api/v1/sedes"
 
 
 def _hoy() -> date:
-    """Hoy en la zona de negocio (el CI corre en UTC: de 21 a 24 h ya sería mañana)."""
-    return datetime.now(ZoneInfo("America/Argentina/Cordoba")).date()
+    """El «hoy» del reloj que usa la API en las pruebas (zona de negocio)."""
+    return HOY_DE_PRUEBAS
 
 
 @pytest.fixture

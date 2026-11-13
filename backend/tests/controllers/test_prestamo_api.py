@@ -1,16 +1,16 @@
 """Préstamos y remitos de punta a punta contra PostgreSQL."""
 
-from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import timedelta
 
 import pytest
 from sqlalchemy import select, text
 
 from app.db.models import CategoriaORM, LocalidadORM
 from tests.controllers.test_sede_api import _alta, _error
+from tests.fakes.reloj import HOY_DE_PRUEBAS
 
 API = "/api/v1"
-HOY = datetime.now(ZoneInfo("America/Argentina/Cordoba")).date()
+HOY = HOY_DE_PRUEBAS
 
 
 @pytest.fixture
