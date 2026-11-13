@@ -32,6 +32,7 @@ describe('AppLayout', () => {
       'Remitos',
       'Multas',
       'Socios',
+      'Reportes',
       'Usuarios',
       'Parámetros',
     ]);

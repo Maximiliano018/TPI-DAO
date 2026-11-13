@@ -17,6 +17,7 @@ export const ITEMS_DE_MENU = [
   { to: '/multas', texto: 'Multas', permiso: PERMISOS.MULTA_LEER },
   { to: '/multas', texto: 'Mis multas', permiso: PERMISOS.MULTA_VER_PROPIAS },
   { to: '/socios', texto: 'Socios', permiso: PERMISOS.SOCIO_LEER },
+  { to: '/reportes', texto: 'Reportes', permiso: PERMISOS.CATALOGO_LEER },
   { to: '/mis-datos', texto: 'Mis datos', permiso: PERMISOS.SOCIO_VER_PROPIO },
   { to: '/usuarios', texto: 'Usuarios', permiso: PERMISOS.USUARIO_ADMINISTRAR },
   { to: '/parametros', texto: 'Parámetros', permiso: PERMISOS.PARAMETROS_ADMINISTRAR },
