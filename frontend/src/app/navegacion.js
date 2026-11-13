@@ -11,6 +11,8 @@ export const ITEMS_DE_MENU = [
   { to: '/ejemplares', texto: 'Ejemplares', permiso: PERMISOS.EJEMPLAR_LEER },
   { to: '/prestamos', texto: 'Préstamos', permiso: PERMISOS.PRESTAMO_LEER },
   { to: '/prestamos', texto: 'Mis préstamos', permiso: PERMISOS.PRESTAMO_VER_PROPIOS },
+  { to: '/reservas', texto: 'Reservas', permiso: PERMISOS.RESERVA_LEER },
+  { to: '/reservas', texto: 'Mis reservas', permiso: PERMISOS.RESERVA_PROPIA },
   { to: '/remitos', texto: 'Remitos', permiso: PERMISOS.REMITO_LEER },
   { to: '/socios', texto: 'Socios', permiso: PERMISOS.SOCIO_LEER },
   { to: '/mis-datos', texto: 'Mis datos', permiso: PERMISOS.SOCIO_VER_PROPIO },

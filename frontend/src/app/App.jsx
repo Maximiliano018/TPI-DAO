@@ -33,6 +33,7 @@ const NuevoPrestamoPage = lazy(() => import('../features/prestamos/pages/NuevoPr
 const RemitosPage = lazy(() => import('../features/remitos/pages/RemitosPage.jsx'));
 const RemitoDetallePage = lazy(() => import('../features/remitos/pages/RemitoDetallePage.jsx'));
 const NuevoRemitoPage = lazy(() => import('../features/remitos/pages/NuevoRemitoPage.jsx'));
+const ReservasPage = lazy(() => import('../features/reservas/pages/ReservasPage.jsx'));
 const ParametrosPage = lazy(() => import('../features/sistema/pages/ParametrosPage.jsx'));
 
 /** Rutas de la aplicación. Cada módulo suma las suyas con `React.lazy`. */
@@ -191,6 +192,7 @@ export default function App() {
           />
           <Route path=":id" element={<RemitoDetallePage />} />
         </Route>
+        <Route path="reservas" element={<ReservasPage />} />
         <Route
           path="parametros"
           element={

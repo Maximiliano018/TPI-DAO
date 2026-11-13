@@ -35,6 +35,8 @@ export const MENSAJES_DE_ERROR = {
   TRANSICION_INVALIDA: 'La operación no corresponde al estado actual. Se actualizó la pantalla',
   PRESTAMO_NO_ENCONTRADO: 'El préstamo solicitado no existe',
   REMITO_NO_ENCONTRADO: 'El remito solicitado no existe',
+  RESERVA_NO_ENCONTRADA: 'La reserva solicitada no existe',
+  RESERVA_DUPLICADA: 'El socio ya tiene una reserva activa de este libro',
 };
 
 // Códigos cuyo mensaje del servidor es más preciso que uno fijo (traen el socio o la causa).
@@ -55,6 +57,9 @@ const USAR_MENSAJE_DEL_SERVIDOR = new Set([
   'PLAZO_DE_TRANSITO_VIGENTE',
   'REMITO_INVALIDO',
   'SEDE_CON_ACTIVIDAD_PENDIENTE',
+  'HAY_EJEMPLARES_DISPONIBLES',
+  'LIMITE_RESERVAS',
+  'LIBRO_SIN_EJEMPLARES',
 ]);
 
 /** Mensaje a mostrar para un `ApiError` (o cualquier error). */

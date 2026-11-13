@@ -15,6 +15,7 @@ export const ADMIN = {
     'PRESTAMO_LEER',
     'REMITO_EXTRAVIO',
     'REMITO_LEER',
+    'RESERVA_LEER',
     'SEDE_ADMINISTRAR',
     'SEDE_LEER_BASICO',
     'SEDE_LEER_COMPLETO',
@@ -43,6 +44,8 @@ export const BIBLIOTECARIO = {
     'REMITO_EXTRAVIO',
     'REMITO_LEER',
     'REMITO_OPERAR',
+    'RESERVA_LEER',
+    'RESERVA_REGISTRAR',
     'SEDE_LEER_BASICO',
     'SEDE_LEER_PUBLICO',
     'SOCIO_LEER',
@@ -57,7 +60,13 @@ export const SOCIO = {
   sede_id: null,
   sede: null,
   socio_id: 45,
-  permisos: ['CATALOGO_LEER', 'PRESTAMO_VER_PROPIOS', 'SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
+  permisos: [
+    'CATALOGO_LEER',
+    'PRESTAMO_VER_PROPIOS',
+    'RESERVA_PROPIA',
+    'SEDE_LEER_PUBLICO',
+    'SOCIO_VER_PROPIO',
+  ],
 };
 
 const SEMANA = [1, 2, 3, 4, 5, 6, 7].map((dia) => ({
@@ -357,6 +366,29 @@ export function remito(over = {}) {
       },
     ],
     incidencias: [],
+    ...over,
+  };
+}
+
+/** Reserva con el formato de la API; `over` pisa cualquier campo. */
+export function reserva(over = {}) {
+  return {
+    id: 9,
+    numero: 'RS-2026-000009',
+    estado: 'PENDIENTE',
+    socio_id: 45,
+    socio: 'Sol Socia',
+    numero_socio: '00045',
+    libro_id: 12,
+    libro: 'Rayuela',
+    sede_retiro_id: 1,
+    sede_retiro: 'Sede Central',
+    fecha_reserva: '2026-11-10T15:00:00Z',
+    posicion_en_cola: 2,
+    ejemplar_id: null,
+    codigo_ejemplar: null,
+    vencimiento_retiro: null,
+    prestamo_id: null,
     ...over,
   };
 }

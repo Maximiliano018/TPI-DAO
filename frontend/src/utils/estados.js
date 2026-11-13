@@ -41,6 +41,13 @@ export const ESTADOS = {
     DESTRUIDO: { tono: 'danger', texto: 'Recibido destruido' },
     ANULADO: { tono: 'neutral', texto: 'Anulado' },
   },
+  reserva: {
+    PENDIENTE: { tono: 'info', texto: 'En espera' },
+    DISPONIBLE_PARA_RETIRO: { tono: 'success', texto: 'Lista para retirar' },
+    CUMPLIDA: { tono: 'neutral', texto: 'Cumplida' },
+    CANCELADA: { tono: 'neutral', texto: 'Cancelada' },
+    VENCIDA: { tono: 'warning', texto: 'Vencida' },
+  },
 };
 
 export const TIPOS_DE_PRESTAMO = { LOCAL: 'Local', INTERBIBLIOTECARIO: 'Entre sedes' };

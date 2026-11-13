@@ -20,6 +20,7 @@ import { mensajeDeError } from '../../../utils/errores.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
+import ReservarDialog from '../../reservas/components/ReservarDialog.jsx';
 import EstadoEjemplarBadge from '../components/EstadoEjemplarBadge.jsx';
 import {
   useDisponibilidad,
@@ -123,6 +124,7 @@ export default function LibroDetallePage() {
   const { tienePermiso } = useSesion();
   const { data: libro, isPending, error, refetch } = useLibro(id);
   const [eliminando, setEliminando] = useState(false);
+  const [reservando, setReservando] = useState(false);
   useTituloDePagina(libro?.titulo ?? 'Libro');
   const migas = [{ texto: 'Catálogo', to: '/catalogo' }, { texto: libro?.titulo ?? 'Libro' }];
 
@@ -146,6 +148,12 @@ export default function LibroDetallePage() {
         migas={<Breadcrumb items={migas} />}
         acciones={
           <>
+            {(tienePermiso(PERMISOS.RESERVA_PROPIA) ||
+              tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
+              <Button variante="secondary" onClick={() => setReservando(true)}>
+                Reservar
+              </Button>
+            )}
             {gestionaEjemplares && (
               <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`}>Agregar ejemplar</Button>
             )}
@@ -189,6 +197,7 @@ export default function LibroDetallePage() {
         )}
       </div>
       {eliminando && <EliminarLibroDialog libro={libro} onCerrar={() => setEliminando(false)} />}
+      {reservando && <ReservarDialog libro={libro} onCerrar={() => setReservando(false)} />}
     </>
   );
 }

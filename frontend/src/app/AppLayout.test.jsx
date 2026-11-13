@@ -28,6 +28,7 @@ describe('AppLayout', () => {
       'Catálogo',
       'Ejemplares',
       'Préstamos',
+      'Reservas',
       'Remitos',
       'Socios',
       'Usuarios',

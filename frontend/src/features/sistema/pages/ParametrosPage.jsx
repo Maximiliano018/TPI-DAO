@@ -17,6 +17,7 @@ import {
   useDetectarVencidos,
   useParametros,
 } from '../../prestamos/hooks/usePrestamos.js';
+import { useVencerReservas } from '../../reservas/hooks/useReservas.js';
 
 function Parametro({ parametro }) {
   const actualizar = useActualizarParametro();
@@ -59,6 +60,7 @@ export default function ParametrosPage() {
   useTituloDePagina('Parámetros');
   const { data, isPending, error, refetch } = useParametros();
   const detectar = useDetectarVencidos();
+  const vencer = useVencerReservas();
   const { mostrar } = useToast();
   const [fallo, setFallo] = useState(null);
   return (
@@ -81,7 +83,8 @@ export default function ParametrosPage() {
         </Card>
         <Card titulo="Tareas del sistema">
           <p style={{ marginTop: 0 }}>
-            La detección de préstamos vencidos corre sola todos los días; se puede ejecutar ahora.
+            La detección de préstamos vencidos y el vencimiento de reservas corren solos todos los
+            días; se pueden ejecutar ahora.
           </p>
           {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
           <Button
@@ -95,6 +98,18 @@ export default function ParametrosPage() {
             }
           >
             Detectar vencidos ahora
+          </Button>{' '}
+          <Button
+            variante="secondary"
+            cargando={vencer.isPending}
+            onClick={() =>
+              vencer.mutate(undefined, {
+                onSuccess: (r) => mostrar(`Reservas vencidas: ${r.cambios}`),
+                onError: setFallo,
+              })
+            }
+          >
+            Vencer reservas no retiradas
           </Button>
         </Card>
       </div>
