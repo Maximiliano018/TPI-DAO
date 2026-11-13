@@ -52,6 +52,9 @@ def test_me_devuelve_la_sede_del_bibliotecario(cliente, sesion, crear_usuario, a
     assert r.status_code == 200
     assert r.json()["sede"] == {"id": sede.id, "codigo": "NORTE", "nombre": "Sede Norte"}
     assert r.json()["permisos"] == [
+        "CATALOGO_LEER",
+        "EJEMPLAR_ADMINISTRAR",
+        "EJEMPLAR_LEER",
         "SEDE_LEER_BASICO",
         "SEDE_LEER_PUBLICO",
         "SOCIO_LEER",

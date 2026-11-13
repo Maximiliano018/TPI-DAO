@@ -26,8 +26,6 @@ TIPOS_PENDIENTES_DE_MODULO: set[TipoImpedimento] = {
     TipoImpedimento.PRESTAMOS_EN_CURSO,
     TipoImpedimento.REMITOS_ABIERTOS,
     TipoImpedimento.RESERVAS_PENDIENTES,
-    TipoImpedimento.EJEMPLARES_EN_SEDE,
-    TipoImpedimento.EJEMPLARES_PROPIOS_FUERA,
 }
 
 

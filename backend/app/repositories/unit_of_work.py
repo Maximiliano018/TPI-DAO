@@ -4,6 +4,11 @@ from typing import Protocol
 
 from sqlalchemy.orm import Session
 
+from app.repositories.interfaces.catalogo_repository import (
+    CategoriaRepository,
+    EjemplarRepository,
+    LibroRepository,
+)
 from app.repositories.interfaces.sede_repository import LocalidadRepository, SedeRepository
 from app.repositories.interfaces.socio_repository import SocioRepository
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
@@ -16,6 +21,9 @@ class UnitOfWork(Protocol):
     sedes: SedeRepository
     localidades: LocalidadRepository
     socios: SocioRepository
+    categorias: CategoriaRepository
+    libros: LibroRepository
+    ejemplares: EjemplarRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -30,6 +38,11 @@ class SqlAlchemyUnitOfWork:
     """Unit of Work sobre una sesión de SQLAlchemy (una por solicitud)."""
 
     def __init__(self, sesion: Session) -> None:
+        from app.repositories.impl.catalogo_repository import (
+            SqlAlchemyCategoriaRepository,
+            SqlAlchemyEjemplarRepository,
+            SqlAlchemyLibroRepository,
+        )
         from app.repositories.impl.sede_repository import (
             SqlAlchemyLocalidadRepository,
             SqlAlchemySedeRepository,
@@ -42,6 +55,9 @@ class SqlAlchemyUnitOfWork:
         self.sedes: SedeRepository = SqlAlchemySedeRepository(sesion)
         self.localidades: LocalidadRepository = SqlAlchemyLocalidadRepository(sesion)
         self.socios: SocioRepository = SqlAlchemySocioRepository(sesion)
+        self.categorias: CategoriaRepository = SqlAlchemyCategoriaRepository(sesion)
+        self.libros: LibroRepository = SqlAlchemyLibroRepository(sesion)
+        self.ejemplares: EjemplarRepository = SqlAlchemyEjemplarRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()

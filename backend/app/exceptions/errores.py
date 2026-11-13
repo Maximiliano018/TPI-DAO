@@ -141,6 +141,39 @@ class SocioConCuenta(ReglaDeNegocioViolada):
     codigo = "SOCIO_CON_CUENTA"
 
 
+# --- catálogo y estados ------------------------------------------------------------------------
+
+
+class TransicionInvalida(ReglaDeNegocioViolada):
+    """Operación que el estado actual de la entidad no admite (patrón State)."""
+
+    codigo = "TRANSICION_INVALIDA"
+
+
+class LibroNoEncontrado(EntidadNoEncontrada):
+    codigo = "LIBRO_NO_ENCONTRADO"
+
+
+class EjemplarNoEncontrado(EntidadNoEncontrada):
+    codigo = "EJEMPLAR_NO_ENCONTRADO"
+
+
+class LibroDuplicado(DuplicadoError):
+    codigo = "LIBRO_DUPLICADO"
+
+
+class EjemplarCodigoDuplicado(DuplicadoError):
+    codigo = "EJEMPLAR_CODIGO_DUPLICADO"
+
+
+class LibroConEjemplares(ReglaDeNegocioViolada):
+    codigo = "LIBRO_CON_EJEMPLARES"
+
+
+class EjemplarNoDisponible(ReglaDeNegocioViolada):
+    codigo = "EJEMPLAR_NO_DISPONIBLE"
+
+
 class ErrorDeValidacion(ErrorDeNegocio):
     """Dato con forma válida pero que incumple una regla de campo (422)."""
 
@@ -173,3 +206,7 @@ class CredencialesInvalidas(ErrorDeNegocio):
 
 class TokenInvalido(ErrorDeNegocio):
     codigo = "TOKEN_INVALIDO"
+
+
+class CategoriaInvalida(ErrorDeValidacion):
+    codigo = "CATEGORIA_INVALIDA"

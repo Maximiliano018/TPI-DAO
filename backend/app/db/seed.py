@@ -1,4 +1,4 @@
-"""Datos de demostración: sedes, usuarios de cada rol y socios.
+"""Datos de demostración: sedes, usuarios de cada rol, socios y catálogo.
 
 Uso: ``python -m app.db.seed``. Es idempotente (se puede ejecutar varias veces) y solo corre
 con ``ENTORNO=desarrollo`` o ``ENTORNO=test``, para no cargar usuarios con contraseñas
@@ -16,9 +16,15 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.config.security import hashear_clave
 from app.db.models import (
+    AutorORM,
+    CategoriaORM,
+    EjemplarORM,
     HistorialSedeORM,
     HorarioSedeORM,
+    LibroAutorORM,
+    LibroORM,
     LocalidadORM,
+    MovimientoEjemplarORM,
     SedeORM,
     SocioORM,
     UsuarioORM,
@@ -275,6 +281,146 @@ def _crear_socio(sesion: Session, datos: dict, clave: str, admin: UsuarioORM) ->
         )
 
 
+LIBROS = [
+    # (ISBN, título, autores, editorial, año, categoría, ejemplares por sede)
+    (
+        "9789500705783",
+        "Rayuela",
+        ["Julio Cortázar"],
+        "Sudamericana",
+        1963,
+        "Literatura argentina",
+        {"CEN": 2, "NORTE": 1},
+    ),
+    (
+        "9789875801233",
+        "Ficciones",
+        ["Jorge Luis Borges"],
+        "Emecé",
+        1944,
+        "Literatura argentina",
+        {"CEN": 1, "SUR_RC": 1},
+    ),
+    (
+        "9789504912347",
+        "El túnel",
+        ["Ernesto Sabato"],
+        "Seix Barral",
+        1948,
+        "Literatura argentina",
+        {"NORTE": 2},
+    ),
+    (
+        "9789877384567",
+        "Cien años de soledad",
+        ["Gabriel García Márquez"],
+        "Sudamericana",
+        1967,
+        "Literatura latinoamericana",
+        {"CEN": 1, "NORTE": 1, "SUR_RC": 1},
+    ),
+    (
+        "9789506443214",
+        "Facundo",
+        ["Domingo Faustino Sarmiento"],
+        "Losada",
+        1845,
+        "Historia",
+        {"SUR_RC": 1},
+    ),
+    (
+        "9789874045676",
+        "Martín Fierro",
+        ["José Hernández"],
+        "Colihue",
+        1872,
+        "Literatura argentina",
+        {"CEN": 1},
+    ),
+    (
+        "9789503728895",
+        "Las venas abiertas de América Latina",
+        ["Eduardo Galeano"],
+        "Siglo XXI",
+        1971,
+        "Ciencias sociales",
+        {"NORTE": 1},
+    ),
+    (
+        "9780132350884",
+        "Clean Code",
+        ["Robert C. Martin"],
+        "Prentice Hall",
+        2008,
+        "Tecnología e informática",
+        {"CEN": 1},
+    ),
+]
+
+
+def _autor(sesion: Session, nombre: str) -> AutorORM:
+    clave = normalizar(nombre)
+    autor = sesion.scalar(select(AutorORM).where(AutorORM.nombre_normalizado == clave))
+    if autor is None:
+        autor = AutorORM(nombre=nombre, nombre_normalizado=clave)
+        sesion.add(autor)
+        sesion.flush()
+    return autor
+
+
+def _crear_catalogo(sesion: Session, admin: UsuarioORM) -> None:
+    """Libros con ejemplares disponibles en las sedes activas (códigos ``SEDE-LIBRO-n``)."""
+    for isbn, titulo, autores, editorial, anio, categoria, ejemplares in LIBROS:
+        libro = sesion.scalar(select(LibroORM).where(LibroORM.isbn == isbn))
+        if libro is None:
+            libro = LibroORM(
+                isbn=isbn,
+                titulo=titulo,
+                titulo_normalizado=normalizar(titulo),
+                editorial=editorial,
+                anio_edicion=anio,
+                categoria_id=sesion.scalar(
+                    select(CategoriaORM.id).where(CategoriaORM.nombre == categoria)
+                ),
+                tipo_material="LIBRO",
+                creado_por_id=admin.id,
+                actualizado_por_id=admin.id,
+            )
+            libro.autores = [
+                LibroAutorORM(autor=_autor(sesion, nombre), orden=i)
+                for i, nombre in enumerate(autores, start=1)
+            ]
+            sesion.add(libro)
+            sesion.flush()
+        for codigo_sede, cantidad in ejemplares.items():
+            sede_id = sesion.scalar(select(SedeORM.id).where(SedeORM.codigo == codigo_sede))
+            for n in range(1, cantidad + 1):
+                codigo = f"{codigo_sede.replace('_', '')}-{isbn[-6:]}-{n}"
+                if sesion.scalar(
+                    select(EjemplarORM).where(EjemplarORM.codigo_inventario == codigo)
+                ):
+                    continue
+                ejemplar = EjemplarORM(
+                    codigo_inventario=codigo,
+                    libro_id=libro.id,
+                    sede_propietaria_id=sede_id,
+                    sede_actual_id=sede_id,
+                    estado_fisico="BUENO",
+                    estado="DISPONIBLE",
+                    version=1,
+                )
+                sesion.add(ejemplar)
+                sesion.flush()
+                sesion.add(
+                    MovimientoEjemplarORM(
+                        ejemplar_id=ejemplar.id,
+                        estado_nuevo="DISPONIBLE",
+                        usuario_id=admin.id,
+                        observacion="Alta (datos de demostración)",
+                    )
+                )
+
+
 def cargar(sesion: Session, clave: str) -> None:
     """Carga los datos de demostración que falten (idempotente)."""
     admin = _crear_usuario(sesion, USUARIOS[0], clave, None)
@@ -284,6 +430,7 @@ def cargar(sesion: Session, clave: str) -> None:
         _crear_usuario(sesion, datos, clave, admin.id)
     for datos in SOCIOS:
         _crear_socio(sesion, datos, clave, admin)
+    _crear_catalogo(sesion, admin)
 
 
 def main() -> int:

@@ -1,0 +1,211 @@
+"""Ejemplar y sus estados (patrón State): transiciones válidas, inválidas e historial."""
+
+from datetime import UTC, datetime
+
+import pytest
+
+from app.exceptions import (
+    ConflictoDeVersion,
+    EjemplarNoDisponible,
+    ErrorDeValidacion,
+    TransicionInvalida,
+)
+from app.models.ejemplar import Ejemplar, EstadoFisico
+from app.models.states.ejemplar import EstadoEjemplarEnum as E
+from app.models.states.ejemplar import estado_ejemplar
+from app.models.usuario import UsuarioRef
+
+AHORA = datetime(2026, 11, 10, 15, 0, tzinfo=UTC)
+BIBLIO = UsuarioRef(2, "Biblio")
+
+# operación → estado de partida → estado de llegada (todas las transiciones válidas del diagrama)
+VALIDAS = [
+    ("apartar", E.DISPONIBLE, E.APARTADO),
+    ("reservar", E.DISPONIBLE, E.RESERVADO),
+    ("prestar", E.APARTADO, E.PRESTADO),
+    ("poner_en_transito", E.APARTADO, E.EN_TRANSITO),
+    ("liberar", E.APARTADO, E.DISPONIBLE),
+    ("prestar", E.RESERVADO, E.PRESTADO),
+    ("poner_en_transito", E.RESERVADO, E.EN_TRANSITO),
+    ("liberar", E.RESERVADO, E.DISPONIBLE),
+    ("prestar", E.EN_TRANSITO, E.PRESTADO),
+    ("liberar", E.EN_TRANSITO, E.DISPONIBLE),
+    ("enviar_a_revision", E.EN_TRANSITO, E.EN_REVISION),
+    ("liberar", E.PRESTADO, E.DISPONIBLE),
+    ("apartar", E.PRESTADO, E.APARTADO),
+    ("enviar_a_revision", E.PRESTADO, E.EN_REVISION),
+]
+OPERACIONES = [
+    "apartar",
+    "reservar",
+    "prestar",
+    "poner_en_transito",
+    "liberar",
+    "enviar_a_revision",
+]
+
+
+def ejemplar(estado: E = E.DISPONIBLE) -> Ejemplar:
+    nuevo = Ejemplar.registrar(
+        codigo_inventario="cen-000123",
+        libro_id=1,
+        sede_id=1,
+        estado_fisico=EstadoFisico.BUENO,
+        observaciones=None,
+        actor=BIBLIO,
+        ahora=AHORA,
+    )
+    nuevo.id = 1
+    nuevo.estado = estado_ejemplar(estado)
+    nuevo.movimientos_pendientes.clear()
+    return nuevo
+
+
+def test_el_alta_queda_disponible_con_codigo_en_mayusculas_y_primer_movimiento():
+    nuevo = Ejemplar.registrar(
+        codigo_inventario=" cen-000123 ",
+        libro_id=1,
+        sede_id=3,
+        estado_fisico=EstadoFisico.NUEVO,
+        observaciones="  Donación  ",
+        actor=BIBLIO,
+        ahora=AHORA,
+    )
+
+    assert nuevo.codigo_inventario == "CEN-000123" and nuevo.esta_disponible
+    assert (nuevo.sede_propietaria_id, nuevo.sede_actual_id) == (3, 3)
+    assert nuevo.observaciones == "Donación"
+    [primero] = nuevo.movimientos_pendientes
+    assert (primero.estado_anterior, primero.estado_nuevo) == (None, E.DISPONIBLE)
+
+
+@pytest.mark.parametrize("codigo", ["AB", "CEN 0001", "-CEN", "x" * 31])
+def test_un_codigo_de_inventario_invalido_se_rechaza(codigo):
+    with pytest.raises(ErrorDeValidacion):
+        Ejemplar.registrar(
+            codigo_inventario=codigo,
+            libro_id=1,
+            sede_id=1,
+            estado_fisico=EstadoFisico.BUENO,
+            observaciones=None,
+            actor=BIBLIO,
+            ahora=AHORA,
+        )
+
+
+@pytest.mark.ca("CA-CAT-06")
+@pytest.mark.parametrize(("operacion", "desde", "hasta"), VALIDAS)
+def test_cada_transicion_valida_cambia_el_estado_y_queda_en_el_historial(operacion, desde, hasta):
+    e = ejemplar(desde)
+    version = e.version
+
+    getattr(e, operacion)(BIBLIO, AHORA, "motivo de prueba")
+
+    assert e.estado_nombre == hasta and e.version == version + 1
+    [mov] = e.movimientos_pendientes
+    assert (mov.estado_anterior, mov.estado_nuevo, mov.usuario, mov.fecha_hora) == (
+        desde,
+        hasta,
+        BIBLIO,
+        AHORA,
+    )
+
+
+@pytest.mark.parametrize(
+    ("operacion", "desde"),
+    [
+        (op, estado)
+        for estado in E
+        for op in OPERACIONES
+        if (op, estado) not in {(o, d) for o, d, _ in VALIDAS}
+    ],
+)
+def test_toda_transicion_que_no_esta_en_el_diagrama_se_rechaza(operacion, desde):
+    e = ejemplar(desde)
+
+    with pytest.raises(TransicionInvalida):
+        getattr(e, operacion)(BIBLIO, AHORA, "motivo")
+    assert e.estado_nombre == desde and e.movimientos_pendientes == []
+
+
+def test_el_ejemplar_en_revision_se_repara_y_queda_regular():
+    e = ejemplar(E.EN_REVISION)
+
+    e.reparar(BIBLIO, AHORA)
+
+    assert e.estado_nombre == E.DISPONIBLE and e.estado_fisico == EstadoFisico.REGULAR
+    with pytest.raises(TransicionInvalida):
+        ejemplar(E.DISPONIBLE).reparar(BIBLIO, AHORA)
+
+
+def test_enviar_a_revision_lo_marca_danado():
+    e = ejemplar(E.PRESTADO)
+
+    e.enviar_a_revision(BIBLIO, AHORA, "Tapa rota")
+
+    assert e.estado_fisico == EstadoFisico.DANADO
+
+
+@pytest.mark.ca("CA-CAT-08")
+@pytest.mark.parametrize("desde", [E.DISPONIBLE, E.EN_REVISION])
+def test_la_baja_manual_de_un_ejemplar_disponible_o_en_revision(desde):
+    e = ejemplar(desde)
+
+    e.dar_de_baja("Hojas arrancadas", BIBLIO, AHORA)
+
+    assert e.estado_nombre == E.BAJA
+    assert (e.fecha_baja, e.motivo_baja) == (AHORA, "Hojas arrancadas")
+
+
+@pytest.mark.ca("CA-CAT-07")
+@pytest.mark.parametrize("desde", [E.PRESTADO, E.RESERVADO, E.APARTADO, E.EN_TRANSITO, E.BAJA])
+def test_la_baja_manual_de_un_ejemplar_en_uso_se_bloquea(desde):
+    e = ejemplar(desde)
+
+    with pytest.raises(EjemplarNoDisponible):
+        e.dar_de_baja("Hojas arrancadas", BIBLIO, AHORA)
+    assert e.estado_nombre == desde
+
+
+@pytest.mark.parametrize("desde", [E.EN_TRANSITO, E.PRESTADO])
+def test_un_extravio_da_de_baja_un_ejemplar_en_uso(desde):
+    e = ejemplar(desde)
+
+    e.registrar_baja("Extraviado en el envío", None, AHORA)
+
+    assert e.estado_nombre == E.BAJA
+
+
+def test_la_baja_exige_motivo():
+    with pytest.raises(ErrorDeValidacion):
+        ejemplar().dar_de_baja("x", BIBLIO, AHORA)
+
+
+def test_modificar_cambia_solo_estado_fisico_y_observaciones():
+    e = ejemplar()
+
+    assert e.modificar(estado_fisico=EstadoFisico.BUENO, observaciones=None) is False
+    assert e.modificar(estado_fisico=EstadoFisico.REGULAR, observaciones="Lomo gastado") is True
+    assert (e.estado_fisico, e.observaciones, e.estado_nombre) == (
+        EstadoFisico.REGULAR,
+        "Lomo gastado",
+        E.DISPONIBLE,
+    )
+
+
+def test_la_version_desactualizada_se_rechaza():
+    e = ejemplar()
+
+    e.validar_version(e.version)
+    with pytest.raises(ConflictoDeVersion):
+        e.validar_version(e.version - 1)
+
+
+def test_traslado_y_llegada_cambian_las_sedes():
+    e = ejemplar()
+
+    e.llegar_a(2)
+    assert (e.sede_propietaria_id, e.sede_actual_id) == (1, 2)
+    e.trasladar_a(3)
+    assert (e.sede_propietaria_id, e.sede_actual_id) == (3, 3)
+    assert e.pertenece_a(3) and not e.pertenece_a(1)

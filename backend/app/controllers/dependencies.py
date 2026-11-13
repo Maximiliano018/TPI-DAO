@@ -13,10 +13,15 @@ from app.models.policies.verificacion_baja_sede import VerificadorBajaSede
 from app.models.usuario import Permiso, Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.auth_service import AuthService
+from app.services.catalogo_service import CatalogoService
 from app.services.sede_service import SedeService
 from app.services.socio_service import SocioService
 from app.services.usuario_service import UsuarioService
-from app.services.verificadores_baja_sede import VerificadorBibliotecariosAsignados
+from app.services.verificadores_baja_sede import (
+    VerificadorBibliotecariosAsignados,
+    VerificadorEjemplaresEnSede,
+    VerificadorEjemplaresPropiosFuera,
+)
 from app.utils.reloj import Reloj, RelojSistema
 
 _esquema_bearer = HTTPBearer(auto_error=False)
@@ -44,7 +49,13 @@ def get_verificador_baja_sede(uow: UnitOfWork = Depends(get_uow)) -> Verificador
     Cada módulo registra el suyo acá cuando se implementa; ver ``TIPOS_PENDIENTES_DE_MODULO``
     en la prueba de contrato.
     """
-    return VerificadorBajaSede([VerificadorBibliotecariosAsignados(uow.usuarios)])
+    return VerificadorBajaSede(
+        [
+            VerificadorBibliotecariosAsignados(uow.usuarios),
+            VerificadorEjemplaresEnSede(uow.ejemplares),
+            VerificadorEjemplaresPropiosFuera(uow.ejemplares),
+        ]
+    )
 
 
 def get_sede_service(
@@ -65,6 +76,12 @@ def get_socio_service(
     uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
 ) -> SocioService:
     return SocioService(uow, reloj)
+
+
+def get_catalogo_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> CatalogoService:
+    return CatalogoService(uow, reloj)
 
 
 def usuario_actual(

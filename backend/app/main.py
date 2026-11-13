@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.controllers import (
     auth_controller,
+    catalogo_controller,
     sede_controller,
     socio_controller,
     usuario_controller,
@@ -29,6 +30,7 @@ def crear_app() -> FastAPI:
     app.include_router(sede_controller.router)
     app.include_router(usuario_controller.router)
     app.include_router(socio_controller.router)
+    app.include_router(catalogo_controller.router)
     return app
 
 

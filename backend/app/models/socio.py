@@ -29,12 +29,11 @@ from app.exceptions import (
     SocioYaInhabilitado,
 )
 from app.models.usuario import UsuarioRef
-from app.models.valores import Email, Telefono, error_de_campo
+from app.models.valores import Email, Telefono, error_de_campo, validar_motivo
 from app.utils.texto import normalizar
 
 NOMBRE_MAX = 100
 DOMICILIO_MAX = 200
-MOTIVO_MIN, MOTIVO_MAX = 5, 300
 FECHA_NACIMIENTO_MINIMA = date(1900, 1, 1)
 
 
@@ -429,14 +428,6 @@ class Socio:
         self.actualizado_en = ahora
         if actor is not None:
             self.actualizado_por = actor
-
-
-def validar_motivo(texto: str) -> str:
-    """Motivo de inhabilitación o de baja: de 5 a 300 caracteres."""
-    valor = " ".join((texto or "").split())
-    if not MOTIVO_MIN <= len(valor) <= MOTIVO_MAX:
-        raise error_de_campo("motivo", "El motivo debe tener entre 5 y 300 caracteres.")
-    return valor
 
 
 def formatear_numero_socio(secuencia: int) -> str:

@@ -208,22 +208,25 @@ La cuenta de acceso del socio es una fila de `usuario` con `rol = 'SOCIO'` y `so
 
 | Tabla | Columnas clave | Restricciones |
 |-------|----------------|---------------|
-| categoria | nombre | UNIQUE |
-| autor | nombre | |
-| libro | isbn, titulo, editorial, anio_edicion, categoria_id, tipo_material, clave_natural | `isbn` UNIQUE (admite NULL); `clave_natural` UNIQUE, calculada como título + autor + editorial + año cuando no hay ISBN |
-| libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id) |
+| categoria | nombre | UNIQUE; catálogo cerrado que carga la migración `0005` |
+| autor | nombre, nombre_normalizado | `nombre_normalizado` UNIQUE: el mismo autor escrito con o sin tildes es uno solo |
+| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO` |
+| libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id); se borra con el libro |
+
+Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que son historial).
 
 ### ejemplar
 
 | Columna | Tipo | Restricciones |
 |---------|------|---------------|
-| codigo_inventario | VARCHAR(30) | NOT NULL, **UNIQUE en toda la red** |
+| codigo_inventario | VARCHAR(30) | NOT NULL, **UNIQUE en toda la red**, `CHECK (codigo_inventario ~ '^[A-Z0-9][A-Z0-9-]{2,29}$')` |
 | libro_id | FK libro | NOT NULL |
-| sede_propietaria_id | FK sede | NOT NULL |
-| sede_actual_id | FK sede | NOT NULL |
+| sede_propietaria_id | FK sede | NOT NULL; la sede dueña (cambia solo con un traslado) |
+| sede_actual_id | FK sede | NOT NULL; dónde está físicamente |
 | estado_fisico | VARCHAR(10) | `NUEVO`, `BUENO`, `REGULAR`, `DANADO` |
 | estado | VARCHAR(15) | `DISPONIBLE`, `RESERVADO`, `APARTADO`, `PRESTADO`, `EN_TRANSITO`, `EN_REVISION`, `BAJA` |
-| fecha_baja, motivo_baja | | NOT NULL si `estado = 'BAJA'` |
+| observaciones | VARCHAR(300) | |
+| fecha_baja, motivo_baja | | NOT NULL si y solo si `estado = 'BAJA'` |
 | version | INT | control de concurrencia optimista |
 
 ### movimiento_ejemplar, movimiento_prestamo, movimiento_remito
@@ -239,7 +242,7 @@ Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 | usuario_id | FK usuario |
 | observacion | TEXT |
 
-Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito.
+Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito. Un disparador (`historial_solo_insercion`, creado en `0005`) rechaza cualquier `UPDATE` o `DELETE` sobre estas tablas.
 
 ### prestamo
 
@@ -382,6 +385,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0001_catalogos_geograficos` | `btree_gist`, `provincia`, `localidad` |
 | `0002_sedes_y_acceso` | `usuario`, `socio` (solo estructura; su módulo llega después), `sede`, `horario_sede`, `excepcion_horario_sede`, `historial_sede` con sus restricciones, exclusiones, índices y disparador de solo inserción. Las claves foráneas circulares (`usuario.sede_id` ↔ `sede.creado_por_id`) se resuelven creando las tablas y agregando las claves en la misma migración |
 | `0003_seed_localidades` (datos) | Provincia de Córdoba y su lista de localidades |
+| `0005_catalogo` | `categoria` (con las categorías iniciales), `autor`, `libro`, `libro_autor`, `ejemplar` y `movimiento_ejemplar` con su disparador de solo inserción |
 | `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
 
 ### Seed de demostración
@@ -393,6 +397,7 @@ Un comando (`python -m app.db.seed`) carga datos de ejemplo de forma **idempoten
 | Provincia y localidades | Provincia de Córdoba con la ciudad de Córdoba (capital) y las principales localidades de la provincia. La carga completa del catálogo oficial es una migración de datos posterior |
 | Sedes | 4: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto (activas) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA`, con motivo, para mostrar el estado) |
 | Usuarios | `admin` (administrador), `bibliotecario.cen` (bibliotecario de `CEN`), `bibliotecario.norte` (bibliotecario de `NORTE`) y `socio.demo` (socio) |
+| Catálogo | Ocho libros (con ISBN) y 14 ejemplares disponibles repartidos entre `CEN`, `NORTE` y `SUR_RC` |
 | Socios | Cuatro: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa) y Diego Luna (dado de baja) |
 | Contraseña | La define `SEED_PASSWORD` en `.env` (sin valor por defecto en el repositorio; `.env.example` tiene un marcador) |
 

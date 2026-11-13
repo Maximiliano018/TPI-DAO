@@ -132,17 +132,21 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
+| `GET /categorias` | A, B, S | Catálogo cerrado de categorías | RF-CAT-01 |
 | `POST /libros` | A | Alta de libro | RF-CAT-01, 02 |
-| `GET /libros` | A, B, S | Búsqueda; `?q=`, `?isbn=`, `?categoria_id=` | RF-CAT-09 |
+| `GET /libros` | A, B, S | Búsqueda; `?q=` (título, autor o ISBN), `?categoria_id=`, `?tipo_material=`; cada libro trae `ejemplares` y `disponibles` | RF-CAT-09 |
 | `GET /libros/{id}` | A, B, S | Detalle | RF-CAT-09 |
 | `PUT /libros/{id}` | A | Modificar | RF-CAT-01 |
-| `GET /libros/{id}/disponibilidad` | A, B, S | Disponibilidad por sede | RF-CAT-09, 10 |
-| `POST /ejemplares` | A, B | Alta de ejemplar | RF-CAT-03, 04 |
-| `GET /ejemplares` | A, B | Listado; `?sede_id=`, `?estado=`, `?libro_id=` | RF-CAT-04 |
+| `DELETE /libros/{id}` | A | Eliminar un libro sin ejemplares (`409 LIBRO_CON_EJEMPLARES` si tiene) | RF-CAT-08 |
+| `GET /libros/{id}/disponibilidad` | A, B, S | Disponibilidad por sede activa | RF-CAT-09, 10 |
+| `POST /ejemplares` | A, B | Alta de ejemplar (el bibliotecario, en su sede; el administrador indica `sede_id`) | RF-CAT-03, 04 |
+| `GET /ejemplares` | A, B | Listado; `?sede_id=` (propietaria o actual), `?estado=`, `?libro_id=`, `?codigo=` | RF-CAT-04 |
 | `GET /ejemplares/{id}` | A, B | Detalle e historial | RF-CAT-06 |
-| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones | RF-CAT-04 |
-| `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo | RF-CAT-07 |
-| `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible | RF-DEV-10 |
+| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones (con `version`) | RF-CAT-04 |
+| `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo (con `version`); solo `DISPONIBLE` o `EN_REVISION` | RF-CAT-07 |
+| `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible (con `version`) | RF-DEV-10 |
+
+El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propietaria es la suya (`403 FORBIDDEN`). La disponibilidad cuenta los ejemplares por **sede propietaria activa**, sin los dados de baja; `otros` agrupa los apartados y en revisión.
 
 ### Préstamos
 
@@ -534,7 +538,7 @@ Request de libro:
 }
 ```
 
-Response `201`: `{ "id": 12, "isbn": "9780132350884", "titulo": "Clean Code" }`
+Response `201`: el libro con `id`, `isbn` (sin guiones), `categoria` `{id, nombre}`, `ejemplares` y `disponibles`. Errores: `409 LIBRO_DUPLICADO` (mismo ISBN o, sin ISBN, mismo título, autor, editorial y año; `detalles[0].libro_id` indica el existente), `422 VALIDACION` (ISBN con verificador inválido, sin título o sin autores), `422 CATEGORIA_INVALIDA`.
 
 Request de ejemplar (la sede propietaria es la del bibliotecario; el administrador la indica):
 
@@ -545,8 +549,12 @@ Request de ejemplar (la sede propietaria es la del bibliotecario; el administrad
 Response `201`:
 
 ```json
-{ "id": 301, "codigo_inventario": "CEN-000123", "sede_propietaria_id": 2, "estado": "DISPONIBLE" }
+{ "id": 301, "codigo_inventario": "CEN-000123", "libro_id": 12, "libro": "Clean Code",
+  "sede_propietaria_id": 2, "sede_actual_id": 2, "estado_fisico": "BUENO", "estado": "DISPONIBLE",
+  "version": 1 }
 ```
+
+Errores: `409 EJEMPLAR_CODIGO_DUPLICADO`, `409 SEDE_EN_BAJA`, `404 LIBRO_NO_ENCONTRADO`, `403 FORBIDDEN` (bibliotecario que indica otra sede). `GET /ejemplares/{id}` agrega `historial`: lista de `{estado_anterior, estado_nuevo, fecha_hora, usuario, observacion}`.
 
 ### `GET /libros/{id}/disponibilidad`
 
@@ -558,8 +566,8 @@ Response `200`:
   "titulo": "Clean Code",
   "total_red": { "totales": 5, "disponibles": 2 },
   "por_sede": [
-    { "sede_id": 1, "sede": "Central", "totales": 3, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 1 },
-    { "sede_id": 2, "sede": "Norte", "totales": 2, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 0 }
+    { "sede_id": 1, "sede": "Central", "totales": 3, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 1, "otros": 0 },
+    { "sede_id": 2, "sede": "Norte", "totales": 2, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 0, "otros": 0 }
   ]
 }
 ```

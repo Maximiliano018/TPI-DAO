@@ -264,6 +264,10 @@ def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Sessio
     socios = dict(sesion.execute(text("SELECT nro_documento, estado FROM socio")).all())
     assert {d["documento"] for d in seed.SOCIOS} <= set(socios)
     assert (socios["35222333"], socios["27444555"]) == ("INHABILITADO", "BAJA")
+    libros = sesion.scalar(text("SELECT count(*) FROM libro"))
+    ejemplares = sesion.scalar(text("SELECT count(*) FROM ejemplar WHERE estado = 'DISPONIBLE'"))
+    assert libros == len(seed.LIBROS)
+    assert ejemplares == sum(sum(e.values()) for *_, e in seed.LIBROS)
 
 
 def test_el_seed_se_niega_fuera_de_desarrollo_y_test(monkeypatch: pytest.MonkeyPatch):

@@ -5,6 +5,11 @@ from app.models.usuario import ROLES_DE_PERSONAL, Rol, Usuario
 from app.repositories.interfaces.usuario_repository import FiltroUsuarios
 from app.utils.texto import normalizar
 from tests.factories.sede import CORDOBA, RIO_CUARTO
+from tests.fakes.catalogo import (
+    CategoriaRepositorioEnMemoria,
+    EjemplarRepositorioEnMemoria,
+    LibroRepositorioEnMemoria,
+)
 
 
 class UsuarioRepositorioEnMemoria:
@@ -75,6 +80,9 @@ class UnitOfWorkEnMemoria:
         self.sedes = SedeRepositorioEnMemoria()
         self.localidades = LocalidadRepositorioEnMemoria([CORDOBA, RIO_CUARTO])
         self.socios = SocioRepositorioEnMemoria()
+        self.categorias = CategoriaRepositorioEnMemoria()
+        self.ejemplares = EjemplarRepositorioEnMemoria()
+        self.libros = LibroRepositorioEnMemoria(self.ejemplares, self.sedes)
         self.confirmaciones = 0
         self.reversiones = 0
 

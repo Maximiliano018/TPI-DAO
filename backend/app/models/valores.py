@@ -16,6 +16,17 @@ def error_de_campo(campo: str, problema: str) -> ErrorDeValidacion:
     return ErrorDeValidacion(problema, [{"campo": campo, "problema": problema}])
 
 
+MOTIVO_MIN, MOTIVO_MAX = 5, 300
+
+
+def validar_motivo(texto: str) -> str:
+    """Motivo de una baja o una inhabilitación: de 5 a 300 caracteres."""
+    valor = " ".join((texto or "").split())
+    if not MOTIVO_MIN <= len(valor) <= MOTIVO_MAX:
+        raise error_de_campo("motivo", "El motivo debe tener entre 5 y 300 caracteres.")
+    return valor
+
+
 @dataclass(frozen=True)
 class CodigoSede:
     """Código corto de sede: 3 a 15 caracteres ``A-Z``, ``0-9`` y ``_``, en mayúsculas."""
