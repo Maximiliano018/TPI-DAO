@@ -37,6 +37,7 @@ from app.models.states.remito import EstadoRemitoEnum
 from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef
 from app.repositories.interfaces.prestamo_repository import FiltroRemitos
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.cola_reservas import ColaDeReservas
 from app.utils.reloj import Reloj
 
 
@@ -231,6 +232,7 @@ class RemitoService:
                 else:
                     self._incidencia_de_recepcion(remito, linea, ejemplar, yo)
                 self._uow.ejemplares.guardar(ejemplar)
+                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
             self._uow.remitos.guardar(remito)
         return self.detalle(actor, remito_id)
 
@@ -251,6 +253,7 @@ class RemitoService:
                 ejemplar.liberar(yo, ahora, f"Remito {remito.numero} anulado")
                 self._uow.ejemplares.guardar(ejemplar)
                 self._cancelar_prestamo(linea, yo, f"Remito {remito.numero} anulado")
+                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
             self._uow.remitos.guardar(remito)
         return self._releer(remito)
 

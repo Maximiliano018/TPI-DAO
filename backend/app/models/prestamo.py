@@ -94,7 +94,7 @@ class Prestamo:
 
     # --- transiciones ---------------------------------------------------------------------
 
-    def registrar_alta(self, actor: UsuarioRef, ahora: datetime) -> None:
+    def registrar_alta(self, actor: UsuarioRef | None, ahora: datetime) -> None:
         """Primer movimiento del historial (lo usa la fábrica al crearlo)."""
         self.movimientos_pendientes.append(
             MovimientoPrestamo(None, self.estado_nombre, ahora, actor, "Solicitud registrada")

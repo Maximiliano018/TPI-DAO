@@ -14,12 +14,14 @@ from app.config import Settings
 from app.db.session import crear_fabrica_sesiones
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.prestamo_service import PrestamoService
+from app.services.reserva_service import ReservaService
 from app.utils.reloj import Reloj, RelojSistema
 
 logger = logging.getLogger(__name__)
 
 TAREAS: list[tuple[str, Callable[[UnitOfWork, Reloj], int]]] = [
     ("préstamos vencidos", lambda uow, reloj: PrestamoService(uow, reloj).detectar_vencidos()),
+    ("reservas vencidas", lambda uow, reloj: ReservaService(uow, reloj).vencer_reservas()),
 ]
 
 

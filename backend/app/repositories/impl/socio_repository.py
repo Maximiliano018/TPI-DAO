@@ -7,7 +7,7 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import PrestamoORM, SocioORM, UsuarioORM
+from app.db.models import PrestamoORM, ReservaORM, SocioORM, UsuarioORM
 from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
 from app.exceptions import DuplicadoError
 from app.models.socio import (
@@ -173,8 +173,16 @@ class SqlAlchemySocioRepository:
             ).all()
         )
         vencidos = por_estado.pop("VENCIDO", 0)
+        reservas = self._sesion.scalar(
+            select(func.count(ReservaORM.id)).where(
+                ReservaORM.socio_id == socio_id,
+                ReservaORM.estado.in_(["PENDIENTE", "DISPONIBLE_PARA_RETIRO"]),
+            )
+        )
         return SituacionSocio(
-            prestamos_activos=sum(por_estado.values()), prestamos_vencidos=vencidos
+            prestamos_activos=sum(por_estado.values()),
+            prestamos_vencidos=vencidos,
+            reservas_activas=reservas or 0,
         )
 
     # --- escritura ------------------------------------------------------------------------

@@ -28,6 +28,7 @@ from app.models.socio import (
 from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef, validar_clave
 from app.repositories.interfaces.socio_repository import FiltroSocios
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.reserva_service import ReservaService
 from app.utils.reloj import Reloj
 from app.utils.texto import normalizar, quitar_tildes
 
@@ -166,6 +167,8 @@ class SocioService:
                 ahora=self._reloj.ahora(),
             )
             self._uow.socios.guardar(socio)
+            # Sus reservas activas se cancelan y los ejemplares pasan a la siguiente.
+            ReservaService(self._uow, self._reloj).cancelar_del_socio(socio_id, _ref(actor))
         return socio
 
     def reactivar(self, actor: Usuario, socio_id: int) -> Socio:

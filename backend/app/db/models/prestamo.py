@@ -82,7 +82,8 @@ class PrestamoORM(ConAuditoriaDeTiempo, Base):
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
     fecha_devolucion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     renovaciones: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    registrado_por_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    # NULL cuando el préstamo lo generó el sistema al asignar una reserva entre sedes.
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 
     socio: Mapped["SocioORM"] = relationship(lazy="joined")
     ejemplar: Mapped["EjemplarORM"] = relationship(lazy="joined")
@@ -190,3 +191,47 @@ class IncidenciaORM(ConAuditoriaDeTiempo, Base):
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+
+
+SECUENCIA_RESERVA = Sequence("reserva_numero_seq", metadata=Base.metadata)
+
+
+class ReservaORM(ConAuditoriaDeTiempo, Base):
+    """Reserva de un libro (cola FIFO por ``fecha_reserva``)."""
+
+    __tablename__ = "reserva"
+    __table_args__ = (
+        CheckConstraint(
+            "estado IN ('PENDIENTE','DISPONIBLE_PARA_RETIRO','CUMPLIDA','CANCELADA','VENCIDA')",
+            name="estado_valido",
+        ),
+        CheckConstraint(
+            "estado <> 'DISPONIBLE_PARA_RETIRO' OR "
+            "(ejemplar_id IS NOT NULL AND vencimiento_retiro IS NOT NULL)",
+            name="disponible_con_ejemplar",
+        ),
+        Index(
+            "uq_reserva_activa",
+            "socio_id",
+            "libro_id",
+            unique=True,
+            postgresql_where=text("estado IN ('PENDIENTE','DISPONIBLE_PARA_RETIRO')"),
+        ),
+        Index("ix_reserva_libro_id_estado_fecha_reserva", "libro_id", "estado", "fecha_reserva"),
+    )
+
+    numero: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
+    socio_id: Mapped[int] = mapped_column(ForeignKey("socio.id"), nullable=False)
+    libro_id: Mapped[int] = mapped_column(ForeignKey("libro.id"), nullable=False)
+    sede_retiro_id: Mapped[int] = mapped_column(ForeignKey("sede.id"), nullable=False)
+    ejemplar_id: Mapped[int | None] = mapped_column(ForeignKey("ejemplar.id"))
+    prestamo_id: Mapped[int | None] = mapped_column(ForeignKey("prestamo.id"))
+    estado: Mapped[str] = mapped_column(String(25), nullable=False)
+    fecha_reserva: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    vencimiento_retiro: Mapped[date | None] = mapped_column(Date)
+    fecha_cierre: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    registrada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+
+    socio: Mapped["SocioORM"] = relationship(lazy="joined")
+    sede_retiro: Mapped["SedeORM"] = relationship(lazy="joined")
+    ejemplar: Mapped["EjemplarORM | None"] = relationship(lazy="joined")

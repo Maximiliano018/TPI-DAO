@@ -58,6 +58,9 @@ class Permiso(StrEnum):
     REMITO_EXTRAVIO = "REMITO_EXTRAVIO"
     TAREAS_EJECUTAR = "TAREAS_EJECUTAR"
     PARAMETROS_ADMINISTRAR = "PARAMETROS_ADMINISTRAR"
+    RESERVA_REGISTRAR = "RESERVA_REGISTRAR"
+    RESERVA_LEER = "RESERVA_LEER"
+    RESERVA_PROPIA = "RESERVA_PROPIA"
 
 
 ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
@@ -81,6 +84,7 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.REMITO_EXTRAVIO,
             Permiso.TAREAS_EJECUTAR,
             Permiso.PARAMETROS_ADMINISTRAR,
+            Permiso.RESERVA_LEER,
         }
     ),
     Rol.BIBLIOTECARIO: frozenset(
@@ -97,6 +101,8 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.REMITO_OPERAR,
             Permiso.REMITO_LEER,
             Permiso.REMITO_EXTRAVIO,
+            Permiso.RESERVA_REGISTRAR,
+            Permiso.RESERVA_LEER,
         }
     ),
     Rol.SOCIO: frozenset(
@@ -105,6 +111,7 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.SOCIO_VER_PROPIO,
             Permiso.CATALOGO_LEER,
             Permiso.PRESTAMO_VER_PROPIOS,
+            Permiso.RESERVA_PROPIA,
         }
     ),
 }

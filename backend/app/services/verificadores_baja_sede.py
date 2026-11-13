@@ -15,6 +15,7 @@ from app.repositories.interfaces.catalogo_repository import EjemplarRepository
 from app.repositories.interfaces.prestamo_repository import (
     PrestamoRepository,
     RemitoRepository,
+    ReservaRepository,
 )
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
 
@@ -127,6 +128,26 @@ class VerificadorRemitosAbiertos:
         elementos = [
             ElementoImpedimento(id=r.id, referencia=r.numero, estado=r.estado_nombre.value)
             for r in abiertos
+            if r.id is not None
+        ]
+        return Impedimento(self.tipo, total, elementos)
+
+
+class VerificadorReservasPendientes:
+    """Bloquea la baja si hay reservas activas con retiro en la sede (CA-SED-19)."""
+
+    tipo = TipoImpedimento.RESERVAS_PENDIENTES
+
+    def __init__(self, reservas: ReservaRepository) -> None:
+        self._reservas = reservas
+
+    def verificar(self, sede_id: int) -> Impedimento | None:
+        activas, total = self._reservas.activas_de_sede(sede_id, MAX_ELEMENTOS_POR_IMPEDIMENTO)
+        if total == 0:
+            return None
+        elementos = [
+            ElementoImpedimento(id=r.id, referencia=r.numero, estado=r.estado_nombre.value)
+            for r in activas
             if r.id is not None
         ]
         return Impedimento(self.tipo, total, elementos)

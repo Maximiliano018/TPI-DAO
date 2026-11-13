@@ -27,6 +27,7 @@ from app.models.states.ejemplar import EstadoEjemplarEnum
 from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef
 from app.repositories.interfaces.catalogo_repository import FiltroEjemplares, FiltroLibros
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.cola_reservas import ColaDeReservas
 from app.utils.reloj import Reloj
 from app.utils.texto import normalizar
 
@@ -231,6 +232,7 @@ class CatalogoService:
             ejemplar.validar_version(version)
             ejemplar.reparar(_ref(actor), self._reloj.ahora())
             self._uow.ejemplares.guardar(ejemplar)
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, _ref(actor))
         return ejemplar
 
     def detalle_ejemplar(self, actor: Usuario, ejemplar_id: int) -> DetalleEjemplar:

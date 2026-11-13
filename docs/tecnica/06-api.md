@@ -183,7 +183,8 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | `GET /reservas` | A, B, S | Listado; `?libro_id=`, `?estado=` | RF-RES-12 |
 | `GET /reservas/{id}` | A, B, S | Detalle y posición en la cola | RF-RES-12 |
 | `POST /reservas/{id}/cancelar` | B, S | | RF-RES-10 |
-| `POST /reservas/{id}/retirar` | B | Entrega y crea el préstamo | RF-RES-11 |
+| `POST /reservas/{id}/retirar` | B (sede de retiro) | Entrega y crea el préstamo activo | RF-RES-11 |
+| `POST /admin/tareas/vencer-reservas` | A | Vence las reservas no retiradas (también corre sola cada día) | RF-RES-09 |
 
 ### Multas
 
@@ -720,7 +721,9 @@ Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omi
 
 Response `201`: `{ "id": 9, "numero": "RS-2026-000009", "estado": "PENDIENTE", "posicion_en_cola": 3 }`
 
-Errores: `409 HAY_EJEMPLARES_DISPONIBLES`, `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`.
+Errores: `409 HAY_EJEMPLARES_DISPONIBLES` (hay disponibles en la sede de retiro), `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`, `409 LIBRO_SIN_EJEMPLARES` (no hay ejemplares activos en la red).
+
+**Asignación automática.** Cuando un ejemplar vuelve a quedar disponible (devolución, anulación de un envío, cancelación de un préstamo, reparación, retorno recibido o reserva vencida), el mismo caso de uso se lo ofrece a la primera reserva pendiente del libro (FIFO) de un socio habilitado. Si el ejemplar está en la sede de retiro, la reserva pasa a `DISPONIBLE_PARA_RETIRO` por 3 días y el ejemplar a `RESERVADO`; si está en otra sede, se crea el préstamo interbibliotecario hacia la sede de retiro y la reserva queda `CUMPLIDA` con su `prestamo_id`. La reserva de un socio inhabilitado se saltea y sigue esperando; la de una sede de retiro dada de baja se cancela.
 
 ### `GET /reportes/movimiento-entre-sedes` (R1)
 

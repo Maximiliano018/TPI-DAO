@@ -14,6 +14,7 @@ from tests.fakes.prestamos import (
     ParametroRepositorioEnMemoria,
     PrestamoRepositorioEnMemoria,
     RemitoRepositorioEnMemoria,
+    ReservaRepositorioEnMemoria,
 )
 
 
@@ -91,6 +92,7 @@ class UnitOfWorkEnMemoria:
         self.parametros = ParametroRepositorioEnMemoria()
         self.prestamos = PrestamoRepositorioEnMemoria()
         self.remitos = RemitoRepositorioEnMemoria()
+        self.reservas = ReservaRepositorioEnMemoria()
         self.confirmaciones = 0
         self.reversiones = 0
 

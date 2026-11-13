@@ -257,3 +257,26 @@ class RemitoInvalido(ErrorDeValidacion):
     """Líneas o sedes de un remito que no cumplen las reglas de armado."""
 
     codigo = "REMITO_INVALIDO"
+
+
+# --- reservas -----------------------------------------------------------------------------------
+
+
+class ReservaNoEncontrada(EntidadNoEncontrada):
+    codigo = "RESERVA_NO_ENCONTRADA"
+
+
+class HayEjemplaresDisponibles(ReglaDeNegocioViolada):
+    codigo = "HAY_EJEMPLARES_DISPONIBLES"
+
+
+class ReservaDuplicada(ReglaDeNegocioViolada):
+    codigo = "RESERVA_DUPLICADA"
+
+
+class LimiteReservasExcedido(ReglaDeNegocioViolada):
+    codigo = "LIMITE_RESERVAS"
+
+
+class LibroSinEjemplares(ReglaDeNegocioViolada):
+    codigo = "LIBRO_SIN_EJEMPLARES"

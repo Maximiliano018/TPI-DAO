@@ -399,6 +399,26 @@ class SqlAlchemyEjemplarRepository:
             for f in filas
         ]
 
+    def disponibles_en_sede(self, libro_id: int, sede_id: int) -> int:
+        consulta = select(func.count(EjemplarORM.id)).where(
+            EjemplarORM.libro_id == libro_id,
+            EjemplarORM.sede_actual_id == sede_id,
+            EjemplarORM.estado == EstadoEjemplarEnum.DISPONIBLE.value,
+        )
+        return self._sesion.scalar(consulta) or 0
+
+    def activos_de_libro(self, libro_id: int) -> int:
+        consulta = (
+            select(func.count(EjemplarORM.id))
+            .join(SedeORM, SedeORM.id == EjemplarORM.sede_propietaria_id)
+            .where(
+                EjemplarORM.libro_id == libro_id,
+                EjemplarORM.estado != _BAJA,
+                SedeORM.estado == "ACTIVA",
+            )
+        )
+        return self._sesion.scalar(consulta) or 0
+
     def contar_de_libro(self, libro_id: int) -> int:
         return (
             self._sesion.scalar(

@@ -98,6 +98,14 @@ class EjemplarRepository(Protocol):
         """Movimientos del ejemplar, del más antiguo al más reciente."""
         ...
 
+    def disponibles_en_sede(self, libro_id: int, sede_id: int) -> int:
+        """Ejemplares ``Disponible`` del libro que están en la sede."""
+        ...
+
+    def activos_de_libro(self, libro_id: int) -> int:
+        """Ejemplares del libro que no están dados de baja (en sedes activas)."""
+        ...
+
     def contar_de_libro(self, libro_id: int) -> int:
         """Ejemplares del libro (incluidos los dados de baja)."""
         ...

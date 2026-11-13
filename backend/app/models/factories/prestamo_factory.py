@@ -20,7 +20,7 @@ from app.models.policies.plazo import PlazoInterbibliotecario, PlazoLocal, Polit
 from app.models.prestamo import Prestamo, TipoPrestamo
 from app.models.sede import Sede
 from app.models.socio import Socio
-from app.models.states.ejemplar import TEXTO_ESTADO
+from app.models.states.ejemplar import TEXTO_ESTADO, EstadoEjemplarEnum
 from app.models.usuario import UsuarioRef
 
 
@@ -45,10 +45,15 @@ class PrestamoFactory:
         sede_origen: Sede,
         sede_destino: Sede,
         abiertos_del_socio: Sequence[Prestamo],
-        actor: UsuarioRef,
+        actor: UsuarioRef | None,
         ahora: datetime,
+        reservado: bool = False,
     ) -> Prestamo:
         """Valida las reglas del enunciado, aparta el ejemplar y devuelve el préstamo.
+
+        Con ``reservado`` el ejemplar ya está ``Reservado`` para el socio (retiro de una reserva):
+        se exige ese estado en lugar de ``Disponible`` y no se aparta. ``actor`` es ``None``
+        cuando el préstamo lo genera el sistema al asignar una reserva.
 
         Raises:
             SedeEnBaja: Origen o destino dados de baja (CA-PRE-04, 05).
@@ -68,7 +73,8 @@ class PrestamoFactory:
                 f"{sede_origen.nombre}.",
                 [{"campo": "ejemplar_id", "problema": "fuera_de_sede_origen"}],
             )
-        if not ejemplar.esta_disponible:
+        esperado = EstadoEjemplarEnum.RESERVADO if reservado else EstadoEjemplarEnum.DISPONIBLE
+        if ejemplar.estado_nombre != esperado:
             raise EjemplarNoDisponible(
                 f"El ejemplar {ejemplar.codigo_inventario} no está disponible: está "
                 f"{TEXTO_ESTADO[ejemplar.estado_nombre]}.",
@@ -104,5 +110,6 @@ class PrestamoFactory:
             registrado_por=actor,
         )
         prestamo.registrar_alta(actor, ahora)
-        ejemplar.apartar(actor, ahora, f"Apartado para el préstamo {numero}")
+        if not reservado:
+            ejemplar.apartar(actor, ahora, f"Apartado para el préstamo {numero}")
         return prestamo

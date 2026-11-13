@@ -22,6 +22,7 @@ from app.models.states.prestamo import EstadoPrestamoEnum
 from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef
 from app.repositories.interfaces.prestamo_repository import FiltroPrestamos
 from app.repositories.unit_of_work import UnitOfWork
+from app.services.cola_reservas import ColaDeReservas
 from app.services.remito_service import RemitoService
 from app.utils.reloj import Reloj
 
@@ -177,6 +178,8 @@ class PrestamoService:
                 prestamo.cancelar(texto, yo, ahora)
                 ejemplar.liberar(yo, ahora, f"Préstamo {prestamo.numero} cancelado")
                 self._uow.ejemplares.guardar(ejemplar)
+                self._uow.prestamos.guardar(prestamo)
+                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
             self._uow.prestamos.guardar(prestamo)
         return self._releer(prestamo)
 
@@ -262,8 +265,8 @@ class PrestamoService:
         return PrestamoFactory(self._uow.parametros.vigentes())
 
     def _hay_reservas_pendientes(self, libro_id: int) -> bool:
-        """Si hay socios esperando el libro (CA-PRE-17); lo responde el módulo de reservas."""
-        return False
+        """Si hay socios esperando el libro (CA-PRE-17)."""
+        return self._uow.reservas.hay_pendientes(libro_id)
 
     def _ejemplar(self, ejemplar_id: int) -> Ejemplar:
         ejemplar = self._uow.ejemplares.obtener_para_modificar(ejemplar_id)

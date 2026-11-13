@@ -8,8 +8,10 @@ from app.models.incidencia import Incidencia
 from app.models.parametros import Parametros
 from app.models.prestamo import MovimientoPrestamo, Prestamo, TipoPrestamo
 from app.models.remito import MotivoRemito, MovimientoRemito, Remito
+from app.models.reserva import Reserva
 from app.models.states.prestamo import EstadoPrestamoEnum
 from app.models.states.remito import EstadoRemitoEnum
+from app.models.states.reserva import EstadoReservaEnum
 
 
 @dataclass(frozen=True)
@@ -121,3 +123,51 @@ class IncidenciaRepository(Protocol):
     def agregar(self, incidencia: Incidencia) -> None: ...
 
     def de_remito(self, remito_id: int) -> list[Incidencia]: ...
+
+
+@dataclass(frozen=True)
+class FiltroReservas:
+    socio_id: int | None = None
+    libro_id: int | None = None
+    sede_id: int | None = None  # sede de retiro
+    estado: EstadoReservaEnum | None = None
+
+
+class ReservaRepository(Protocol):
+    def siguiente_numero(self, anio: int) -> str:
+        """Número correlativo ``RS-<año>-<secuencia>``."""
+        ...
+
+    def agregar(self, reserva: Reserva) -> None:
+        """Persiste la reserva (asigna ``id``).
+
+        Raises:
+            ReservaDuplicada: El socio ya tiene una reserva activa del libro (índice único).
+        """
+        ...
+
+    def guardar(self, reserva: Reserva) -> None: ...
+
+    def obtener(self, reserva_id: int) -> Reserva | None:
+        """Reserva con su posición en la cola si está pendiente."""
+        ...
+
+    def obtener_para_modificar(self, reserva_id: int) -> Reserva | None: ...
+
+    def activas_de_socio(self, socio_id: int) -> list[Reserva]: ...
+
+    def cola_del_libro(self, libro_id: int) -> list[Reserva]:
+        """Reservas pendientes del libro en orden FIFO, bloqueadas para asignarlas."""
+        ...
+
+    def vencidas(self, hoy: date) -> list[Reserva]:
+        """Disponibles para retiro cuya vigencia ya pasó, bloqueadas."""
+        ...
+
+    def hay_pendientes(self, libro_id: int) -> bool: ...
+
+    def listar(self, filtro: FiltroReservas, page: int, size: int) -> tuple[list[Reserva], int]: ...
+
+    def activas_de_sede(self, sede_id: int, limite: int) -> tuple[list[Reserva], int]:
+        """Reservas activas con retiro en la sede (impiden su baja)."""
+        ...

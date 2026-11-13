@@ -14,6 +14,7 @@ from app.repositories.interfaces.prestamo_repository import (
     ParametroRepository,
     PrestamoRepository,
     RemitoRepository,
+    ReservaRepository,
 )
 from app.repositories.interfaces.sede_repository import LocalidadRepository, SedeRepository
 from app.repositories.interfaces.socio_repository import SocioRepository
@@ -34,6 +35,7 @@ class UnitOfWork(Protocol):
     prestamos: PrestamoRepository
     remitos: RemitoRepository
     incidencias: IncidenciaRepository
+    reservas: ReservaRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -59,6 +61,7 @@ class SqlAlchemyUnitOfWork:
             SqlAlchemyPrestamoRepository,
             SqlAlchemyRemitoRepository,
         )
+        from app.repositories.impl.reserva_repository import SqlAlchemyReservaRepository
         from app.repositories.impl.sede_repository import (
             SqlAlchemyLocalidadRepository,
             SqlAlchemySedeRepository,
@@ -78,6 +81,7 @@ class SqlAlchemyUnitOfWork:
         self.prestamos: PrestamoRepository = SqlAlchemyPrestamoRepository(sesion)
         self.remitos: RemitoRepository = SqlAlchemyRemitoRepository(sesion)
         self.incidencias: IncidenciaRepository = SqlAlchemyIncidenciaRepository(sesion)
+        self.reservas: ReservaRepository = SqlAlchemyReservaRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()

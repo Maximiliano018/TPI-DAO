@@ -17,6 +17,7 @@ from app.db.models.prestamo import (
     ParametroORM,
     PrestamoORM,
     RemitoORM,
+    ReservaORM,
 )
 from app.db.models.sede import (
     ExcepcionHorarioSedeORM,
@@ -35,6 +36,7 @@ __all__ = [
     "ParametroORM",
     "PrestamoORM",
     "RemitoORM",
+    "ReservaORM",
     "AutorORM",
     "CategoriaORM",
     "EjemplarORM",

@@ -60,6 +60,8 @@ def test_me_devuelve_la_sede_del_bibliotecario(cliente, sesion, crear_usuario, a
         "REMITO_EXTRAVIO",
         "REMITO_LEER",
         "REMITO_OPERAR",
+        "RESERVA_LEER",
+        "RESERVA_REGISTRAR",
         "SEDE_LEER_BASICO",
         "SEDE_LEER_PUBLICO",
         "SOCIO_LEER",

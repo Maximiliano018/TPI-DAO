@@ -17,6 +17,7 @@ from app.services.catalogo_service import CatalogoService
 from app.services.parametro_service import ParametroService
 from app.services.prestamo_service import PrestamoService
 from app.services.remito_service import RemitoService
+from app.services.reserva_service import ReservaService
 from app.services.sede_service import SedeService
 from app.services.socio_service import SocioService
 from app.services.usuario_service import UsuarioService
@@ -26,6 +27,7 @@ from app.services.verificadores_baja_sede import (
     VerificadorEjemplaresPropiosFuera,
     VerificadorPrestamosEnCurso,
     VerificadorRemitosAbiertos,
+    VerificadorReservasPendientes,
 )
 from app.utils.reloj import Reloj, RelojSistema
 
@@ -61,6 +63,7 @@ def get_verificador_baja_sede(uow: UnitOfWork = Depends(get_uow)) -> Verificador
             VerificadorEjemplaresPropiosFuera(uow.ejemplares),
             VerificadorPrestamosEnCurso(uow.prestamos),
             VerificadorRemitosAbiertos(uow.remitos),
+            VerificadorReservasPendientes(uow.reservas),
         ]
     )
 
@@ -105,6 +108,12 @@ def get_remito_service(
 
 def get_parametro_service(uow: UnitOfWork = Depends(get_uow)) -> ParametroService:
     return ParametroService(uow)
+
+
+def get_reserva_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> ReservaService:
+    return ReservaService(uow, reloj)
 
 
 def usuario_actual(
