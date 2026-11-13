@@ -1,7 +1,3 @@
 # Criterios de aceptación que dependen de módulos que todavía no existen.
 # Esta lista solo puede achicarse: cada módulo quita los suyos al agregar sus pruebas.
-CA-ACC-01  # permiso de registrar préstamos: llega con el módulo de préstamos
 CA-ACC-02  # devoluciones en otra sede: llega con el módulo de devoluciones
-CA-ACC-04  # préstamos propios del socio: llega con el módulo de préstamos
-CA-SOC-08  # tope de préstamos simultáneos: llega con el módulo de préstamos
-CA-CAT-12  # traslado de un ejemplar a otra sede: llega con el módulo de remitos

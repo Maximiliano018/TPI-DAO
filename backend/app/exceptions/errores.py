@@ -174,6 +174,43 @@ class EjemplarNoDisponible(ReglaDeNegocioViolada):
     codigo = "EJEMPLAR_NO_DISPONIBLE"
 
 
+# --- préstamos y remitos ---------------------------------------------------------------------
+
+
+class PrestamoNoEncontrado(EntidadNoEncontrada):
+    codigo = "PRESTAMO_NO_ENCONTRADO"
+
+
+class RemitoNoEncontrado(EntidadNoEncontrada):
+    codigo = "REMITO_NO_ENCONTRADO"
+
+
+class LimitePrestamosExcedido(ReglaDeNegocioViolada):
+    codigo = "LIMITE_PRESTAMOS"
+
+
+class LibroYaPrestado(ReglaDeNegocioViolada):
+    codigo = "LIBRO_REPETIDO"
+
+
+class RenovacionNoPermitida(ReglaDeNegocioViolada):
+    codigo = "RENOVACION_NO_PERMITIDA"
+
+
+class EjemplarEnOtroRemito(ReglaDeNegocioViolada):
+    codigo = "EJEMPLAR_EN_OTRO_REMITO"
+
+
+class EjemplarNoRecibido(ReglaDeNegocioViolada):
+    """El préstamo interbibliotecario todavía no llegó a la sede destino."""
+
+    codigo = "EJEMPLAR_NO_RECIBIDO"
+
+
+class PlazoDeTransitoVigente(ReglaDeNegocioViolada):
+    codigo = "PLAZO_DE_TRANSITO_VIGENTE"
+
+
 class ErrorDeValidacion(ErrorDeNegocio):
     """Dato con forma válida pero que incumple una regla de campo (422)."""
 
@@ -210,3 +247,13 @@ class TokenInvalido(ErrorDeNegocio):
 
 class CategoriaInvalida(ErrorDeValidacion):
     codigo = "CATEGORIA_INVALIDA"
+
+
+class EjemplarNoPerteneceASede(ErrorDeValidacion):
+    codigo = "EJEMPLAR_FUERA_DE_SEDE_ORIGEN"
+
+
+class RemitoInvalido(ErrorDeValidacion):
+    """Líneas o sedes de un remito que no cumplen las reglas de armado."""
+
+    codigo = "REMITO_INVALIDO"

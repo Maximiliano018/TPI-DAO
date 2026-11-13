@@ -161,6 +161,12 @@ El dominio lanza excepciones propias con un código estable; la capa `controller
 | `LibroDuplicado` / `EjemplarCodigoDuplicado` | `LIBRO_DUPLICADO` / `EJEMPLAR_CODIGO_DUPLICADO` | 409 |
 | `LibroConEjemplares` | `LIBRO_CON_EJEMPLARES` | 409 |
 | `CategoriaInvalida` | `CATEGORIA_INVALIDA` | 422 |
+| `PrestamoNoEncontrado` / `RemitoNoEncontrado` | `PRESTAMO_NO_ENCONTRADO` / `REMITO_NO_ENCONTRADO` | 404 |
+| `LibroYaPrestado` | `LIBRO_REPETIDO` | 409 |
+| `RenovacionNoPermitida` | `RENOVACION_NO_PERMITIDA` | 409 |
+| `EjemplarNoRecibido` | `EJEMPLAR_NO_RECIBIDO` | 409 |
+| `PlazoDeTransitoVigente` | `PLAZO_DE_TRANSITO_VIGENTE` | 409 |
+| `RemitoInvalido` | `REMITO_INVALIDO` | 422 |
 
 La tabla no es exhaustiva: cada regla de negocio nueva suma su excepción y su código, y el catálogo vive en `exceptions/`. Los errores de forma (campo faltante, tipo inválido) los devuelve FastAPI con 422 y el mismo formato de respuesta. Formato en [API REST](06-api.md#errores).
 

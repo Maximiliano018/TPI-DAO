@@ -9,6 +9,15 @@ from app.db.models.catalogo import (
     MovimientoEjemplarORM,
 )
 from app.db.models.geografia import LocalidadORM, ProvinciaORM
+from app.db.models.prestamo import (
+    DetalleRemitoORM,
+    IncidenciaORM,
+    MovimientoPrestamoORM,
+    MovimientoRemitoORM,
+    ParametroORM,
+    PrestamoORM,
+    RemitoORM,
+)
 from app.db.models.sede import (
     ExcepcionHorarioSedeORM,
     HistorialSedeORM,
@@ -19,6 +28,13 @@ from app.db.models.socio import SocioORM
 from app.db.models.usuario import UsuarioORM
 
 __all__ = [
+    "DetalleRemitoORM",
+    "IncidenciaORM",
+    "MovimientoPrestamoORM",
+    "MovimientoRemitoORM",
+    "ParametroORM",
+    "PrestamoORM",
+    "RemitoORM",
     "AutorORM",
     "CategoriaORM",
     "EjemplarORM",

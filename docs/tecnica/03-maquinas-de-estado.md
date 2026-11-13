@@ -50,7 +50,7 @@ stateDiagram-v2
     Reservado --> Prestado : retiro del socio
     Reservado --> EnTransito : remito despachado
     Reservado --> Disponible : reserva cancelada o vencida
-    EnTransito --> Prestado : recibido y entregado al socio
+    EnTransito --> Apartado : préstamo recibido en destino (espera el retiro)
     EnTransito --> Disponible : retorno o traslado recibido
     EnTransito --> EnRevision : recibido dañado
     EnTransito --> Baja : extraviado o destruido
@@ -63,6 +63,8 @@ stateDiagram-v2
 ```
 
 `EnTransito` aparece sin tilde en el diagrama por limitación de Mermaid; en el código es `EN_TRANSITO`.
+
+**Recepción de un préstamo interbibliotecario.** Al recibirse el remito de envío, el ejemplar queda `Apartado` en la sede destino hasta que el socio lo retira; recién con esa entrega pasa a `Prestado` y empieza el plazo. Así el traslado no consume el plazo del socio (RF-PRE-09) y, si el socio no lo retira, el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno (CU-PRE-02, A6).
 
 Efecto al volver a `Disponible`: el sistema revisa la cola de reservas del libro y, si hay una elegible, pasa a `Reservado` (ver [Reservas](../funcional/06-reservas.md)).
 

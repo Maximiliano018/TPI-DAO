@@ -12,6 +12,10 @@ from app.models.policies.verificacion_baja_sede import (
     TipoImpedimento,
 )
 from app.repositories.interfaces.catalogo_repository import EjemplarRepository
+from app.repositories.interfaces.prestamo_repository import (
+    PrestamoRepository,
+    RemitoRepository,
+)
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
 
 
@@ -86,3 +90,43 @@ def _impedimento_de_ejemplares(
         if e.id is not None
     ]
     return Impedimento(tipo, total, elementos)
+
+
+class VerificadorPrestamosEnCurso:
+    """Bloquea la baja si la sede es origen o destino de un préstamo abierto (CA-SED-05)."""
+
+    tipo = TipoImpedimento.PRESTAMOS_EN_CURSO
+
+    def __init__(self, prestamos: PrestamoRepository) -> None:
+        self._prestamos = prestamos
+
+    def verificar(self, sede_id: int) -> Impedimento | None:
+        abiertos, total = self._prestamos.en_curso_de_sede(sede_id, MAX_ELEMENTOS_POR_IMPEDIMENTO)
+        if total == 0:
+            return None
+        elementos = [
+            ElementoImpedimento(id=p.id, referencia=p.numero, estado=p.estado_nombre.value)
+            for p in abiertos
+            if p.id is not None
+        ]
+        return Impedimento(self.tipo, total, elementos)
+
+
+class VerificadorRemitosAbiertos:
+    """Bloquea la baja si la sede es origen o destino de un remito sin cerrar (CA-SED-06, 20)."""
+
+    tipo = TipoImpedimento.REMITOS_ABIERTOS
+
+    def __init__(self, remitos: RemitoRepository) -> None:
+        self._remitos = remitos
+
+    def verificar(self, sede_id: int) -> Impedimento | None:
+        abiertos, total = self._remitos.abiertos_de_sede(sede_id, MAX_ELEMENTOS_POR_IMPEDIMENTO)
+        if total == 0:
+            return None
+        elementos = [
+            ElementoImpedimento(id=r.id, referencia=r.numero, estado=r.estado_nombre.value)
+            for r in abiertos
+            if r.id is not None
+        ]
+        return Impedimento(self.tipo, total, elementos)

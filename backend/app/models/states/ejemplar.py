@@ -9,8 +9,9 @@ delega en su estado actual y registra el movimiento (ver ``docs/tecnica/03-maqui
 | Disponible    | apartar, reservar, dar_de_baja                                             |
 | Apartado      | prestar, poner_en_transito, liberar                                        |
 | Reservado     | prestar, poner_en_transito, liberar                                        |
-| EnTransito    | prestar (recibido y entregado), liberar (retorno o traslado recibido),     |
-|               | enviar_a_revision (recibido dañado), dar_de_baja (extraviado o destruido)  |
+| EnTransito    | apartar (préstamo recibido en destino, espera el retiro del socio),        |
+|               | liberar (retorno o traslado recibido), enviar_a_revision (recibido         |
+|               | dañado), dar_de_baja (extraviado o destruido)                              |
 | Prestado      | liberar (devuelto en su sede), apartar (devuelto en otra sede),            |
 |               | enviar_a_revision (devuelto dañado), dar_de_baja (extraviado)              |
 | EnRevision    | reparar, dar_de_baja (irreparable)                                         |
@@ -135,8 +136,10 @@ class Reservado(EstadoEjemplar):
 class EnTransito(EstadoEjemplar):
     nombre = EstadoEjemplarEnum.EN_TRANSITO
 
-    def prestar(self) -> EstadoEjemplar:
-        return Prestado()
+    def apartar(self) -> EstadoEjemplar:
+        # Llegó a la sede destino de un préstamo: queda retenido hasta que el socio lo retira
+        # (el plazo del préstamo empieza recién con esa entrega).
+        return Apartado()
 
     def liberar(self) -> EstadoEjemplar:
         return Disponible()

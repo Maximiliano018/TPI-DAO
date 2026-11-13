@@ -157,7 +157,7 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito | RF-PRE-15 |
 | `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
 | `POST /prestamos/{id}/renovar` | B | Renovación | RF-PRE-14 |
-| `POST /prestamos/{id}/cancelar` | B | Cancelar antes de la entrega | RF-PRE-13 |
+| `POST /prestamos/{id}/cancelar` | B | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno | RF-PRE-13 |
 | `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11 |
 | `POST /admin/tareas/detectar-vencidos` | A | Ejecuta la detección de vencidos (también corre sola cada día) | RF-PRE-12 |
 
@@ -170,6 +170,7 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | `GET /remitos/{id}` | A, B, S | Detalle y movimientos | RF-REM-14 |
 | `POST /remitos/{id}/empaquetar` | B (sede origen) | | RF-REM-05, 07 |
 | `POST /remitos/{id}/despachar` | B (sede origen) | | RF-REM-08 |
+| `POST /remitos/{id}/en-transito` | B (sede origen) | Marca el envío en viaje (si no, la recepción completa ese paso) | RF-REM-05 |
 | `POST /remitos/{id}/recibir` | B (sede destino) | Recepción con estado por línea | RF-REM-09, 13 |
 | `POST /remitos/{id}/anular` | B (sede origen) | Antes del despacho | RF-REM-11 |
 | `POST /remitos/{id}/extraviado` | A, B | Si venció el plazo de tránsito | RF-REM-12 |
@@ -214,7 +215,7 @@ Todos aceptan `?desde=`, `?hasta=` y `?sede_id=` donde corresponda; un bibliotec
 | `PUT /usuarios/{id}` | A | Modificar nombre y, si es bibliotecario, **reasignar a otra sede activa**. El rol no se cambia | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/baja` | A | Baja lógica (desvincula al bibliotecario de su sede) | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/reactivar` | A | Reactivar; rechaza si su sede está en baja | RF-ACC-06, 09 |
-| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio | — |
+| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio (`{ "valor": "21" }`); rigen desde la siguiente operación | — |
 
 ---
 
@@ -688,7 +689,11 @@ Request (estado por línea):
 }
 ```
 
-Response `200`: `{ "id": 51, "estado": "RECIBIDO", "incidencias": [{ "ejemplar_id": 305, "tipo": "DANIO" }] }`
+Cada línea lleva `estado_fisico` y, si llegó inutilizable, `"destruido": true`; un daño o una destrucción exige `observacion` (`422 REMITO_INVALIDO`). Hay que verificar todas las líneas del remito.
+
+Response `200`: el remito con `estado` (`RECIBIDO`, `DANADO` o `DESTRUIDO` según la peor línea), el resultado de cada línea, `movimientos` e `incidencias` (`[{ "ejemplar_id": 305, "tipo": "DANIO", ... }]`).
+
+Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` en destino hasta la entrega al socio (`POST /prestamos/{id}/entregar`, que inicia el plazo); en un **retorno**, `DISPONIBLE` en su sede; en un **traslado**, cambia la sede propietaria y queda `DISPONIBLE`. Una línea dañada deja el ejemplar `EN_REVISION` y una destruida en `BAJA`, con incidencia, y cancelan el préstamo del envío.
 
 ### `GET /remitos/{id}` — con trazabilidad
 

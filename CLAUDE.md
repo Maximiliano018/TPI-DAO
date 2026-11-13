@@ -29,7 +29,7 @@ uv venv .venv --python 3.12 && uv pip install -e ".[dev]"   # o: python -m venv 
 .venv/bin/pytest --cov=app              # todas (PostgreSQL con la base `<nombre>_test`)
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 .venv/bin/mypy app/models app/services
-.venv/bin/python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC,SOC,CAT --estricto
+.venv/bin/python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC,SOC,CAT,PRE,REM --estricto
 ```
 
 **Frontend** (desde `frontend/`; Node según `.nvmrc`, ver instrucciones globales de nvm):

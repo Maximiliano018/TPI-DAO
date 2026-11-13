@@ -28,7 +28,7 @@ VALIDAS = [
     ("prestar", E.RESERVADO, E.PRESTADO),
     ("poner_en_transito", E.RESERVADO, E.EN_TRANSITO),
     ("liberar", E.RESERVADO, E.DISPONIBLE),
-    ("prestar", E.EN_TRANSITO, E.PRESTADO),
+    ("apartar", E.EN_TRANSITO, E.APARTADO),
     ("liberar", E.EN_TRANSITO, E.DISPONIBLE),
     ("enviar_a_revision", E.EN_TRANSITO, E.EN_REVISION),
     ("liberar", E.PRESTADO, E.DISPONIBLE),

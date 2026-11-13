@@ -9,6 +9,12 @@ from app.repositories.interfaces.catalogo_repository import (
     EjemplarRepository,
     LibroRepository,
 )
+from app.repositories.interfaces.prestamo_repository import (
+    IncidenciaRepository,
+    ParametroRepository,
+    PrestamoRepository,
+    RemitoRepository,
+)
 from app.repositories.interfaces.sede_repository import LocalidadRepository, SedeRepository
 from app.repositories.interfaces.socio_repository import SocioRepository
 from app.repositories.interfaces.usuario_repository import UsuarioRepository
@@ -24,6 +30,10 @@ class UnitOfWork(Protocol):
     categorias: CategoriaRepository
     libros: LibroRepository
     ejemplares: EjemplarRepository
+    parametros: ParametroRepository
+    prestamos: PrestamoRepository
+    remitos: RemitoRepository
+    incidencias: IncidenciaRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -43,6 +53,12 @@ class SqlAlchemyUnitOfWork:
             SqlAlchemyEjemplarRepository,
             SqlAlchemyLibroRepository,
         )
+        from app.repositories.impl.prestamo_repository import (
+            SqlAlchemyIncidenciaRepository,
+            SqlAlchemyParametroRepository,
+            SqlAlchemyPrestamoRepository,
+            SqlAlchemyRemitoRepository,
+        )
         from app.repositories.impl.sede_repository import (
             SqlAlchemyLocalidadRepository,
             SqlAlchemySedeRepository,
@@ -58,6 +74,10 @@ class SqlAlchemyUnitOfWork:
         self.categorias: CategoriaRepository = SqlAlchemyCategoriaRepository(sesion)
         self.libros: LibroRepository = SqlAlchemyLibroRepository(sesion)
         self.ejemplares: EjemplarRepository = SqlAlchemyEjemplarRepository(sesion)
+        self.parametros: ParametroRepository = SqlAlchemyParametroRepository(sesion)
+        self.prestamos: PrestamoRepository = SqlAlchemyPrestamoRepository(sesion)
+        self.remitos: RemitoRepository = SqlAlchemyRemitoRepository(sesion)
+        self.incidencias: IncidenciaRepository = SqlAlchemyIncidenciaRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()
