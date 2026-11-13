@@ -12,6 +12,9 @@ export const ADMIN = {
     'SEDE_LEER_COMPLETO',
     'SEDE_LEER_PUBLICO',
     'SEDE_VER_HISTORIAL',
+    'SOCIO_ADMINISTRAR',
+    'SOCIO_LEER',
+    'SOCIO_REGISTRAR',
     'USUARIO_ADMINISTRAR',
   ],
 };
@@ -22,7 +25,7 @@ export const BIBLIOTECARIO = {
   rol: 'BIBLIOTECARIO',
   sede_id: 1,
   sede: { id: 1, codigo: 'CEN', nombre: 'Sede Central' },
-  permisos: ['SEDE_LEER_BASICO', 'SEDE_LEER_PUBLICO'],
+  permisos: ['SEDE_LEER_BASICO', 'SEDE_LEER_PUBLICO', 'SOCIO_LEER', 'SOCIO_REGISTRAR'],
 };
 
 export const SOCIO = {
@@ -31,7 +34,8 @@ export const SOCIO = {
   rol: 'SOCIO',
   sede_id: null,
   sede: null,
-  permisos: ['SEDE_LEER_PUBLICO'],
+  socio_id: 45,
+  permisos: ['SEDE_LEER_PUBLICO', 'SOCIO_VER_PROPIO'],
 };
 
 const SEMANA = [1, 2, 3, 4, 5, 6, 7].map((dia) => ({
@@ -160,6 +164,42 @@ export function usuarioPersonal(over = {}) {
     creado_por: { id: 1, nombre: 'Ana Admin' },
     actualizado_en: '2026-10-14T15:30:00Z',
     actualizado_por: { id: 1, nombre: 'Ana Admin' },
+    ...over,
+  };
+}
+
+/** Socio con el formato de `GET /socios/{id}` (ficha con situación); `over` pisa cualquier campo. */
+export function socio(over = {}) {
+  return {
+    id: 45,
+    numero_socio: '00045',
+    tipo_documento: 'DNI',
+    nro_documento: '30111222',
+    nombre: 'Sol',
+    apellido: 'Socia',
+    estado: 'HABILITADO',
+    motivo_inhabilitacion: null,
+    sede_alta_id: 1,
+    sede_alta: 'Sede Central',
+    fecha_nacimiento: '1995-04-12',
+    email: 'sol@example.com',
+    telefono: '+543515000000',
+    domicilio: 'San Martín 123',
+    causas_inhabilitacion: [],
+    motivo_administrativo: null,
+    fecha_alta: '2026-10-14T15:30:00Z',
+    fecha_baja: null,
+    motivo_baja: null,
+    creado_por: { id: 2, nombre: 'Lucía Gómez' },
+    actualizado_en: '2026-10-14T15:30:00Z',
+    actualizado_por: { id: 2, nombre: 'Lucía Gómez' },
+    cuenta: null,
+    situacion: {
+      prestamos_activos: 0,
+      prestamos_vencidos: 0,
+      multas_pendientes: 0,
+      reservas_activas: 0,
+    },
     ...over,
   };
 }

@@ -21,11 +21,27 @@ export const MENSAJES_DE_ERROR = {
   USUARIO_NO_ENCONTRADO: 'El usuario solicitado no existe',
   USUARIO_YA_EN_BAJA: 'El usuario ya estaba dado de baja. Se actualizó la pantalla',
   USUARIO_YA_ACTIVO: 'El usuario ya estaba activo. Se actualizó la pantalla',
+  SOCIO_NO_ENCONTRADO: 'El socio solicitado no existe',
+  SOCIO_EN_BAJA: 'El socio está dado de baja. Reactívelo para continuar',
+  SOCIO_YA_EN_BAJA: 'El socio ya estaba dado de baja. Se actualizó la pantalla',
+  SOCIO_YA_ACTIVO: 'El socio no estaba dado de baja. Se actualizó la pantalla',
+  SOCIO_YA_HABILITADO: 'El socio ya estaba habilitado. Se actualizó la pantalla',
+  SOCIO_YA_INHABILITADO: 'El socio ya estaba inhabilitado por decisión administrativa',
+  SOCIO_CON_CUENTA: 'El socio ya tiene una cuenta de acceso',
 };
+
+// Códigos cuyo mensaje del servidor es más preciso que uno fijo (traen el socio o la causa).
+const USAR_MENSAJE_DEL_SERVIDOR = new Set([
+  'POSIBLE_DUPLICADO',
+  'SOCIO_CON_CAUSAS_VIGENTES',
+  'SOCIO_CON_ACTIVIDAD_PENDIENTE',
+  'SOCIO_INHABILITADO',
+]);
 
 /** Mensaje a mostrar para un `ApiError` (o cualquier error). */
 export function mensajeDeError(error) {
   if (!error) return '';
+  if (USAR_MENSAJE_DEL_SERVIDOR.has(error.codigo) && error.mensaje) return error.mensaje;
   if (error.codigo && MENSAJES_DE_ERROR[error.codigo]) return MENSAJES_DE_ERROR[error.codigo];
   return error.mensaje || error.message || 'Ocurrió un error inesperado. Reintente.';
 }

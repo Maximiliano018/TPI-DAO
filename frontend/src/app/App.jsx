@@ -13,6 +13,10 @@ const SedeDetallePage = lazy(() => import('../features/sedes/pages/SedeDetallePa
 const SedeFormPage = lazy(() => import('../features/sedes/pages/SedeFormPage.jsx'));
 const UsuariosPage = lazy(() => import('../features/usuarios/pages/UsuariosPage.jsx'));
 const UsuarioFormPage = lazy(() => import('../features/usuarios/pages/UsuarioFormPage.jsx'));
+const SociosPage = lazy(() => import('../features/socios/pages/SociosPage.jsx'));
+const SocioDetallePage = lazy(() => import('../features/socios/pages/SocioDetallePage.jsx'));
+const SocioFormPage = lazy(() => import('../features/socios/pages/SocioFormPage.jsx'));
+const MisDatosPage = lazy(() => import('../features/socios/pages/MisDatosPage.jsx'));
 
 /** Rutas de la aplicación. Cada módulo suma las suyas con `React.lazy`. */
 export default function App() {
@@ -58,6 +62,41 @@ export default function App() {
           <Route path="nuevo" element={<UsuarioFormPage modo="crear" />} />
           <Route path=":id/editar" element={<UsuarioFormPage modo="editar" />} />
         </Route>
+        <Route
+          path="socios"
+          element={
+            <RutaProtegida permiso={PERMISOS.SOCIO_LEER}>
+              <Outlet />
+            </RutaProtegida>
+          }
+        >
+          <Route index element={<SociosPage />} />
+          <Route path=":id" element={<SocioDetallePage />} />
+          <Route
+            path="nuevo"
+            element={
+              <RutaProtegida permiso={PERMISOS.SOCIO_REGISTRAR}>
+                <SocioFormPage modo="crear" />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path=":id/editar"
+            element={
+              <RutaProtegida permiso={PERMISOS.SOCIO_REGISTRAR}>
+                <SocioFormPage modo="editar" />
+              </RutaProtegida>
+            }
+          />
+        </Route>
+        <Route
+          path="mis-datos"
+          element={
+            <RutaProtegida permiso={PERMISOS.SOCIO_VER_PROPIO}>
+              <MisDatosPage />
+            </RutaProtegida>
+          }
+        />
         <Route path="*" element={<NoEncontrada />} />
       </Route>
     </Routes>
