@@ -225,6 +225,18 @@ class PlazoDeTransitoVigente(ReglaDeNegocioViolada):
     codigo = "PLAZO_DE_TRANSITO_VIGENTE"
 
 
+class SinEjemplaresDisponibles(ReglaDeNegocioViolada):
+    """Ninguna sede activa tiene un ejemplar disponible del libro: se ofrece reservar."""
+
+    codigo = "SIN_EJEMPLARES_DISPONIBLES"
+
+
+class DisponibilidadCambiada(ReglaDeNegocioViolada):
+    """La propuesta que vio el socio ya no vale (otra operación tomó el ejemplar)."""
+
+    codigo = "DISPONIBILIDAD_CAMBIADA"
+
+
 class ErrorDeValidacion(ErrorDeNegocio):
     """Dato con forma válida pero que incumple una regla de campo (422)."""
 

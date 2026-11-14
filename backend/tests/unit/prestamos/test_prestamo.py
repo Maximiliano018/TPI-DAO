@@ -268,3 +268,70 @@ def test_el_alta_queda_en_el_historial():
 
     [mov] = p.movimientos_pendientes
     assert (mov.estado_anterior, mov.estado_nuevo) == (None, P.SOLICITADO)
+
+
+# --- plazo de retiro y cancelación del socio ------------------------------------------------
+
+
+@pytest.mark.ca("CA-PRE-25")
+def test_un_local_registrado_con_fecha_queda_con_plazo_de_retiro():
+    local = FABRICA.crear(
+        numero="P-2026-000010",
+        socio=nuevo_socio(),
+        ejemplar=ejemplar(),
+        sede_origen=sede(1, "Centro"),
+        sede_destino=sede(1, "Centro"),
+        abiertos_del_socio=[],
+        actor=BIBLIO,
+        ahora=AHORA,
+        hoy=HOY,
+    )
+    inter = FABRICA.crear(
+        numero="P-2026-000011",
+        socio=nuevo_socio(),
+        ejemplar=ejemplar(),
+        sede_origen=sede(1, "Centro"),
+        sede_destino=sede(2, "Norte"),
+        abiertos_del_socio=[],
+        actor=BIBLIO,
+        ahora=AHORA,
+        hoy=HOY,
+    )
+
+    assert local.fecha_limite_retiro == date(2026, 11, 13)
+    assert inter.fecha_limite_retiro is None  # empieza cuando llega a destino
+
+
+@pytest.mark.ca("CA-PRE-25", "CA-PRE-26")
+def test_el_retiro_vence_el_dia_siguiente_al_limite_y_solo_sin_entregar():
+    p = prestamo(P.EN_ENVIO, TipoPrestamo.INTERBIBLIOTECARIO)
+    assert not p.retiro_vencido(date(2026, 12, 1))  # todavía en camino: sin plazo
+
+    p.habilitar_retiro(date(2026, 11, 13), BIBLIO, AHORA)
+
+    assert (p.estado_nombre, p.fecha_limite_retiro) == (P.EN_ENVIO, date(2026, 11, 13))
+    assert p.movimientos_pendientes[-1].observacion == "Disponible para retirar hasta el 13/11/2026"
+    assert not p.retiro_vencido(date(2026, 11, 13))
+    assert p.retiro_vencido(date(2026, 11, 14))
+    entregado = prestamo(P.ACTIVO, fecha_limite_retiro=date(2026, 11, 1))
+    assert not entregado.retiro_vencido(date(2026, 11, 14))
+
+
+@pytest.mark.ca("CA-PRE-27")
+@pytest.mark.parametrize(
+    ("estado", "cancelable"), [(P.SOLICITADO, True), (P.EN_ENVIO, False), (P.ACTIVO, False)]
+)
+def test_el_socio_solo_cancela_lo_que_todavia_no_salio(estado, cancelable):
+    assert prestamo(estado).cancelable_por_el_socio is cancelable
+
+
+@pytest.mark.ca("CA-PRE-23")
+def test_las_reglas_del_socio_se_controlan_sin_ejemplar():
+    socio = nuevo_socio()
+    abierto = prestamo(P.ACTIVO, libro_id=7)
+
+    with pytest.raises(LibroYaPrestado):
+        FABRICA.validar_socio(socio, [abierto], libro_id=7)
+    with pytest.raises(LimitePrestamosExcedido):
+        FABRICA.validar_socio(socio, [abierto] * 3, libro_id=8)
+    FABRICA.validar_socio(socio, [abierto], libro_id=8)

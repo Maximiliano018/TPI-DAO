@@ -12,7 +12,11 @@ from app.dtos.response.devolucion_response import (
     MultaResponse,
     PaginaMultasResponse,
 )
-from app.dtos.response.prestamo_response import PrestamoResponse, RemitoResumenResponse
+from app.dtos.response.prestamo_response import (
+    PrestamoResponse,
+    RemitoResumenResponse,
+    prestamo_a_response,
+)
 from app.models.devolucion import EstadoMulta, EstadoRecibido
 from app.models.usuario import Permiso, Usuario
 from app.services.devolucion_service import DevolucionService, ResultadoDevolucion
@@ -57,9 +61,9 @@ class ResultadoDevolucionResponse(BaseModel):
     socio: SocioEstadoResponse | None
 
     @classmethod
-    def desde(cls, r: ResultadoDevolucion) -> "ResultadoDevolucionResponse":
+    def desde(cls, r: ResultadoDevolucion, actor: Usuario) -> "ResultadoDevolucionResponse":
         return cls(
-            prestamo=PrestamoResponse.desde(r.prestamo),
+            prestamo=prestamo_a_response(r.prestamo, actor),
             devolucion=DevolucionResponse.desde(r.devolucion),
             multa=MultaResponse.desde(r.multa) if r.multa else None,
             remito_retorno=(
@@ -103,7 +107,7 @@ def registrar_devolucion(
     resultado = servicio.registrar(
         actor, prestamo_id, datos.estado_fisico, datos.observaciones, datos.fecha_hora
     )
-    return ResultadoDevolucionResponse.desde(resultado)
+    return ResultadoDevolucionResponse.desde(resultado, actor)
 
 
 @router.get(

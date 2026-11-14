@@ -59,6 +59,15 @@ class PrestamoORM(ConAuditoriaDeTiempo, Base):
             name="sedes_segun_tipo",
         ),
         CheckConstraint("renovaciones >= 0", name="renovaciones_no_negativas"),
+        CheckConstraint(
+            "(estado IN ('ACTIVO','VENCIDO','DEVUELTO')) "
+            "= (fecha_inicio IS NOT NULL AND fecha_vencimiento IS NOT NULL)",
+            name="fechas_segun_estado",
+        ),
+        CheckConstraint(
+            "(estado = 'DEVUELTO') = (fecha_devolucion IS NOT NULL)",
+            name="devolucion_con_fecha",
+        ),
         Index(
             "uq_prestamo_abierto_por_ejemplar",
             "ejemplar_id",
@@ -82,6 +91,7 @@ class PrestamoORM(ConAuditoriaDeTiempo, Base):
     fecha_vencimiento: Mapped[date | None] = mapped_column(Date)
     fecha_devolucion: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     renovaciones: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    fecha_limite_retiro: Mapped[date | None] = mapped_column(Date)
     # NULL cuando el préstamo lo generó el sistema al asignar una reserva entre sedes.
     registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 

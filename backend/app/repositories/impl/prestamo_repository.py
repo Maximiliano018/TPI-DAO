@@ -104,6 +104,7 @@ def _prestamo_a_dominio(orm: PrestamoORM, nombres: dict[int, str]) -> Prestamo:
         fecha_vencimiento=orm.fecha_vencimiento,
         fecha_devolucion=orm.fecha_devolucion,
         renovaciones=orm.renovaciones,
+        fecha_limite_retiro=orm.fecha_limite_retiro,
         socio_nombre=f"{socio.nombre} {socio.apellido}",
         numero_socio=socio.numero_socio,
         codigo_ejemplar=orm.ejemplar.codigo_inventario,
@@ -148,6 +149,19 @@ class SqlAlchemyPrestamoRepository:
             .where(
                 PrestamoORM.estado == EstadoPrestamoEnum.ACTIVO.value,
                 PrestamoORM.fecha_vencimiento < hoy,
+            )
+            .order_by(PrestamoORM.id)
+            .with_for_update(of=PrestamoORM)
+        )
+
+    def retiros_vencidos(self, hoy: date) -> list[Prestamo]:
+        return self._varios(
+            select(PrestamoORM)
+            .where(
+                PrestamoORM.estado.in_(
+                    [EstadoPrestamoEnum.SOLICITADO.value, EstadoPrestamoEnum.EN_ENVIO.value]
+                ),
+                PrestamoORM.fecha_limite_retiro < hoy,
             )
             .order_by(PrestamoORM.id)
             .with_for_update(of=PrestamoORM)
@@ -240,6 +254,7 @@ class SqlAlchemyPrestamoRepository:
         orm.fecha_vencimiento = prestamo.fecha_vencimiento
         orm.fecha_devolucion = prestamo.fecha_devolucion
         orm.renovaciones = prestamo.renovaciones
+        orm.fecha_limite_retiro = prestamo.fecha_limite_retiro
 
     def _movimientos(self, prestamo: Prestamo) -> None:
         assert prestamo.id is not None

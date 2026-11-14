@@ -102,6 +102,18 @@ class EjemplarRepository(Protocol):
         """Ejemplares ``Disponible`` del libro que están en la sede."""
         ...
 
+    def disponibles_por_sede(self, libro_id: int) -> dict[int, int]:
+        """Ejemplares ``Disponible`` del libro en su propia sede, por sede **activa**."""
+        ...
+
+    def tomar_disponible(self, libro_id: int, sede_id: int) -> Ejemplar | None:
+        """Un ejemplar ``Disponible`` del libro en la sede, bloqueado para modificarlo.
+
+        Saltea los que otra transacción ya bloqueó (``SKIP LOCKED``): dos solicitudes
+        simultáneas del mismo libro reciben ejemplares distintos en lugar de esperarse.
+        """
+        ...
+
     def activos_de_libro(self, libro_id: int) -> int:
         """Ejemplares del libro que no están dados de baja (en sedes activas)."""
         ...

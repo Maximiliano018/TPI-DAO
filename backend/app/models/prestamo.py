@@ -58,6 +58,8 @@ class Prestamo:
     fecha_vencimiento: date | None = None
     fecha_devolucion: datetime | None = None
     renovaciones: int = 0
+    # Último día para retirarlo en la sede destino; vencido, se cancela solo (RF-PRE-20).
+    fecha_limite_retiro: date | None = None
     movimientos_pendientes: list[MovimientoPrestamo] = field(default_factory=list)
     # Datos para mostrar (los completa el repositorio).
     socio_nombre: str | None = None
@@ -88,6 +90,19 @@ class Prestamo:
             return 0
         return max(0, (fecha - self.fecha_vencimiento).days)
 
+    @property
+    def cancelable_por_el_socio(self) -> bool:
+        """El socio puede cancelar su solicitud mientras no salió de la sede origen."""
+        return self.estado_nombre == EstadoPrestamoEnum.SOLICITADO
+
+    def retiro_vencido(self, hoy: date) -> bool:
+        """Pasó el último día para retirarlo y todavía no se entregó (el día límite vale)."""
+        return (
+            self.estado_nombre in (EstadoPrestamoEnum.SOLICITADO, EstadoPrestamoEnum.EN_ENVIO)
+            and self.fecha_limite_retiro is not None
+            and hoy > self.fecha_limite_retiro
+        )
+
     def interviene(self, sede_id: int | None) -> bool:
         """La sede es origen o destino del préstamo."""
         return sede_id in (self.sede_origen_id, self.sede_destino_id)
@@ -98,6 +113,16 @@ class Prestamo:
         """Primer movimiento del historial (lo usa la fábrica al crearlo)."""
         self.movimientos_pendientes.append(
             MovimientoPrestamo(None, self.estado_nombre, ahora, actor, "Solicitud registrada")
+        )
+
+    def habilitar_retiro(self, hasta: date, actor: UsuarioRef | None, ahora: datetime) -> None:
+        """El ejemplar ya está en la sede destino: el socio tiene hasta ``hasta`` para retirarlo.
+
+        Queda en el historial sin cambiar de estado.
+        """
+        self.fecha_limite_retiro = hasta
+        self._transicion(
+            self.estado, actor, ahora, f"Disponible para retirar hasta el {hasta:%d/%m/%Y}"
         )
 
     def enviar(self, actor: UsuarioRef, ahora: datetime, remito: str) -> None:

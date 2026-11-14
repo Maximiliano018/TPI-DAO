@@ -1,6 +1,6 @@
 # 04. Solicitudes de préstamo
 
-Proceso obligatorio 4 del enunciado. Los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 4 del enunciado.
 
 ## ¿Qué datos se modelan?
 
@@ -18,7 +18,8 @@ Proceso obligatorio 4 del enunciado. Los puntos marcados como *A consultar* sigu
 | Fecha de devolución | Cuando el socio lo devuelve |
 | Cantidad de renovaciones | |
 | Estado | Ver ciclo de vida |
-| Registrado por | Usuario del personal |
+| Registrado por | Usuario que lo pidió: el personal (en mostrador) o el propio socio (autogestión) |
+| Fecha límite de retiro | Último día para retirarlo en la sede destino |
 | Remito de ida y de vuelta | Solo en préstamos interbibliotecarios |
 
 ## ¿Cómo se relaciona un préstamo con los ejemplares?
@@ -30,11 +31,33 @@ Un préstamo tiene **un ejemplar** (un registro por ejemplar prestado). Si el so
 - **Local:** inicia cuando el bibliotecario **entrega** el ejemplar al socio.
 - **Interbibliotecario:** inicia cuando la sede destino **entrega** el ejemplar al socio, después de recibir el remito. El tiempo de traslado **no consume** el plazo del socio.
 
-Hasta ese momento el préstamo está en estado `Solicitado` o `En envío`, y el ejemplar queda apartado para que nadie más lo pida.
+Hasta ese momento el préstamo está en estado `Solicitado` o `En envío`, y el ejemplar queda apartado para que nadie más lo pida. Para que un ejemplar no quede apartado para siempre, hay un **plazo de retiro** (ver más abajo).
 
 ## ¿Qué usuarios pueden solicitar un préstamo?
 
-El **Bibliotecario** lo registra en nombre del socio. El Administrador puede consultarlos. *A consultar:* si el socio debe poder iniciar la solicitud por sí mismo.
+Lo deciden los **permisos**, no el rol: dar un permiso a un rol habilita el camino sin cambiar el código.
+
+| Quién | Permiso | Cómo | A nombre de quién |
+|-------|---------|------|-------------------|
+| **Bibliotecario** | `PRESTAMO_REGISTRAR` | En el mostrador: elige el socio y el **ejemplar** (la copia que el socio tiene en la mano o una de otra sede). El socio retira en la sede del bibliotecario. | Cualquier socio |
+| **Socio** | `PRESTAMO_SOLICITAR_PROPIO` | Desde su cuenta: elige el **libro** y la sede donde lo retira; el sistema elige el ejemplar y el tipo. | **Solo él mismo**: el socio sale de su sesión; un pedido a nombre de otro se rechaza |
+| **Administrador** | ninguno | No registra préstamos: los consulta. | — |
+
+Estas decisiones salen de una propuesta del equipo (rama `docs/decision-automatica-tipo-prestamo`), actualizada con lo que ya estaba implementado: la elección automática se usa en la autogestión, y el socio también puede pedir préstamos locales.
+
+### Solicitud del socio: el sistema elige el tipo y el ejemplar
+
+1. El socio elige el libro y la **sede de retiro** (se propone su sede de alta; puede elegir otra sede activa).
+2. El sistema controla primero al socio (habilitado, sin superar el máximo de préstamos, sin otro préstamo abierto del mismo libro), sin mirar la disponibilidad.
+3. Si hay ejemplares `Disponible` del libro **en la sede de retiro**, el préstamo es **local** y queda apartado para que lo retire en el mostrador.
+4. Si no, es **interbibliotecario** desde la sede activa con **más** ejemplares disponibles (con empate, la de menor id).
+5. Si ninguna sede activa tiene disponibles, se rechaza y se ofrece **reservar**.
+6. Antes de confirmar, el socio ve la propuesta (tipo, sedes y plazos). Si al confirmar la disponibilidad cambió, el sistema lo avisa y muestra la nueva propuesta para que la confirme.
+
+### Plazo de retiro y cancelación
+
+- Un préstamo pedido y no entregado tiene **3 días** (parámetro) para retirarse: el local, desde la solicitud; el interbibliotecario, desde que llega a la sede destino. Vencido el plazo, el sistema lo cancela solo: el local libera el ejemplar (y lo ofrece a la cola de reservas) y el interbibliotecario vuelve a su sede con un remito de retorno.
+- El socio puede **cancelar su solicitud** mientras está `Solicitado` (antes de que salga de la sede origen). Después, la cancelación la maneja el personal.
 
 ## Parámetros
 
@@ -86,6 +109,8 @@ Consultando el préstamo, que expone su estado actual y su historial de cambios.
 
 ## Validaciones y reglas
 
+- Un socio solo pide préstamos para sí mismo; el personal los registra en nombre de cualquier socio.
+- Un préstamo sin retirar se cancela solo al vencer su plazo de retiro.
 - No prestar ejemplares que no estén `Disponible`. *(enunciado)*
 - No prestar a socios `Inhabilitados`. *(enunciado)*
 - No prestar ejemplares que no pertenezcan a la **sede origen** del préstamo. *(enunciado)*

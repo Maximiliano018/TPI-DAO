@@ -14,15 +14,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from app.dtos.response.autoria import autor_visible
 from app.dtos.response.sede_response import UsuarioRefResponse
 from app.models.paginacion import Pagina
 from app.models.sede import Cambio
 from app.models.socio import EventoSocio, SituacionSocio, Socio
 from app.models.usuario import Permiso, Usuario
-
-AUTOR_SISTEMA = "Sistema"
-AUTOR_PERSONAL = "Personal de la biblioteca"
-AUTOR_PROPIO = "Vos"
 
 
 class SocioResumenResponse(BaseModel):
@@ -279,12 +276,7 @@ class EventoSocioResponse(BaseModel):
     def desde(cls, evento: EventoSocio, lector: Usuario) -> "EventoSocioResponse":
         assert evento.id is not None
         personal = lector.puede(Permiso.SOCIO_LEER)
-        if evento.usuario is None:
-            autor = AUTOR_SISTEMA
-        elif personal:
-            autor = evento.usuario.nombre
-        else:
-            autor = AUTOR_PROPIO if evento.usuario.id == lector.id else AUTOR_PERSONAL
+        autor = autor_visible(evento.usuario, lector, personal=personal)
         return cls(
             id=evento.id,
             tipo_evento=evento.tipo.value,

@@ -92,10 +92,13 @@ describe('Préstamos', () => {
     expect(await within(dialogo).findByText(/todavía no llegó/)).toBeVisible();
   });
 
-  it('registrar un préstamo: socio, libro y ejemplar de otra sede (entre sedes)', async () => {
+  it('registrar un préstamo: socio, libro buscado en el servidor y ejemplar de otra sede', async () => {
     sesionDe(BIBLIOTECARIO);
     responder('get', '/socios', pagina([socio()]));
-    responder('get', '/libros', pagina([libro()]));
+    // El libro se busca en todo el catálogo: sin texto no hay resultados (antes solo 100 libros).
+    const busquedas = registrar('get', '/libros', ({ url }) =>
+      pagina(url.searchParams.get('q') === 'Rayu' ? [libro()] : []),
+    );
     responder(
       'get',
       '/ejemplares',
@@ -122,6 +125,7 @@ describe('Préstamos', () => {
     const combo = await screen.findByRole('combobox', { name: /Libro/ });
     await user.type(combo, 'Rayu');
     await user.click(await screen.findByRole('option', { name: /Rayuela/ }));
+    expect(busquedas.at(-1).url.searchParams.get('q')).toBe('Rayu');
     const tabla = await screen.findByRole('table', { name: 'Ejemplares disponibles' });
     expect(within(tabla).getByText('Entre sedes')).toBeVisible();
     await user.click(within(tabla).getByRole('button', { name: 'Elegir' }));

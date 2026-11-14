@@ -8,10 +8,10 @@ from app.services.remito_service import LineaNueva
 
 
 class PrestamoCrearRequest(BaseModel):
-    """Solicitud de préstamo. El tipo (local o entre sedes) se deduce de las sedes.
+    """Préstamo registrado en mostrador. El tipo (local o entre sedes) se deduce de las sedes.
 
-    ``sede_destino_id`` es la sede del bibliotecario (puede omitirse); ``sede_origen_id`` es la
-    del ejemplar (si se indica, se controla que el ejemplar sea de esa sede).
+    ``sede_destino_id`` es la sede del bibliotecario (puede omitirse); el origen es la sede
+    donde está el ejemplar.
     """
 
     model_config = ConfigDict(
@@ -21,7 +21,26 @@ class PrestamoCrearRequest(BaseModel):
     socio_id: int
     ejemplar_id: int
     sede_destino_id: int | None = None
-    sede_origen_id: int | None = None
+
+
+class SolicitudPrestamoRequest(BaseModel):
+    """El socio pide un libro para sí: el sistema elige el tipo y el ejemplar.
+
+    ``sede_destino_id``: dónde lo retira (por defecto, su sede de alta). ``socio_id`` es
+    opcional y, si viene, tiene que ser el propio. ``sede_origen_esperada_id`` es la sede de la
+    propuesta que vio: si cambió, se rechaza con la nueva.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {"libro_id": 12, "sede_destino_id": 2, "sede_origen_esperada_id": 1}
+        }
+    )
+
+    libro_id: int
+    sede_destino_id: int | None = None
+    socio_id: int | None = None
+    sede_origen_esperada_id: int | None = None
 
 
 class CancelarRequest(BaseModel):

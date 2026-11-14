@@ -21,6 +21,7 @@ import { mensajeDeError } from '../../../utils/errores.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
+import SolicitarPrestamoDialog from '../../prestamos/components/SolicitarPrestamoDialog.jsx';
 import ReservarDialog from '../../reservas/components/ReservarDialog.jsx';
 import EstadoEjemplarBadge from '../components/EstadoEjemplarBadge.jsx';
 import {
@@ -144,6 +145,7 @@ export default function LibroDetallePage() {
   const { data: libro, isPending, error, refetch } = useLibro(id);
   const [eliminando, setEliminando] = useState(false);
   const [reservando, setReservando] = useState(false);
+  const [pidiendo, setPidiendo] = useState(false);
   useTituloDePagina(libro?.titulo ?? 'Libro');
   const migas = [{ texto: 'Catálogo', to: '/catalogo' }, { texto: libro?.titulo ?? 'Libro' }];
 
@@ -167,6 +169,9 @@ export default function LibroDetallePage() {
         migas={<Breadcrumb items={migas} />}
         acciones={
           <>
+            {tienePermiso(PERMISOS.PRESTAMO_SOLICITAR_PROPIO) && (
+              <Button onClick={() => setPidiendo(true)}>Pedir préstamo</Button>
+            )}
             {(tienePermiso(PERMISOS.RESERVA_PROPIA) ||
               tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
               <Button variante="secondary" onClick={() => setReservando(true)}>
@@ -218,6 +223,16 @@ export default function LibroDetallePage() {
       </div>
       {eliminando && <EliminarLibroDialog libro={libro} onCerrar={() => setEliminando(false)} />}
       {reservando && <ReservarDialog libro={libro} onCerrar={() => setReservando(false)} />}
+      {pidiendo && (
+        <SolicitarPrestamoDialog
+          libro={libro}
+          onCerrar={() => setPidiendo(false)}
+          onReservar={() => {
+            setPidiendo(false);
+            setReservando(true);
+          }}
+        />
+      )}
     </>
   );
 }

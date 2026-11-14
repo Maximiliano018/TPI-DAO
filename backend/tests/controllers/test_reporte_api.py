@@ -56,11 +56,17 @@ def _remito_sql(sesion, m, numero, estado, destino="b", despacho=True):
 
 
 def _prestamo_sql(sesion, m, numero, ejemplar, estado, tipo="INTERBIBLIOTECARIO", destino="b"):
+    # La base exige fechas coherentes con el estado (ck_prestamo_fechas_segun_estado).
+    entregado = estado in ("ACTIVO", "VENCIDO", "DEVUELTO")
     sesion.execute(
         text(
             "INSERT INTO prestamo (numero, socio_id, ejemplar_id, tipo, sede_origen_id, "
-            "sede_destino_id, estado, fecha_solicitud, renovaciones) "
-            "VALUES (:n, :s, :e, :t, :o, :d, :estado, now(), 0)"
+            "sede_destino_id, estado, fecha_solicitud, renovaciones, fecha_inicio, "
+            "fecha_vencimiento, fecha_devolucion) "
+            "VALUES (:n, :s, :e, :t, :o, :d, :estado, now(), 0, "
+            "CASE WHEN :entregado THEN current_date END, "
+            "CASE WHEN :entregado THEN current_date + 14 END, "
+            "CASE WHEN :devuelto THEN now() END)"
         ),
         {
             "n": numero,
@@ -70,6 +76,8 @@ def _prestamo_sql(sesion, m, numero, ejemplar, estado, tipo="INTERBIBLIOTECARIO"
             "o": m["a"]["id"],
             "d": m[destino if tipo == "INTERBIBLIOTECARIO" else "a"]["id"],
             "estado": estado,
+            "entregado": entregado,
+            "devuelto": estado == "DEVUELTO",
         },
     )
 

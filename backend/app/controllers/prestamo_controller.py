@@ -14,13 +14,17 @@ from app.dtos.request.prestamo_request import (
     CancelarRequest,
     ParametroRequest,
     PrestamoCrearRequest,
+    SolicitudPrestamoRequest,
 )
 from app.dtos.response.prestamo_response import (
     PaginaPrestamosResponse,
     ParametroResponse,
     PrestamoDetalleResponse,
     PrestamoResponse,
+    PropuestaPrestamoResponse,
     TareaResponse,
+    detalle_a_response,
+    prestamo_a_response,
 )
 from app.models.prestamo import TipoPrestamo
 from app.models.states.prestamo import EstadoPrestamoEnum
@@ -32,6 +36,7 @@ router = APIRouter(prefix="/api/v1", tags=["Préstamos"])
 
 Servicio = Annotated[PrestamoService, Depends(get_prestamo_service)]
 Bibliotecario = Annotated[Usuario, Depends(requiere(Permiso.PRESTAMO_REGISTRAR))]
+SocioSolicitante = Annotated[Usuario, Depends(requiere(Permiso.PRESTAMO_SOLICITAR_PROPIO))]
 Autenticado = Annotated[Usuario, Depends(usuario_actual)]
 Administrador = Annotated[Usuario, Depends(requiere(Permiso.PARAMETROS_ADMINISTRAR))]
 
@@ -64,11 +69,75 @@ def registrar_prestamo(
 
     Local si el ejemplar es de la sede del bibliotecario; interbibliotecario si es de otra.
     """
-    prestamo = servicio.registrar(
-        actor, datos.socio_id, datos.ejemplar_id, datos.sede_destino_id, datos.sede_origen_id
+    prestamo = servicio.registrar(actor, datos.socio_id, datos.ejemplar_id, datos.sede_destino_id)
+    response.headers["Location"] = f"/api/v1/prestamos/{prestamo.id}"
+    return prestamo_a_response(prestamo, actor)
+
+
+_ERRORES_SOLICITUD = {
+    401: _401,
+    403: {"description": "Sin `PRESTAMO_SOLICITAR_PROPIO` o a nombre de otro socio (`FORBIDDEN`)"},
+    404: {"description": "El libro o la sede no existen"},
+    409: {
+        "description": "`SOCIO_INHABILITADO`, `SOCIO_EN_BAJA`, `LIMITE_PRESTAMOS`, "
+        "`LIBRO_REPETIDO`, `SEDE_EN_BAJA` o `SIN_EJEMPLARES_DISPONIBLES` (se ofrece reservar)"
+    },
+}
+
+
+@router.get(
+    "/prestamos/solicitudes/propuesta",
+    response_model=PropuestaPrestamoResponse,
+    summary="Propuesta de préstamo para el socio",
+    responses=_ERRORES_SOLICITUD,
+)
+def proponer_prestamo(
+    servicio: Servicio,
+    actor: SocioSolicitante,
+    libro_id: int,
+    sede_destino_id: int | None = None,
+    socio_id: int | None = None,
+) -> PropuestaPrestamoResponse:
+    """Qué préstamo se haría si el socio pide el libro ahora: tipo, sedes y plazos.
+
+    No aparta nada. Sin `sede_destino_id`, se propone la sede de alta del socio. `socio_id`,
+    si viene, tiene que ser el propio.
+    """
+    return PropuestaPrestamoResponse.desde(
+        servicio.proponer(actor, libro_id, sede_destino_id, socio_id)
+    )
+
+
+@router.post(
+    "/prestamos/solicitudes",
+    response_model=PrestamoResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="El socio solicita un préstamo para sí",
+    responses={
+        **_ERRORES_SOLICITUD,
+        409: {
+            "description": _ERRORES_SOLICITUD[409]["description"]
+            + " o `DISPONIBILIDAD_CAMBIADA` (la propuesta ya no vale)"
+        },
+    },
+)
+def solicitar_prestamo(
+    datos: SolicitudPrestamoRequest, response: Response, servicio: Servicio, actor: SocioSolicitante
+) -> PrestamoResponse:
+    """Autogestión: el socio pide un libro y el sistema elige el tipo y el ejemplar.
+
+    El socio es siempre el de la sesión. Local si hay disponibles en la sede destino (queda con
+    plazo de retiro); si no, interbibliotecario desde la sede con más disponibles.
+    """
+    prestamo = servicio.solicitar(
+        actor,
+        datos.libro_id,
+        datos.sede_destino_id,
+        datos.socio_id,
+        datos.sede_origen_esperada_id,
     )
     response.headers["Location"] = f"/api/v1/prestamos/{prestamo.id}"
-    return PrestamoResponse.desde(prestamo)
+    return prestamo_a_response(prestamo, actor)
 
 
 @router.get(
@@ -89,7 +158,7 @@ def listar_prestamos(
 ) -> PaginaPrestamosResponse:
     """El administrador ve todos; el bibliotecario, los de su sede; el socio, los propios."""
     return PaginaPrestamosResponse.desde(
-        servicio.listar(actor, estado, tipo, socio_id, numero, page, size)
+        servicio.listar(actor, estado, tipo, socio_id, numero, page, size), actor
     )
 
 
@@ -102,7 +171,8 @@ def listar_prestamos(
 def obtener_prestamo(
     prestamo_id: int, servicio: Servicio, actor: Autenticado
 ) -> PrestamoDetalleResponse:
-    return PrestamoDetalleResponse.desde_detalle(servicio.detalle(actor, prestamo_id))
+    """El socio ve sus préstamos sin la identidad del personal."""
+    return detalle_a_response(servicio.detalle(actor, prestamo_id), actor)
 
 
 @router.post(
@@ -120,7 +190,7 @@ def entregar_prestamo(
     prestamo_id: int, servicio: Servicio, actor: Bibliotecario
 ) -> PrestamoResponse:
     """Empieza el plazo: 14 días el local, 21 el interbibliotecario (desde esta entrega)."""
-    return PrestamoResponse.desde(servicio.entregar(actor, prestamo_id))
+    return prestamo_a_response(servicio.entregar(actor, prestamo_id), actor)
 
 
 @router.post(
@@ -138,7 +208,7 @@ def renovar_prestamo(
     prestamo_id: int, servicio: Servicio, actor: Bibliotecario
 ) -> PrestamoResponse:
     """Suma un plazo si no venció, no hay reservas del libro y no llegó al máximo."""
-    return PrestamoResponse.desde(servicio.renovar(actor, prestamo_id))
+    return prestamo_a_response(servicio.renovar(actor, prestamo_id), actor)
 
 
 @router.post(
@@ -148,10 +218,27 @@ def renovar_prestamo(
     responses={401: _401, 403: _403, 404: _404, 409: _409_TRANSICION},
 )
 def cancelar_prestamo(
-    prestamo_id: int, datos: CancelarRequest, servicio: Servicio, actor: Bibliotecario
+    prestamo_id: int, datos: CancelarRequest, servicio: Servicio, actor: Autenticado
 ) -> PrestamoResponse:
-    """Libera el ejemplar; si ya había llegado a destino, genera el remito de retorno."""
-    return PrestamoResponse.desde(servicio.cancelar(actor, prestamo_id, datos.motivo))
+    """Libera el ejemplar; si ya había llegado a destino, genera el remito de retorno.
+
+    El socio puede cancelar sus propios préstamos mientras están `SOLICITADO`.
+    """
+    return prestamo_a_response(servicio.cancelar(actor, prestamo_id, datos.motivo), actor)
+
+
+@router.post(
+    "/admin/tareas/vencer-retiros",
+    response_model=TareaResponse,
+    summary="Cancelar préstamos no retirados a tiempo",
+    tags=["Administración"],
+    responses={401: _401, 403: _403},
+)
+def vencer_retiros(
+    servicio: Servicio, actor: Annotated[Usuario, Depends(requiere(Permiso.TAREAS_EJECUTAR))]
+) -> TareaResponse:
+    """Cancela los préstamos cuyo plazo de retiro pasó. También corre sola todos los días."""
+    return TareaResponse(tarea="vencer-retiros", cambios=servicio.vencer_retiros(actor))
 
 
 @router.post(

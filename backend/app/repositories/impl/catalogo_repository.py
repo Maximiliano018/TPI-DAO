@@ -453,6 +453,36 @@ class SqlAlchemyEjemplarRepository:
         )
         return self._sesion.scalar(consulta) or 0
 
+    def disponibles_por_sede(self, libro_id: int) -> dict[int, int]:
+        consulta = (
+            select(EjemplarORM.sede_actual_id, func.count(EjemplarORM.id))
+            .join(SedeORM, SedeORM.id == EjemplarORM.sede_actual_id)
+            .where(
+                EjemplarORM.libro_id == libro_id,
+                EjemplarORM.estado == EstadoEjemplarEnum.DISPONIBLE.value,
+                EjemplarORM.sede_actual_id == EjemplarORM.sede_propietaria_id,
+                SedeORM.estado == "ACTIVA",
+            )
+            .group_by(EjemplarORM.sede_actual_id)
+        )
+        return {sede_id: cantidad for sede_id, cantidad in self._sesion.execute(consulta).all()}
+
+    def tomar_disponible(self, libro_id: int, sede_id: int) -> Ejemplar | None:
+        orm = self._sesion.scalars(
+            select(EjemplarORM)
+            .where(
+                EjemplarORM.libro_id == libro_id,
+                EjemplarORM.sede_actual_id == sede_id,
+                EjemplarORM.sede_propietaria_id == sede_id,
+                EjemplarORM.estado == EstadoEjemplarEnum.DISPONIBLE.value,
+            )
+            .order_by(EjemplarORM.id)
+            .limit(1)
+            .with_for_update(of=EjemplarORM, skip_locked=True)
+            .execution_options(populate_existing=True)
+        ).first()
+        return _ejemplar_a_dominio(orm) if orm else None
+
     def activos_de_libro(self, libro_id: int) -> int:
         consulta = (
             select(func.count(EjemplarORM.id))

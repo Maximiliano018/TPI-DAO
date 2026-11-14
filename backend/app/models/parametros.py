@@ -20,6 +20,7 @@ class Parametros:
     prestamos_maximos_por_socio: int = 3
     reservas_maximas_por_socio: int = 3
     vigencia_retiro_reserva_dias: int = 3
+    vigencia_retiro_prestamo_dias: int = 3
     multa_por_dia: Decimal = Decimal("200.00")
     transito_maximo_dias: int = 7
 

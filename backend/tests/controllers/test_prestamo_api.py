@@ -193,12 +193,25 @@ def test_un_socio_inhabilitado_no_recibe_prestamos(cliente, mundo):
 
 
 @pytest.mark.ca("CA-PRE-03")
-def test_el_ejemplar_tiene_que_ser_de_la_sede_origen(cliente, mundo):
-    r = _prestar(
-        cliente, mundo["h_b"], mundo["lucia"], mundo["ej_a"][0], sede_origen_id=mundo["b"]["id"]
+def test_el_ejemplar_tiene_que_ser_de_la_sede_origen(cliente, mundo, sesion):
+    # El origen es la sede donde está el ejemplar: si está en B pero es de A, no se presta.
+    ej = mundo["ej_a"][0]
+    sesion.execute(
+        text("UPDATE ejemplar SET sede_actual_id = :b WHERE id = :id"),
+        {"b": mundo["b"]["id"], "id": ej["id"]},
     )
 
+    r = _prestar(cliente, mundo["h_b"], mundo["lucia"], ej)
+
     _error(r, 422, "EJEMPLAR_FUERA_DE_SEDE_ORIGEN")
+
+
+def test_la_solicitud_de_mostrador_ya_no_acepta_sede_origen(cliente, mundo):
+    """El origen sale del ejemplar; el campo ``sede_origen_id`` se quitó (se ignora)."""
+    r = _prestar(cliente, mundo["h_b"], mundo["lucia"], mundo["ej_a"][0], sede_origen_id=999)
+
+    assert r.status_code == 201, r.json()
+    assert r.json()["sede_origen_id"] == mundo["a"]["id"]
 
 
 @pytest.mark.ca("CA-PRE-06")

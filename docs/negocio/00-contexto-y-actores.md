@@ -14,7 +14,7 @@ El enunciado distingue dos tipos de usuarios; el personal se divide en dos roles
 |-------|-------------|--------|
 | **Administrador** (personal de administración) | Gestiona la red: sedes, catálogo global, parámetros, usuarios del personal y reportes globales | Definido |
 | **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Definido |
-| **Socio** | Consulta disponibilidad, reserva, ve sus préstamos y multas | Definido |
+| **Socio** | Consulta disponibilidad, pide préstamos para sí, reserva, ve sus préstamos y multas | Definido |
 
 El bibliotecario siempre está asociado a **una sede activa**. El administrador no pertenece a ninguna y ve toda la red. El socio **no está vinculado a ninguna sede**: opera en toda la red.
 
@@ -35,7 +35,7 @@ La sesión dura 60 minutos. Si el usuario se da de baja, cambia de sede o de rol
 | Socios | A | A (alta/modificación), V | V (solo sus propios datos) |
 | Libros (catálogo) | A | V | V |
 | Ejemplares | A | A (de su sede) | V (disponibilidad) |
-| Préstamos | V (todos) | R (su sede) | V (los propios) |
+| Préstamos | V (todos) | R (en nombre del socio, en su sede) | R (para sí, por libro), V (los propios) |
 | Remitos | V (todos) | R (su sede) | V (los de sus préstamos) |
 | Reservas | V (todas) | R (en nombre del socio), V (su sede) | R (propias) |
 | Devoluciones | V | R (su sede) | - |
@@ -55,6 +55,7 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Máximo de préstamos simultáneos por socio | 3 |
 | Multa por día de atraso | $200 por día de atraso, monto fijo; sin tope por defecto |
 | Vigencia de una reserva cumplida (retiro) | 3 días corridos |
+| Plazo para retirar un préstamo solicitado | 3 días corridos (el local, desde la solicitud; el interbibliotecario, desde la llegada a la sede destino) |
 | Días de atraso que inhabilitan al socio | el socio queda inhabilitado mientras tenga un préstamo vencido o una multa impaga |
 
 ## Principios transversales

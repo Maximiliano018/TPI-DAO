@@ -16,6 +16,7 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 | RF-ACC-08 | El sistema debe resolver los permisos de cada usuario a partir de su rol en el servidor, en cada solicitud, y aplicar el cambio de rol, sede o estado del usuario de inmediato, sin esperar a que venza la sesión. | Obligatorio |
 | RF-ACC-09 | El sistema debe asignar o reasignar un bibliotecario solo a una sede `Activa`, y permitir desvincularlo dándolo de baja. | Obligatorio |
 | RF-ACC-10 | El sistema debe cerrar la sesión por vencimiento del token y rechazar tokens inválidos, vencidos o de usuarios dados de baja. | Obligatorio |
+| RF-ACC-11 | Cada operación sobre préstamos se habilita por permiso, no por rol. El bibliotecario (`PRESTAMO_REGISTRAR`) registra préstamos en nombre de cualquier socio en su sede; el socio (`PRESTAMO_SOLICITAR_PROPIO`) los pide solo para sí: el socio sale de su sesión y un pedido a nombre de otro se rechaza. El administrador no registra préstamos. | Obligatorio |
 
 ## Casos de uso
 
@@ -73,3 +74,6 @@ Roles: **Administrador**, **Bibliotecario** (asociado a una sede) y **Socio**. M
 | CA-ACC-12 | RF-ACC-10 | **Dado** un usuario dado de baja con un token todavía vigente, **cuando** hace una solicitud, **entonces** se rechaza. |
 | CA-ACC-13 | RF-ACC-03 | **Dado** un bibliotecario, **cuando** intenta administrar usuarios del personal, **entonces** el sistema rechaza la operación por falta de permiso. |
 | CA-ACC-14 | RF-ACC-06 | **Dado** un administrador, **cuando** intenta darse de baja a sí mismo, **entonces** el sistema lo rechaza. |
+| CA-ACC-15 | RF-ACC-11 | **Dado** un socio, **cuando** pide un préstamo a nombre de otro socio (o usa el registro de mostrador), **entonces** el sistema lo rechaza por falta de permiso y no crea el préstamo. |
+| CA-ACC-16 | RF-ACC-11 | **Dado** un bibliotecario o un administrador, **cuando** usa la solicitud propia del socio, **entonces** el sistema lo rechaza por falta de permiso. |
+| CA-ACC-17 | RF-ACC-11 | **Dado** un administrador, **cuando** intenta registrar un préstamo, **entonces** el sistema lo rechaza por falta de permiso. |
