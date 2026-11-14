@@ -6,7 +6,14 @@ import pytest
 from sqlalchemy import text
 
 from tests.controllers.test_devolucion_api import _devolver, _entregado
-from tests.controllers.test_prestamo_api import HOY, _prestar, mundo  # noqa: F401
+from tests.controllers.test_prestamo_api import (  # noqa: F401
+    HOY,
+    _avanzar,
+    _prestar,
+    _recibir,
+    _remito,
+    mundo,
+)
 from tests.controllers.test_sede_api import _error
 
 API = "/api/v1"
@@ -449,6 +456,28 @@ def test_sin_ejemplares_en_la_red_las_reservas_pendientes_se_cancelan(cliente, m
         "Sistema",
         "El libro ya no tiene ejemplares en la red",
     )
+
+
+@pytest.mark.ca("CA-RES-21")
+def test_el_ultimo_ejemplar_recibido_destruido_cancela_las_reservas(cliente, mundo):  # noqa: F811
+    ej = mundo["ej_a"][4]  # único ejemplar del libro 4, trasladado de A a B
+    remito = _remito(
+        cliente, mundo["h_a"], mundo["b"], [{"ejemplar_id": ej["id"]}], motivo="TRASLADO"
+    ).json()
+    _avanzar(cliente, mundo["h_a"], remito, "empaquetar", "despachar")
+    reserva = _reservar(cliente, mundo["h_lucia"], mundo, libro=4).json()  # en tránsito
+
+    r = _recibir(
+        cliente,
+        mundo["h_b"],
+        remito,
+        (ej["id"], "DANADO", {"destruido": True, "observacion": "Mojado por la lluvia"}),
+    )
+
+    assert r.status_code == 200, r.json()
+    cancelada = _reserva(cliente, mundo, reserva)
+    assert cancelada["estado"] == "CANCELADA"
+    assert cancelada["historial"][-1]["autor"] == "Sistema"
 
 
 def _reserva(cliente, m, reserva):
