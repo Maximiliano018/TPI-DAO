@@ -67,7 +67,8 @@ function SelectorDeLibro({ valor, onCambiar, error, libroInicial }) {
         onConsulta={setConsulta}
         valor={valor ?? ''}
         onCambiar={(id) => {
-          setElegido(encontrados.find((lb) => lb.id === id) ?? actual);
+          // Al borrar el campo no queda ningún libro elegido entre las opciones.
+          setElegido(id === '' ? null : (encontrados.find((lb) => lb.id === id) ?? actual));
           onCambiar(id === '' ? undefined : id);
         }}
         ayuda="Busque por título, autor o ISBN."
