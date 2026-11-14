@@ -34,6 +34,49 @@ import {
   useRepararEjemplar,
 } from '../hooks/useCatalogo.js';
 
+const TITULOS_DE_MOVIMIENTO = {
+  ALTA: 'Alta en el catálogo',
+  TRASLADO: 'Traslado a otra sede',
+  CAMBIO_DE_UBICACION: 'Cambio de ubicación',
+  MODIFICACION: 'Modificación de datos',
+};
+
+const CAMPOS_DEL_EJEMPLAR = {
+  estado_fisico: 'Estado físico',
+  observaciones: 'Observaciones',
+  sede_actual: 'Está en',
+  sede_propietaria: 'Sede propietaria',
+};
+
+function valorDeCambio(campo, valor) {
+  if (valor === null || valor === undefined || valor === '') return '—';
+  return campo === 'estado_fisico' ? (ESTADOS_FISICOS[valor] ?? valor) : String(valor);
+}
+
+/** Un movimiento del historial: el cambio de disponibilidad, de sede o de datos. */
+function tituloDeMovimiento(m) {
+  if (m.tipo === 'CAMBIO_DE_ESTADO') return estadoDe('ejemplar', m.estado_nuevo).texto;
+  return TITULOS_DE_MOVIMIENTO[m.tipo] ?? estadoDe('ejemplar', m.estado_nuevo).texto;
+}
+
+function ContenidoDeMovimiento({ movimiento }) {
+  return (
+    <>
+      {movimiento.observacion && <p style={{ margin: 0 }}>{movimiento.observacion}</p>}
+      {movimiento.cambios.length > 0 && (
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          {movimiento.cambios.map((c) => (
+            <li key={c.campo}>
+              {CAMPOS_DEL_EJEMPLAR[c.campo] ?? c.campo}: {valorDeCambio(c.campo, c.antes)} →{' '}
+              {valorDeCambio(c.campo, c.despues)}
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
 function EditarDialog({ ejemplar, onCerrar }) {
   const modificar = useModificarEjemplar();
   const { mostrar } = useToast();
@@ -69,7 +112,7 @@ function EditarDialog({ ejemplar, onCerrar }) {
   return (
     <ConfirmDialog
       titulo={`Editar ${ejemplar.codigo_inventario}`}
-      descripcion="La disponibilidad no se edita: la cambian los préstamos, envíos y devoluciones."
+      descripcion="La disponibilidad no se edita: la cambian los préstamos, envíos y devoluciones. El cambio queda en el historial."
       textoConfirmar="Guardar"
       procesando={modificar.isPending}
       onConfirmar={confirmar}
@@ -169,7 +212,7 @@ function RepararDialog({ ejemplar, onCerrar }) {
   );
 }
 
-/** Ficha de un ejemplar con su historial de estados (solo personal). */
+/** Ficha de un ejemplar con su historial: estados, estado físico y sedes (solo personal). */
 export default function EjemplarDetallePage() {
   const { id } = useParams();
   const { usuario, tienePermiso } = useSesion();
@@ -252,9 +295,9 @@ export default function EjemplarDetallePage() {
               etiqueta="Historial del ejemplar"
               items={[...ejemplar.historial].reverse().map((m, i) => ({
                 id: i,
-                titulo: estadoDe('ejemplar', m.estado_nuevo).texto,
+                titulo: tituloDeMovimiento(m),
                 meta: `${m.usuario?.nombre ?? 'Sistema'} · ${formatearFechaHora(m.fecha_hora)}`,
-                contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
+                contenido: <ContenidoDeMovimiento movimiento={m} />,
               }))}
             />
           </Card>

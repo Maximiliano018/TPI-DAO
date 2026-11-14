@@ -162,7 +162,8 @@ def cargar_actividad(sesion: Session) -> None:
     p_cien = d.prestar(cen, carla, "CEN-384567-1")
     d.prestamos.entregar(cen, p_cien)
 
-    # Julián (Río Cuarto) pide «Ficciones» de Central: llega mojado y el préstamo se cancela.
+    # Julián (Río Cuarto) pide «Ficciones» de Central: llega mojado, el préstamo se cancela y
+    # el ejemplar espera en Río Cuarto el remito de retorno a Central, que es quien lo revisa.
     d.reloj.hace(30)
     p_ficciones = d.prestar(rc, julian, "CEN-801233-1")
     ida_ficciones = d.enviar(cen, "SUR_RC", MotivoRemito.ENVIO, [("CEN-801233-1", p_ficciones)])

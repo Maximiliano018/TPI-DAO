@@ -475,11 +475,96 @@ def test_recepcion_con_dano_y_destruccion_registra_incidencias(cliente, mundo):
 
     assert r.json()["estado"] == "DESTRUIDO"
     assert sorted(i["tipo"] for i in r.json()["incidencias"]) == ["DANIO", "DESTRUCCION"]
-    assert _estado_ejemplar(cliente, mundo, ej1)["estado"] == "EN_REVISION"
+    # El dañado no queda en revisión en B (no es suya): espera el retorno a A.
+    assert _estado_ejemplar(cliente, mundo, ej1)["estado"] == "APARTADO"
     assert _estado_ejemplar(cliente, mundo, ej2)["estado"] == "BAJA"
     for p in (p1, p2):
         estado = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_b"]).json()["estado"]
         assert estado == "CANCELADO"
+
+
+@pytest.mark.ca("CA-REM-20", "CA-CAT-14")
+def test_un_envio_danado_vuelve_a_su_sede_y_alli_se_revisa(cliente, mundo):
+    ej = mundo["ej_a"][0]
+    p = _prestar(cliente, mundo["h_b"], mundo["lucia"], ej).json()
+    ida = _remito(
+        cliente, mundo["h_a"], mundo["b"], [{"ejemplar_id": ej["id"], "prestamo_id": p["id"]}]
+    ).json()
+    _avanzar(cliente, mundo["h_a"], ida, "empaquetar", "despachar")
+    _recibir(cliente, mundo["h_b"], ida, (ej["id"], "DANADO", {"observacion": "Tapa rota"}))
+
+    en_b = _estado_ejemplar(cliente, mundo, ej)
+    assert (en_b["estado"], en_b["estado_fisico"], en_b["sede_actual_id"]) == (
+        "APARTADO",
+        "DANADO",
+        mundo["b"]["id"],
+    )
+    prestamo = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_b"]).json()
+    assert prestamo["estado"] == "CANCELADO"
+    assert [(r["motivo"], r["estado"]) for r in prestamo["remitos"]] == [
+        ("ENVIO", "DANADO"),
+        ("RETORNO", "GENERADO"),
+    ]
+    vuelta = cliente.get(
+        f"{API}/remitos/{prestamo['remitos'][1]['id']}", headers=mundo["h_b"]
+    ).json()
+    assert (vuelta["sede_origen_id"], vuelta["sede_destino_id"]) == (
+        mundo["b"]["id"],
+        mundo["a"]["id"],
+    )
+
+    _avanzar(cliente, mundo["h_b"], vuelta, "empaquetar", "despachar")
+    r = _recibir(
+        cliente,
+        mundo["h_a"],
+        vuelta,
+        (ej["id"], "DANADO", {"observacion": "Sigue con la tapa rota"}),
+    )
+    assert r.json()["incidencias"] == []  # el daño ya se registró en el envío
+    en_a = _estado_ejemplar(cliente, mundo, ej)
+    assert (en_a["estado"], en_a["sede_actual_id"]) == ("EN_REVISION", mundo["a"]["id"])
+
+    reparado = cliente.post(
+        f"{API}/ejemplares/{ej['id']}/reparado",
+        json={"version": en_a["version"]},
+        headers=mundo["h_a"],
+    ).json()
+    assert (reparado["estado"], reparado["sede_actual_id"]) == ("DISPONIBLE", mundo["a"]["id"])
+
+    llegadas = [m for m in en_a["historial"] if m["tipo"] == "CAMBIO_DE_UBICACION"]
+    nombre_a, nombre_b = mundo["a"]["nombre"], mundo["b"]["nombre"]
+    assert [m["cambios"] for m in llegadas] == [
+        [
+            {"campo": "sede_actual", "antes": nombre_a, "despues": nombre_b},
+            {"campo": "estado_fisico", "antes": "BUENO", "despues": "DANADO"},
+        ],
+        [{"campo": "sede_actual", "antes": nombre_b, "despues": nombre_a}],
+    ]
+
+
+@pytest.mark.ca("CA-REM-21", "CA-CAT-14")
+def test_un_traslado_danado_queda_en_revision_en_la_nueva_sede_propietaria(cliente, mundo):
+    ej = mundo["ej_a"][0]
+    remito = _remito(
+        cliente, mundo["h_a"], mundo["b"], [{"ejemplar_id": ej["id"]}], motivo="TRASLADO"
+    ).json()
+    _avanzar(cliente, mundo["h_a"], remito, "empaquetar", "despachar")
+
+    _recibir(cliente, mundo["h_b"], remito, (ej["id"], "DANADO", {"observacion": "Mojado"}))
+
+    e = _estado_ejemplar(cliente, mundo, ej)
+    assert (e["estado"], e["sede_propietaria_id"], e["sede_actual_id"]) == (
+        "EN_REVISION",
+        mundo["b"]["id"],
+        mundo["b"]["id"],
+    )
+    assert [m["tipo"] for m in e["historial"]][-2:] == ["TRASLADO", "CAMBIO_DE_ESTADO"]
+    reparado = cliente.post(
+        f"{API}/ejemplares/{ej['id']}/reparado",
+        json={"version": e["version"]},
+        headers=mundo["h_b"],
+    )
+    assert reparado.json()["estado"] == "DISPONIBLE"
 
 
 @pytest.mark.ca("CA-REM-16", "CA-REM-17")

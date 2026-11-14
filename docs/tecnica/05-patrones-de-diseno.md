@@ -57,7 +57,41 @@ class Empaquetado(EstadoRemito):
 
 **Alternativa.** Una tabla de transiciones permitidas (`dict`) con un enum. Es más corta, pero deja el comportamiento por estado repartido en condicionales; conviene solo si los estados no tienen lógica propia, que no es el caso del remito.
 
-### Por qué la sede no usa State
+### State en el ejemplar (módulo de catálogo)
+
+**Contexto del problema.** La disponibilidad del ejemplar cambia por cinco procesos distintos (préstamo, envío, reserva, devolución y baja), y cada estado admite operaciones diferentes. Por ejemplo, un ejemplar `Prestado` se puede devolver, pero no reservar; uno `En revisión` solo se repara o se da de baja. Sin State, cada servicio tendría que preguntar en qué estado está antes de actuar, y esas preguntas se repetirían en préstamos, remitos, reservas y devoluciones.
+
+**Roles.**
+
+| Rol | Clase | Archivo | Qué hace |
+|-----|-------|---------|----------|
+| **Contexto** | `Ejemplar` | `models/ejemplar.py` | Guarda su estado actual y expone las operaciones (`apartar`, `reservar`, `prestar`, `poner_en_transito`, `liberar`, `enviar_a_revision`, `reparar`, `registrar_baja`). Cada una delega en el estado (`_transicion`), lo reemplaza por el que este devuelve y registra el movimiento en el historial. |
+| **Estado abstracto** | `EstadoEjemplar` | `models/states/ejemplar.py` | Declara todas las operaciones; por defecto las rechaza con `TransicionInvalida`. También declara `validar_edicion`, que por defecto admite editar los datos. |
+| **Estados concretos** | `Disponible`, `Apartado`, `Reservado`, `EnTransito`, `Prestado`, `EnRevision`, `Baja` | `models/states/ejemplar.py` | Cada uno sobrescribe solo lo que admite y devuelve el estado siguiente: `Disponible.apartar()` devuelve `Apartado()`. `Baja` no admite ninguna transición y sobrescribe `validar_edicion` para rechazar. |
+| **Clientes** | `CatalogoService`, `PrestamoService`, `RemitoService`, `ReservaService`, `DevolucionService`, `ColaDeReservas` | `services/` | Piden la operación al ejemplar (`ejemplar.liberar(...)`) sin preguntar en qué estado está; si no corresponde, el estado la rechaza. |
+
+El repositorio convierte entre el valor guardado y la clase con `estado_ejemplar(nombre)`.
+
+**Una transición, paso a paso** (`Ejemplar._transicion`):
+
+```python
+def _transicion(self, operacion, actor, ahora, observacion, estado_fisico=None):
+    anterior = self.estado_nombre
+    self.estado = operacion()        # el estado decide: devuelve el siguiente o lanza TransicionInvalida
+    ...                              # recién si se aceptó, aplica el estado físico (p. ej. DANADO)
+    self._registrar(actor, ahora, observacion, cambios, anterior)   # movimiento del historial
+```
+
+Si el estado rechaza la operación, el ejemplar queda igual: no cambia ni el estado físico ni la versión, y no se registra ningún movimiento.
+
+**Cómo se aplica en el catálogo.**
+
+- La **baja manual** (`dar_de_baja`) agrega una regla de negocio por encima del State: solo desde `Disponible` o `En revisión`. Los demás estados también admiten la baja, pero solo como resultado de una incidencia (extravío o destrucción) que registra otro proceso.
+- **Editar el estado físico o las observaciones** no es una transición, pero el estado decide si se permite (`validar_edicion`): en `Baja` se rechaza.
+- **El historial** registra también los cambios que no son de disponibilidad (estado físico, sede donde está, sede propietaria) como movimientos con el mismo estado anterior y nuevo, y la lista de `cambios`. Así la trazabilidad del ejemplar queda completa en un único historial.
+
+El diagrama de estados y las reglas de cada transición están en [Máquinas de estado](03-maquinas-de-estado.md#ejemplar).
+
 
 La sede tiene un ciclo de vida que State no mejora:
 

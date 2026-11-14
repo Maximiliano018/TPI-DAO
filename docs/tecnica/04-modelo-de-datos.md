@@ -238,7 +238,7 @@ Los socios que ya existían antes de la migración `0010` empiezan su historial 
 |-------|----------------|---------------|
 | categoria | nombre | UNIQUE; catálogo cerrado que carga la migración `0005` |
 | autor | nombre, nombre_normalizado | `nombre_normalizado` UNIQUE: el mismo autor escrito con o sin tildes es uno solo |
-| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO` |
+| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural, version | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO`. `version` (INT, por defecto 1): concurrencia optimista al modificar |
 | libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id); se borra con el libro |
 
 Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que son historial).
@@ -269,6 +269,8 @@ Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 | fecha_hora | TIMESTAMPTZ, NOT NULL, por defecto `now()` |
 | usuario_id | FK usuario |
 | observacion | TEXT |
+
+`movimiento_ejemplar` tiene además `cambios` (JSONB, NOT NULL, por defecto `[]`): los cambios que no son de disponibilidad, como `[{campo, antes, despues}]`. Los campos posibles son `estado_fisico`, `observaciones`, `sede_actual` y `sede_propietaria`; las sedes se guardan por id y la API las devuelve con su nombre. Un movimiento que solo cambia esos datos repite el estado (`estado_anterior = estado_nuevo`). Se agregó en `0011`; los movimientos anteriores quedan con la lista vacía.
 
 Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito. Un disparador (`historial_solo_insercion`, creado en `0005`) rechaza cualquier `UPDATE` o `DELETE` sobre estas tablas.
 
@@ -420,6 +422,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
 | `0009_causas_de_inhabilitacion` | `socio.causa_prestamo_vencido` y `causa_multa_impaga` (todas las causas automáticas, no solo la principal), completadas con los préstamos y multas reales |
 | `0010_bajas_y_historial_de_socios` | `socio.tipo_baja` y la solicitud de reactivación; restricciones para conservar la inhabilitación administrativa en la baja; `historial_socio` con su disparador de solo inserción. Las bajas existentes quedan como `A_PEDIDO` |
+| `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
 
 ### Seed de demostración
 

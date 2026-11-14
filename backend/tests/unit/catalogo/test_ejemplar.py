@@ -10,7 +10,8 @@ from app.exceptions import (
     ErrorDeValidacion,
     TransicionInvalida,
 )
-from app.models.ejemplar import Ejemplar, EstadoFisico
+from app.models.ejemplar import Ejemplar, EstadoFisico, TipoMovimiento
+from app.models.sede import Cambio
 from app.models.states.ejemplar import EstadoEjemplarEnum as E
 from app.models.states.ejemplar import estado_ejemplar
 from app.models.usuario import UsuarioRef
@@ -181,15 +182,65 @@ def test_la_baja_exige_motivo():
         ejemplar().dar_de_baja("x", BIBLIO, AHORA)
 
 
-def test_modificar_cambia_solo_estado_fisico_y_observaciones():
+@pytest.mark.ca("CA-CAT-13")
+def test_modificar_cambia_estado_fisico_y_observaciones_y_queda_en_el_historial():
     e = ejemplar()
+    version = e.version
 
-    assert e.modificar(estado_fisico=EstadoFisico.BUENO, observaciones=None) is False
-    assert e.modificar(estado_fisico=EstadoFisico.REGULAR, observaciones="Lomo gastado") is True
+    assert (
+        e.modificar(estado_fisico=EstadoFisico.BUENO, observaciones=None, actor=BIBLIO, ahora=AHORA)
+        is False
+    )
+    assert e.movimientos_pendientes == [] and e.version == version
+    assert (
+        e.modificar(
+            estado_fisico=EstadoFisico.REGULAR,
+            observaciones="Lomo gastado",
+            actor=BIBLIO,
+            ahora=AHORA,
+        )
+        is True
+    )
     assert (e.estado_fisico, e.observaciones, e.estado_nombre) == (
         EstadoFisico.REGULAR,
         "Lomo gastado",
         E.DISPONIBLE,
+    )
+    [mov] = e.movimientos_pendientes
+    assert (mov.tipo, mov.estado_anterior, mov.estado_nuevo, mov.usuario) == (
+        TipoMovimiento.MODIFICACION,
+        E.DISPONIBLE,
+        E.DISPONIBLE,
+        BIBLIO,
+    )
+    assert mov.cambios == (
+        Cambio("estado_fisico", "BUENO", "REGULAR"),
+        Cambio("observaciones", None, "Lomo gastado"),
+    )
+    assert e.version == version + 1
+
+
+@pytest.mark.ca("CA-CAT-15")
+def test_un_ejemplar_dado_de_baja_no_se_edita():
+    e = ejemplar()
+    e.dar_de_baja("Destruido por agua", BIBLIO, AHORA)
+    e.movimientos_pendientes.clear()
+
+    with pytest.raises(TransicionInvalida, match="editar"):
+        e.modificar(estado_fisico=EstadoFisico.NUEVO, observaciones=None, actor=BIBLIO, ahora=AHORA)
+    assert e.estado_fisico == EstadoFisico.BUENO and e.movimientos_pendientes == []
+
+
+def test_un_cambio_de_estado_fisico_verificado_queda_en_el_historial():
+    e = ejemplar(E.PRESTADO)
+
+    e.registrar_estado_fisico(EstadoFisico.BUENO, BIBLIO, AHORA, "Devuelto")
+    assert e.movimientos_pendientes == []
+    e.registrar_estado_fisico(EstadoFisico.REGULAR, BIBLIO, AHORA, "Devuelto")
+    [mov] = e.movimientos_pendientes
+    assert (mov.tipo, mov.cambios) == (
+        TipoMovimiento.MODIFICACION,
+        (Cambio("estado_fisico", "BUENO", "REGULAR"),),
     )
 
 
@@ -201,11 +252,52 @@ def test_la_version_desactualizada_se_rechaza():
         e.validar_version(e.version - 1)
 
 
-def test_traslado_y_llegada_cambian_las_sedes():
-    e = ejemplar()
+@pytest.mark.ca("CA-CAT-14")
+def test_llegada_y_traslado_cambian_las_sedes_y_quedan_en_el_historial():
+    e = ejemplar(E.EN_TRANSITO)
 
-    e.llegar_a(2)
+    e.recibir_en(
+        2, EstadoFisico.BUENO, trasladar=False, actor=BIBLIO, ahora=AHORA, observacion="R-1"
+    )
     assert (e.sede_propietaria_id, e.sede_actual_id) == (1, 2)
-    e.trasladar_a(3)
+    [llegada] = e.movimientos_pendientes
+    assert (llegada.tipo, llegada.cambios) == (
+        TipoMovimiento.CAMBIO_DE_UBICACION,
+        (Cambio("sede_actual", 1, 2),),
+    )
+
+    e.movimientos_pendientes.clear()
+    e.recibir_en(
+        3, EstadoFisico.REGULAR, trasladar=True, actor=BIBLIO, ahora=AHORA, observacion="R-2"
+    )
     assert (e.sede_propietaria_id, e.sede_actual_id) == (3, 3)
     assert e.pertenece_a(3) and not e.pertenece_a(1)
+    [traslado] = e.movimientos_pendientes
+    assert traslado.tipo == TipoMovimiento.TRASLADO
+    assert traslado.cambios == (
+        Cambio("sede_actual", 2, 3),
+        Cambio("sede_propietaria", 1, 3),
+        Cambio("estado_fisico", "BUENO", "REGULAR"),
+    )
+
+
+def test_una_transicion_rechazada_no_cambia_el_estado_fisico():
+    e = ejemplar(E.DISPONIBLE)
+
+    with pytest.raises(TransicionInvalida):
+        e.enviar_a_revision(BIBLIO, AHORA, "Tapa rota")
+    assert e.estado_fisico == EstadoFisico.BUENO
+
+
+def test_revision_y_reparacion_registran_el_estado_fisico_en_el_movimiento():
+    e = ejemplar(E.PRESTADO)
+
+    e.enviar_a_revision(BIBLIO, AHORA, "Tapa rota")
+    e.reparar(BIBLIO, AHORA)
+
+    revision, reparacion = e.movimientos_pendientes
+    assert (revision.tipo, revision.cambios) == (
+        TipoMovimiento.CAMBIO_DE_ESTADO,
+        (Cambio("estado_fisico", "BUENO", "DANADO"),),
+    )
+    assert reparacion.cambios == (Cambio("estado_fisico", "DANADO", "REGULAR"),)

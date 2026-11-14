@@ -138,19 +138,26 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 |---------------|-------|-------------|----|
 | `GET /categorias` | A, B, S | Catálogo cerrado de categorías | RF-CAT-01 |
 | `POST /libros` | A | Alta de libro | RF-CAT-01, 02 |
-| `GET /libros` | A, B, S | Búsqueda; `?q=` (título, autor o ISBN), `?categoria_id=`, `?tipo_material=`; cada libro trae `ejemplares` y `disponibles` | RF-CAT-09 |
-| `GET /libros/{id}` | A, B, S | Detalle | RF-CAT-09 |
-| `PUT /libros/{id}` | A | Modificar | RF-CAT-01 |
-| `DELETE /libros/{id}` | A | Eliminar un libro sin ejemplares (`409 LIBRO_CON_EJEMPLARES` si tiene) | RF-CAT-08 |
+| `GET /libros` | A, B, S | Búsqueda; `?q=` (título, autor o ISBN: el ISBN se compara solo si la búsqueda tiene de 6 a 13 dígitos), `?categoria_id=`, `?tipo_material=`; cada libro trae `ejemplares` y `disponibles` | RF-CAT-09 |
+| `GET /libros/{id}` | A, B, S | Detalle (esquema por rol, ver abajo) | RF-CAT-09, 12 |
+| `PUT /libros/{id}` | A | Modificar (con `version`; `409 CONFLICTO_DE_VERSION` si otra persona lo cambió) | RF-CAT-01 |
+| `DELETE /libros/{id}` | A | Eliminar un libro sin ejemplares, ni siquiera dados de baja (`409 LIBRO_CON_EJEMPLARES` si tiene) | RF-CAT-08 |
 | `GET /libros/{id}/disponibilidad` | A, B, S | Disponibilidad por sede activa | RF-CAT-09, 10 |
 | `POST /ejemplares` | A, B | Alta de ejemplar (el bibliotecario, en su sede; el administrador indica `sede_id`) | RF-CAT-03, 04 |
 | `GET /ejemplares` | A, B | Listado; `?sede_id=` (propietaria o actual), `?estado=`, `?libro_id=`, `?codigo=` | RF-CAT-04 |
-| `GET /ejemplares/{id}` | A, B | Detalle e historial | RF-CAT-06 |
-| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones (con `version`) | RF-CAT-04 |
+| `GET /ejemplares/{id}` | A, B | Detalle e historial (estados, estado físico y sedes) | RF-CAT-06 |
+| `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones (con `version`); queda en el historial; un ejemplar en `BAJA` no se edita (`409 TRANSICION_INVALIDA`) | RF-CAT-04, 06 |
 | `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo (con `version`); solo `DISPONIBLE` o `EN_REVISION` | RF-CAT-07 |
 | `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible (con `version`) | RF-DEV-10 |
 
 El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propietaria es la suya (`403 FORBIDDEN`). La disponibilidad cuenta los ejemplares por **sede propietaria activa**, sin los dados de baja; `otros` agrupa los apartados y en revisión.
+
+**Libro por rol** (como sedes y socios, los campos que el rol no ve no existen en su esquema):
+
+| Esquema | Rol | Campos |
+|---------|-----|--------|
+| `LibroPublicoResponse` | bibliotecario y socio | `id`, `isbn`, `titulo`, `autores`, `editorial`, `anio_edicion`, `categoria`, `tipo_material`, `ejemplares` (vigentes), `disponibles` (en sedes activas) |
+| `LibroAdminResponse` | administrador | lo anterior más `eliminable` (no tiene ningún ejemplar, ni dado de baja), `version`, `creado_en`, `creado_por`, `actualizado_en`, `actualizado_por` |
 
 ### Préstamos
 
@@ -577,7 +584,7 @@ Response `201`:
   "version": 1 }
 ```
 
-Errores: `409 EJEMPLAR_CODIGO_DUPLICADO`, `409 SEDE_EN_BAJA`, `404 LIBRO_NO_ENCONTRADO`, `403 FORBIDDEN` (bibliotecario que indica otra sede). `GET /ejemplares/{id}` agrega `historial`: lista de `{estado_anterior, estado_nuevo, fecha_hora, usuario, observacion}`.
+Errores: `409 EJEMPLAR_CODIGO_DUPLICADO`, `409 SEDE_EN_BAJA`, `404 LIBRO_NO_ENCONTRADO`, `403 FORBIDDEN` (bibliotecario que indica otra sede). `GET /ejemplares/{id}` agrega `historial`: lista de `{tipo, estado_anterior, estado_nuevo, fecha_hora, usuario, observacion, cambios}`. `tipo` es `ALTA`, `CAMBIO_DE_ESTADO`, `TRASLADO` (cambia la sede propietaria), `CAMBIO_DE_UBICACION` (cambia dónde está) o `MODIFICACION` (estado físico u observaciones). `cambios` es una lista de `{campo, antes, despues}` con los campos `estado_fisico`, `observaciones`, `sede_actual` y `sede_propietaria`; las sedes van por nombre.
 
 ### `GET /libros/{id}/disponibilidad`
 
@@ -728,7 +735,14 @@ Cada línea lleva `estado_fisico` y, si llegó inutilizable, `"destruido": true`
 
 Response `200`: el remito con `estado` (`RECIBIDO`, `DANADO` o `DESTRUIDO` según la peor línea), el resultado de cada línea, `movimientos` e `incidencias` (`[{ "ejemplar_id": 305, "tipo": "DANIO", ... }]`).
 
-Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` en destino hasta la entrega al socio (`POST /prestamos/{id}/entregar`, que inicia el plazo); en un **retorno**, `DISPONIBLE` en su sede; en un **traslado**, cambia la sede propietaria y queda `DISPONIBLE`. Una línea dañada deja el ejemplar `EN_REVISION` y una destruida en `BAJA`, con incidencia, y cancelan el préstamo del envío.
+Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` en destino hasta la entrega al socio (`POST /prestamos/{id}/entregar`, que inicia el plazo); en un **retorno**, `DISPONIBLE` en su sede; en un **traslado**, cambia la sede propietaria y queda `DISPONIBLE`. Una línea dañada o destruida registra la incidencia (`DANIO` o `DESTRUCCION`) y, en un envío, cancela el préstamo:
+
+| Resultado | Envío | Retorno | Traslado |
+|-----------|-------|---------|----------|
+| Dañado | `APARTADO` en destino y remito de **retorno** generado: la sede propietaria lo revisa al recibirlo (CA-REM-20) | `EN_REVISION` en su sede (sin nueva incidencia si el daño ya venía de la devolución) | cambia la sede propietaria y queda `EN_REVISION` en la nueva (CA-REM-21) |
+| Destruido | `BAJA` | `BAJA` | `BAJA` (la sede propietaria no cambia) |
+
+Cada llegada queda en el historial del ejemplar como un movimiento con la sede donde está, el estado físico verificado y, en un traslado, la nueva sede propietaria.
 
 ### `GET /remitos/{id}` — con trazabilidad
 

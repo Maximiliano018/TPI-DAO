@@ -9,6 +9,7 @@ from app.dtos.request.catalogo_request import (
     EjemplarBajaRequest,
     EjemplarCrearRequest,
     EjemplarModificarRequest,
+    LibroModificarRequest,
     LibroRequest,
     VersionRequest,
 )
@@ -20,6 +21,7 @@ from app.dtos.response.catalogo_response import (
     LibroResponse,
     PaginaEjemplaresResponse,
     PaginaLibrosResponse,
+    libro_a_response,
 )
 from app.models.libro import TipoMaterial
 from app.models.states.ejemplar import EstadoEjemplarEnum
@@ -73,7 +75,7 @@ def crear_libro(
     """Agrega una obra al catálogo común de la red (solo el administrador)."""
     libro = servicio.crear_libro(actor, datos.a_datos())
     response.headers["Location"] = f"/api/v1/libros/{libro.id}"
-    return LibroResponse.desde(libro)
+    return libro_a_response(libro, actor)
 
 
 @router.get(
@@ -91,9 +93,10 @@ def buscar_libros(
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaLibrosResponse:
-    """Busca por título, autor o ISBN; cada libro trae sus ejemplares disponibles en la red."""
+    """Busca por título, autor o ISBN (6 o más dígitos); cada libro trae sus ejemplares
+    disponibles en la red. La auditoría solo la ve el administrador."""
     return PaginaLibrosResponse.desde(
-        servicio.buscar_libros(actor, q, categoria_id, tipo_material, page, size)
+        servicio.buscar_libros(actor, q, categoria_id, tipo_material, page, size), actor
     )
 
 
@@ -104,7 +107,8 @@ def buscar_libros(
     responses={401: _ERROR_401, 404: _ERROR_404_LIBRO},
 )
 def obtener_libro(libro_id: int, servicio: Servicio, actor: Lector) -> LibroResponse:
-    return LibroResponse.desde(servicio.obtener_libro(actor, libro_id))
+    """La auditoría y si se puede eliminar solo los ve el administrador."""
+    return libro_a_response(servicio.obtener_libro(actor, libro_id), actor)
 
 
 @router.put(
@@ -115,14 +119,17 @@ def obtener_libro(libro_id: int, servicio: Servicio, actor: Lector) -> LibroResp
         401: _ERROR_401,
         403: _ERROR_403,
         404: _ERROR_404_LIBRO,
-        409: {"description": "Los datos nuevos coinciden con otro libro (`LIBRO_DUPLICADO`)"},
+        409: {
+            "description": "Coincide con otro libro (`LIBRO_DUPLICADO`) o `CONFLICTO_DE_VERSION`"
+        },
         422: _ERROR_422,
     },
 )
 def modificar_libro(
-    libro_id: int, datos: LibroRequest, servicio: Servicio, actor: AdministradorCatalogo
+    libro_id: int, datos: LibroModificarRequest, servicio: Servicio, actor: AdministradorCatalogo
 ) -> LibroResponse:
-    return LibroResponse.desde(servicio.modificar_libro(actor, libro_id, datos.a_datos()))
+    libro = servicio.modificar_libro(actor, libro_id, datos.a_datos(), datos.version)
+    return libro_a_response(libro, actor)
 
 
 @router.delete(
@@ -221,7 +228,7 @@ def obtener_ejemplar(
         401: _ERROR_401,
         403: _ERROR_403,
         404: _ERROR_404_EJEMPLAR,
-        409: {"description": "`CONFLICTO_DE_VERSION`"},
+        409: {"description": "`CONFLICTO_DE_VERSION` o dado de baja (`TRANSICION_INVALIDA`)"},
         422: _ERROR_422,
     },
 )
@@ -231,7 +238,9 @@ def modificar_ejemplar(
     servicio: Servicio,
     actor: GestorEjemplares,
 ) -> EjemplarResponse:
-    """La disponibilidad no se edita: la cambian préstamos, envíos, reservas y devoluciones."""
+    """La disponibilidad no se edita: la cambian préstamos, envíos, reservas y devoluciones.
+
+    El cambio queda en el historial. Un ejemplar dado de baja no se edita."""
     return EjemplarResponse.desde(
         servicio.modificar_ejemplar(
             actor, ejemplar_id, datos.version, datos.estado_fisico, datos.observaciones

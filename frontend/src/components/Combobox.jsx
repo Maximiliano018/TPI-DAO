@@ -6,13 +6,19 @@ import estilos from './Combobox.module.css';
  * Lista desplegable con búsqueda (patrón combobox ARIA 1.2): el foco queda en el campo y la
  * opción activa se indica con `aria-activedescendant`. Flechas navegan, Enter elige, Escape cierra.
  *
- * @param {{etiqueta: string, opciones: {id: number|string, texto: string, detalle?: string}[], valor: number|string|'', onCambiar: (id: number|string|'') => void, error?: string, ayuda?: string, requerido?: boolean}} props
+ * Por defecto filtra las opciones en el navegador. Para buscar en el servidor, pasar
+ * `onConsulta` (recibe el texto escrito) y `filtrarLocalmente={false}`: las opciones son las
+ * que devolvió la búsqueda (más la elegida, para que siga visible).
+ *
+ * @param {{etiqueta: string, opciones: {id: number|string, texto: string, detalle?: string}[], valor: number|string|'', onCambiar: (id: number|string|'') => void, onConsulta?: (texto: string) => void, filtrarLocalmente?: boolean, error?: string, ayuda?: string, requerido?: boolean}} props
  */
 export default function Combobox({
   etiqueta,
   opciones,
   valor,
   onCambiar,
+  onConsulta,
+  filtrarLocalmente = true,
   error,
   ayuda,
   requerido = false,
@@ -29,8 +35,9 @@ export default function Combobox({
   const texto = consulta ?? seleccionada?.texto ?? '';
   const filtradas = useMemo(() => {
     const q = normalizar(consulta ?? '');
-    return q ? opciones.filter((o) => normalizar(o.texto).includes(q)) : opciones;
-  }, [opciones, consulta]);
+    if (!filtrarLocalmente || !q) return opciones;
+    return opciones.filter((o) => normalizar(o.texto).includes(q));
+  }, [opciones, consulta, filtrarLocalmente]);
 
   const idOpcion = (indice) => `${id}-op-${indice}`;
   const idAyuda = ayuda ? `${id}-ayuda` : undefined;
@@ -86,6 +93,7 @@ export default function Combobox({
         value={texto}
         onChange={(e) => {
           setConsulta(e.target.value);
+          onConsulta?.(e.target.value);
           setAbierto(true);
           setActiva(0);
           if (e.target.value === '' && valor !== '') onCambiar('');

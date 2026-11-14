@@ -10,6 +10,7 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
+  Pagination,
   Skeleton,
   Table,
   useToast,
@@ -29,7 +30,11 @@ import {
   useLibro,
 } from '../hooks/useCatalogo.js';
 
-function Disponibilidad({ libroId }) {
+/**
+ * Disponibilidad por sede activa. Si en la sede del usuario no hay ejemplares disponibles pero
+ * en otra sí, se avisa que se puede pedir como préstamo interbibliotecario (CU-CAT-05, A3).
+ */
+function Disponibilidad({ libroId, sedeId }) {
   const { data, isPending, error, refetch } = useDisponibilidad(libroId);
   if (isPending) return <Skeleton alto={96} />;
   if (error) return <ErrorState error={error} onReintentar={refetch} />;
@@ -44,12 +49,20 @@ function Disponibilidad({ libroId }) {
     { clave: 'en_transito', titulo: 'En tránsito' },
     { clave: 'totales', titulo: 'Total' },
   ];
+  const enMiSede = data.por_sede.find((s) => s.sede_id === sedeId)?.disponibles ?? 0;
+  const soloEnOtras = Boolean(sedeId) && enMiSede === 0 && data.total_red.disponibles > 0;
   return (
     <>
       <p style={{ marginTop: 0 }}>
         {data.total_red.disponibles} de {data.total_red.totales} ejemplares disponibles en la red.
         {data.total_red.disponibles === 0 && ' Puede reservarlo para retirarlo cuando se libere.'}
       </p>
+      {soloEnOtras && (
+        <Alert tono="info">
+          No hay ejemplares disponibles en su sede, pero sí en otras: se puede pedir como préstamo
+          interbibliotecario.
+        </Alert>
+      )}
       <Table
         etiqueta="Disponibilidad por sede"
         columnas={columnas}
@@ -61,7 +74,8 @@ function Disponibilidad({ libroId }) {
 }
 
 function Ejemplares({ libroId }) {
-  const { data, isPending, error, refetch } = useEjemplares({ libro_id: libroId, size: 100 });
+  const [page, setPage] = useState(1);
+  const { data, isPending, error, refetch } = useEjemplares({ libro_id: libroId, page, size: 20 });
   if (isPending) return <Skeleton alto={96} />;
   if (error) return <ErrorState error={error} onReintentar={refetch} />;
   if (data.items.length === 0) return <EmptyState titulo="Todavía no hay ejemplares" />;
@@ -87,7 +101,12 @@ function Ejemplares({ libroId }) {
       render: (e) => <EstadoEjemplarBadge estado={e.estado} />,
     },
   ];
-  return <Table etiqueta="Ejemplares" columnas={columnas} filas={data.items} idDe={(e) => e.id} />;
+  return (
+    <>
+      <Table etiqueta="Ejemplares" columnas={columnas} filas={data.items} idDe={(e) => e.id} />
+      <Pagination page={data.page} size={data.size} total={data.total} onPage={setPage} />
+    </>
+  );
 }
 
 function EliminarLibroDialog({ libro, onCerrar }) {
@@ -121,7 +140,7 @@ function EliminarLibroDialog({ libro, onCerrar }) {
 /** Ficha de un libro: datos, disponibilidad por sede y, para el personal, sus ejemplares. */
 export default function LibroDetallePage() {
   const { id } = useParams();
-  const { tienePermiso } = useSesion();
+  const { usuario, tienePermiso } = useSesion();
   const { data: libro, isPending, error, refetch } = useLibro(id);
   const [eliminando, setEliminando] = useState(false);
   const [reservando, setReservando] = useState(false);
@@ -162,7 +181,8 @@ export default function LibroDetallePage() {
                 Editar
               </Button>
             )}
-            {administra && libro.ejemplares === 0 && (
+            {/* Los ejemplares dados de baja también impiden eliminarlo (RF-CAT-08). */}
+            {administra && libro.eliminable && (
               <Button variante="danger" onClick={() => setEliminando(true)}>
                 Eliminar
               </Button>
@@ -187,7 +207,7 @@ export default function LibroDetallePage() {
             </dl>
           </Card>
           <Card titulo="Disponibilidad por sede">
-            <Disponibilidad libroId={libro.id} />
+            <Disponibilidad libroId={libro.id} sedeId={usuario.sede_id} />
           </Card>
         </div>
         {tienePermiso(PERMISOS.EJEMPLAR_LEER) && (

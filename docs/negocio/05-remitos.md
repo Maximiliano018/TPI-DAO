@@ -55,9 +55,11 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 | `En tránsito` | Viajando hacia la sede destino | `En tránsito` |
 | `Recibido` | La sede destino lo recibió y verificó | `Disponible` o `Prestado` en destino, según el motivo |
 | `Extraviado` | No llegó en un plazo máximo; se da por perdido | Se evalúa baja del ejemplar |
-| `Dañado` | Llegó con daño reparable | Ejemplar a revisión |
+| `Dañado` | Llegó con daño reparable | Ejemplar a revisión en su sede propietaria: si era un envío, vuelve con un remito de retorno; si era un traslado, la revisa la nueva propietaria |
 | `Destruido` | Llegó inutilizable | Baja del ejemplar |
 | `Anulado` | Cancelado antes de salir | El ejemplar vuelve a `Disponible` |
+
+**La revisión y la reparación las hace la sede dueña del ejemplar.** Si un envío por préstamo llega dañado, la sede destino no lo repara: el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno, igual que cuando el socio lo devuelve dañado en otra sede.
 
 `Dañado` y `Destruido` se registran en la **revisión de recepción** (proceso opcional del enunciado); se incluyen porque el ciclo se evalúa críticamente y es más sencillo diseñarlos desde el inicio.
 

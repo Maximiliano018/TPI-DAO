@@ -1,8 +1,22 @@
 """Estados de disponibilidad del ejemplar (patrón State).
 
-Cada estado es una clase que implementa solo las operaciones que admite; las demás heredan el
-comportamiento por defecto, que rechaza con ``TransicionInvalida``. La entidad ``Ejemplar``
-delega en su estado actual y registra el movimiento (ver ``docs/tecnica/03-maquinas-de-estado.md``).
+Roles del patrón:
+
+- **Contexto:** ``Ejemplar`` (``models/ejemplar.py``). Guarda su estado actual, le delega cada
+  operación, lo reemplaza por el estado que este devuelve y registra el movimiento.
+- **Estado abstracto:** ``EstadoEjemplar``. Declara todas las operaciones; por defecto las
+  rechaza con ``TransicionInvalida``.
+- **Estados concretos:** ``Disponible``, ``Apartado``, ``Reservado``, ``EnTransito``,
+  ``Prestado``, ``EnRevision`` y ``Baja``. Cada uno sobrescribe solo las operaciones que admite
+  y devuelve el estado siguiente.
+- **Clientes:** los servicios (catálogo, préstamos, remitos, reservas y devoluciones), que piden
+  la operación al ejemplar sin preguntar en qué estado está.
+
+Así una transición nueva o un estado nuevo se agregan en una clase, sin tocar condicionales en
+los servicios. Ver ``docs/tecnica/03-maquinas-de-estado.md`` y ``05-patrones-de-diseno.md``.
+
+Además de las transiciones, ``validar_edicion`` decide si se pueden editar los datos del
+ejemplar (estado físico y observaciones): todos los estados lo admiten salvo ``Baja``.
 
 | Estado        | Operaciones admitidas                                                      |
 |---------------|----------------------------------------------------------------------------|
@@ -73,6 +87,9 @@ class EstadoEjemplar:
 
     def dar_de_baja(self) -> "EstadoEjemplar":
         raise self._invalida("dar de baja")
+
+    def validar_edicion(self) -> None:
+        """Editar el estado físico o las observaciones no cambia la disponibilidad."""
 
     def _invalida(self, accion: str) -> TransicionInvalida:
         return TransicionInvalida(
@@ -180,7 +197,12 @@ class EnRevision(EstadoEjemplar):
 
 
 class Baja(EstadoEjemplar):
+    """Estado final: no admite transiciones ni edición (se conserva como historial)."""
+
     nombre = EstadoEjemplarEnum.BAJA
+
+    def validar_edicion(self) -> None:
+        raise self._invalida("editar")
 
 
 _POR_NOMBRE: dict[EstadoEjemplarEnum, type[EstadoEjemplar]] = {
