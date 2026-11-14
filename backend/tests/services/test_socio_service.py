@@ -192,6 +192,16 @@ def test_modificar_rechaza_el_documento_de_otro_socio(servicio, biblio):
     assert modificado.datos.nombre == "Jua"
 
 
+def test_modificar_un_socio_en_baja_se_rechaza_antes_que_el_documento_repetido(servicio, biblio):
+    servicio.crear(biblio, _datos())
+    otro = servicio.crear(biblio, _datos(nro_documento="40111222", nombre="Juan"))
+    servicio.dar_de_baja(ADMIN, otro.id, "Se mudó de ciudad")
+
+    # El documento es de Lucía, pero el motivo del rechazo es que Juan está dado de baja.
+    with pytest.raises(SocioEnBaja):
+        servicio.modificar(biblio, otro.id, _datos(nombre="Juan"))
+
+
 def test_modificar_un_socio_inexistente_es_404(servicio, biblio):
     with pytest.raises(SocioNoEncontrado):
         servicio.modificar(biblio, 999, _datos())
@@ -246,7 +256,8 @@ def test_baja_y_reactivacion_son_del_administrador(servicio, biblio):
 
     with pytest.raises(PermisoDenegado):
         servicio.dar_de_baja(biblio, socio.id, "Se mudó de ciudad")
-    servicio.dar_de_baja(ADMIN, socio.id, "Se mudó de ciudad")
+    baja = servicio.dar_de_baja(ADMIN, socio.id, "Se mudó de ciudad")
+    assert baja.socio.estado == EstadoSocio.BAJA and baja.reservas_canceladas == 0
     with pytest.raises(PermisoDenegado):
         servicio.reactivar(biblio, socio.id)
 

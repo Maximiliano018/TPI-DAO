@@ -4,21 +4,41 @@ Proceso obligatorio 2 del enunciado. Los puntos marcados como *A consultar* sigu
 
 ## ¿Qué datos se modelan?
 
-| Campo | Detalle |
-|-------|---------|
-| Número de socio | Único, generado por el sistema |
-| Documento | Tipo y número (DNI); único |
-| Nombre y apellido | Obligatorios |
-| Fecha de nacimiento | Dato informativo y de apoyo para detectar duplicados; no condiciona el alta |
-| Contacto | Correo, teléfono, domicilio |
-| Sede de alta | Sede donde se registró el socio. Es solo un **dato de registro**: no vincula al socio con la sede ni limita dónde puede operar |
-| Fecha de alta | Automática |
-| Estado | `Habilitado` / `Inhabilitado` |
-| Motivo de inhabilitación | Texto o causa (`Multa impaga`, `Préstamo vencido`, `Decisión administrativa`) |
+| Campo | Obligatorio | Regla |
+|-------|:---:|-------|
+| Número de socio | Automático | Único, generado por el sistema con 5 dígitos (`00045`) |
+| Documento | Sí | Tipo `DNI`, `LE`, `LC` o `Pasaporte`, y número. DNI, LE y LC: de 7 a 8 dígitos; pasaporte: de 6 a 9 letras o números. Se guarda sin puntos ni espacios. **Tipo y número únicos** |
+| Nombre y apellido | Sí | Hasta 100 caracteres cada uno |
+| Fecha de nacimiento | No | Entre 1900 y hoy. Dato informativo y de apoyo para detectar duplicados; no condiciona el alta |
+| Correo y teléfono | **Al menos uno** | Correo con formato válido; teléfono en formato internacional E.164 (`+543514221234`) |
+| Domicilio | No | Hasta 200 caracteres |
+| Sede de alta | Automático | La del bibliotecario que lo registra (el administrador la elige). Es solo un **dato de registro**: no vincula al socio con la sede ni limita dónde puede operar |
+| Fecha de alta | Automático | |
+| Estado | Automático | `Habilitado`, `Inhabilitado` o `Baja` (ver [Estados](#estados-del-socio)) |
+| Causas de inhabilitación | Automático | `Decisión administrativa`, `Préstamo vencido`, `Multa impaga`; puede tener varias a la vez |
+| Fecha y motivo de la baja | Automático | Solo si está en baja |
+
+## Estados del socio
+
+| Estado | Significado | Puede pedir préstamos y reservar |
+|--------|-------------|:---:|
+| `Habilitado` | Sin causas de inhabilitación | Sí |
+| `Inhabilitado` | Tiene al menos una causa vigente | No |
+| `Baja` | Salió de la red (baja lógica); se conserva su historial y puede reactivarse | No |
+
+El estado **no se elige**: sale de las causas vigentes. Con al menos una causa, el socio está inhabilitado; sin ninguna, habilitado.
+
+| Causa | Origen | Cómo se levanta |
+|-------|--------|-----------------|
+| **Decisión administrativa** | La decide el administrador, con un motivo de 5 a 300 caracteres | Solo el administrador |
+| **Préstamo vencido** | Automática: un préstamo pasa a `Vencido` | Sola, al devolver el material |
+| **Multa impaga** | Automática: se genera una multa por atraso | Sola, cuando el personal registra la multa como saldada |
+
+Un socio puede tener varias causas a la vez, y sigue inhabilitado mientras quede alguna. Cuando hay más de una, se muestra primero la de mayor **prioridad**: decisión administrativa, préstamo vencido y multa impaga, en ese orden.
 
 ## ¿Quién administra los socios?
 
-El **Bibliotecario** (alta, modificación, habilitación) en cualquier sede de la red; el **Administrador** además puede corregir datos y resolver conflictos. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa. No se puede dar de alta un socio en una sede en `Baja`, y la baja de la sede de alta no afecta al socio.
+El **Bibliotecario** (alta, modificación, creación de la cuenta de acceso) en cualquier sede de la red; el **Administrador** además inhabilita y levanta la inhabilitación administrativa, da de baja y reactiva. Un socio pertenece a la red, no a una sola sede: puede pedir material en cualquier sede activa. No se puede dar de alta un socio en una sede en `Baja`, y la baja de la sede de alta no afecta al socio.
 
 ## ¿Quién puede ver esta información?
 

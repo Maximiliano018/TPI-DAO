@@ -217,12 +217,13 @@ def test_la_baja_del_socio_cancela_sus_reservas(cliente, mundo, ocupado):  # noq
     ficha = cliente.get(f"{API}/socios/{mundo['lucia']['id']}", headers=mundo["h_b"]).json()
     assert ficha["situacion"]["reservas_activas"] == 1
 
-    cliente.post(
+    baja = cliente.post(
         f"{API}/socios/{mundo['lucia']['id']}/baja",
         json={"motivo": "Se mudó"},
         headers=mundo["h_admin"],
     )
 
+    assert baja.json()["estado"] == "BAJA" and baja.json()["reservas_canceladas"] == 1
     assert (
         cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_b"]).json()["estado"]
         == "CANCELADA"

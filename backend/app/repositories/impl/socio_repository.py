@@ -33,11 +33,12 @@ def _a_dominio(orm: SocioORM, nombres: dict[int, str], cuenta: UsuarioORM | None
             return None
         return UsuarioRef(usuario_id, nombres.get(usuario_id, "Usuario eliminado"))
 
-    causas: set[MotivoInhabilitacion] = set()
-    if orm.motivo_inhabilitacion:
-        causas.add(MotivoInhabilitacion(orm.motivo_inhabilitacion))
-    if orm.inhabilitacion_administrativa:
-        causas.add(MotivoInhabilitacion.ADMINISTRATIVA)
+    banderas = {
+        MotivoInhabilitacion.ADMINISTRATIVA: orm.inhabilitacion_administrativa,
+        MotivoInhabilitacion.PRESTAMO_VENCIDO: orm.causa_prestamo_vencido,
+        MotivoInhabilitacion.MULTA_IMPAGA: orm.causa_multa_impaga,
+    }
+    causas = {causa for causa, vigente in banderas.items() if vigente}
     datos = DatosPersonales(
         documento=Documento(TipoDocumento(orm.tipo_documento), orm.nro_documento),
         nombre=orm.nombre,
@@ -82,6 +83,8 @@ def _copiar_a_orm(socio: Socio, orm: SocioORM) -> None:
     motivo = socio.motivo_inhabilitacion
     orm.motivo_inhabilitacion = motivo.value if motivo else None
     orm.inhabilitacion_administrativa = socio.inhabilitado_administrativamente
+    orm.causa_prestamo_vencido = MotivoInhabilitacion.PRESTAMO_VENCIDO in socio.causas
+    orm.causa_multa_impaga = MotivoInhabilitacion.MULTA_IMPAGA in socio.causas
     orm.motivo_administrativo = socio.motivo_administrativo
     orm.fecha_baja = socio.fecha_baja
     orm.motivo_baja = socio.motivo_baja

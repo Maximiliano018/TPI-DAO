@@ -238,12 +238,20 @@ class Socio:
         Raises:
             SocioEnBaja: Si el socio está dado de baja (hay que reactivarlo antes).
         """
-        self._exigir_no_baja()
+        self.validar_editable()
         if datos == self.datos:
             return False
         self.datos = datos
         self._registrar_cambio(actor, ahora)
         return True
+
+    def validar_editable(self) -> None:
+        """Guarda de la modificación; el servicio la usa antes de controlar duplicados.
+
+        Raises:
+            SocioEnBaja: Si el socio está dado de baja (hay que reactivarlo antes).
+        """
+        self._exigir_no_baja()
 
     # --- inhabilitación -------------------------------------------------------------------
 

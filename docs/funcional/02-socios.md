@@ -6,7 +6,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
-| RF-SOC-01 | El sistema debe permitir al personal registrar un socio con documento, nombre, apellido, contacto y fecha de nacimiento, asignando un número de socio único y estado `Habilitado`. | Obligatorio |
+| RF-SOC-01 | El sistema debe permitir al personal registrar un socio con documento, nombre, apellido, contacto (al menos correo o teléfono) y, opcionalmente, fecha de nacimiento y domicilio, asignando un número de socio único y estado `Habilitado`. | Obligatorio |
 | RF-SOC-02 | El sistema debe evitar socios duplicados: tipo y número de documento únicos, con búsqueda previa por documento y por nombre más fecha de nacimiento. | Obligatorio |
 | RF-SOC-03 | El sistema debe permitir modificar los datos de un socio. | Obligatorio |
 | RF-SOC-04 | El sistema debe permitir buscar socios por número de socio, documento o apellido. | Obligatorio |
@@ -60,7 +60,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 - **Flujo normal:** solicita la baja con motivo; el sistema verifica que no tenga préstamos activos ni multas y lo pasa a `Baja`. Para reactivar, selecciona al socio en `Baja` y confirma.
 - **Flujos alternativos:**
   - **A1:** tiene préstamos activos o multas; bloquea la baja y los lista.
-  - **A2:** tiene reservas pendientes; el sistema las cancela al darlo de baja, informándolo.
+  - **A2:** tiene reservas pendientes; el sistema avisa antes de confirmar, las cancela al darlo de baja e informa cuántas canceló (los ejemplares pasan al siguiente de la cola).
 
 ### CU-SOC-05. Consultar la situación de un socio
 

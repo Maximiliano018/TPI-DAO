@@ -80,6 +80,23 @@ describe('Ficha del socio', () => {
     expect(llamadas[0].cuerpo).toEqual({ motivo: 'Daño reiterado de material' });
   });
 
+  it('la baja avisa que cancela las reservas activas e informa cuántas canceló', async () => {
+    sesionDe(ADMIN);
+    const conReservas = socio();
+    conReservas.situacion.reservas_activas = 2;
+    responder('get', '/socios/45', conReservas);
+    responder('post', '/socios/45/baja', { ...socio({ estado: 'BAJA' }), reservas_canceladas: 2 });
+    const user = userEvent.setup();
+    renderizarApp('/socios/45', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Dar de baja' }));
+    const dialogo = screen.getByRole('dialog');
+    expect(dialogo).toHaveTextContent('Tiene 2 reservas activas: se van a cancelar');
+    await user.type(within(dialogo).getByLabelText(/Motivo/), 'Se mudó de ciudad');
+    await user.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
+    expect(await screen.findByText('Socio dado de baja. Se cancelaron 2 reservas.')).toBeVisible();
+  });
+
   it('la baja bloqueada muestra el motivo que da el servidor', async () => {
     sesionDe(ADMIN);
     responder('get', '/socios/45', socio());

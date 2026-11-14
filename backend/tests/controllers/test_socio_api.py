@@ -367,7 +367,8 @@ def test_la_base_rechaza_estados_inconsistentes(sesion, sede):
         estado="INHABILITADO",
     )
     sesion.add(socio)
-    with pytest.raises(Exception, match="ck_socio_inhabilitado_con_motivo"):
+    # Inhabilitado sin motivo ni causas: lo rechaza cualquiera de las dos restricciones.
+    with pytest.raises(Exception, match="ck_socio_(inhabilitado_con_motivo|causas_coherentes)"):
         sesion.flush()
     sesion.rollback()
 

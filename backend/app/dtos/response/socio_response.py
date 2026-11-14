@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from app.dtos.response.sede_response import UsuarioRefResponse
 from app.models.paginacion import Pagina
 from app.models.socio import SituacionSocio, Socio
-from app.services.socio_service import FichaSocio
+from app.services.socio_service import BajaDeSocio, FichaSocio
 
 
 class SocioResumenResponse(BaseModel):
@@ -142,6 +142,19 @@ class FichaSocioResponse(SocioResponse):
         return cls(
             **SocioResponse.desde(ficha.socio).model_dump(),
             situacion=SituacionResponse.desde(ficha.situacion),
+        )
+
+
+class BajaSocioResponse(SocioResponse):
+    """Socio dado de baja y cuántas reservas activas se le cancelaron (CU-SOC-04, A2)."""
+
+    reservas_canceladas: int
+
+    @classmethod
+    def desde_baja(cls, baja: BajaDeSocio) -> "BajaSocioResponse":
+        return cls(
+            **SocioResponse.desde(baja.socio).model_dump(),
+            reservas_canceladas=baja.reservas_canceladas,
         )
 
 

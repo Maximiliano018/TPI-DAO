@@ -189,15 +189,18 @@ Un bibliotecario **dado de baja** (`activo = false`) conserva su `sede_id` como 
 | motivo_inhabilitacion | VARCHAR(30) | `ADMINISTRATIVA`, `PRESTAMO_VENCIDO` o `MULTA_IMPAGA`: la causa vigente de mayor prioridad. NOT NULL si y solo si está inhabilitado |
 | inhabilitacion_administrativa | BOOLEAN | NOT NULL, por defecto falso; la decisión del administrador, que solo él levanta |
 | motivo_administrativo | VARCHAR(300) | texto del administrador; NOT NULL si y solo si hay inhabilitación administrativa |
+| causa_prestamo_vencido, causa_multa_impaga | BOOLEAN | NOT NULL, por defecto falso; causas automáticas vigentes en la última evaluación |
 | fecha_baja, motivo_baja | TIMESTAMPTZ, VARCHAR(300) | NOT NULL si y solo si `estado = 'BAJA'`; la baja es lógica |
 | creado_por_id, actualizado_por_id | FK usuario | auditoría (`RF-ACC-07`) |
 
-Las causas automáticas (préstamo vencido, multa impaga) **no se guardan como decisión**: el servicio las recalcula con los préstamos y multas del socio en cada evento (`Socio.reevaluar`). La administrativa sí se guarda, porque no surge de otros datos. Si hay varias causas, `motivo_inhabilitacion` muestra la de mayor prioridad (administrativa, préstamo vencido, multa impaga).
+Las causas automáticas (préstamo vencido, multa impaga) **no son una decisión**: el servicio las recalcula con los préstamos y multas del socio en cada evento (`Socio.reevaluar`). Igual se guarda el resultado de la última evaluación, una columna por causa, para que el socio vuelva de la base con **todas** sus causas (la ficha las muestra y `reevaluar` no informa cambios que no hubo). La administrativa se guarda porque no surge de otros datos. Si hay varias causas, `motivo_inhabilitacion` muestra la de mayor prioridad (administrativa, préstamo vencido, multa impaga).
 
 ```sql
 CHECK ((estado = 'INHABILITADO') = (motivo_inhabilitacion IS NOT NULL))
 CHECK (inhabilitacion_administrativa = (motivo_administrativo IS NOT NULL))
 CHECK (NOT inhabilitacion_administrativa OR motivo_inhabilitacion = 'ADMINISTRATIVA')
+CHECK ((estado = 'INHABILITADO') =
+       (inhabilitacion_administrativa OR causa_prestamo_vencido OR causa_multa_impaga))
 CHECK ((estado = 'BAJA' AND fecha_baja IS NOT NULL AND motivo_baja IS NOT NULL)
     OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL))
 ```

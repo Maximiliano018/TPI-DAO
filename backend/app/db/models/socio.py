@@ -57,6 +57,11 @@ class SocioORM(ConAuditoriaDeTiempo, Base):
             " OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL)",
             name="baja_con_datos",
         ),
+        CheckConstraint(
+            "(estado = 'INHABILITADO') = "
+            "(inhabilitacion_administrativa OR causa_prestamo_vencido OR causa_multa_impaga)",
+            name="causas_coherentes",
+        ),
         Index("ix_socio_apellido_nombre", "apellido", "nombre"),
     )
 
@@ -76,6 +81,12 @@ class SocioORM(ConAuditoriaDeTiempo, Base):
         Boolean, nullable=False, default=False, server_default=text("false")
     )
     motivo_administrativo: Mapped[str | None] = mapped_column(String(300))
+    causa_prestamo_vencido: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
+    causa_multa_impaga: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     fecha_baja: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     motivo_baja: Mapped[str | None] = mapped_column(String(300))
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))

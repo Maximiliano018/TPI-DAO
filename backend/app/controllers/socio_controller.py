@@ -13,6 +13,7 @@ from app.dtos.request.socio_request import (
     SocioDatosRequest,
 )
 from app.dtos.response.socio_response import (
+    BajaSocioResponse,
     FichaSocioResponse,
     PaginaSociosResponse,
     SocioResponse,
@@ -180,7 +181,7 @@ def rehabilitar_socio(socio_id: int, servicio: Servicio, actor: Registrador) -> 
 
 @router.post(
     "/{socio_id}/baja",
-    response_model=SocioResponse,
+    response_model=BajaSocioResponse,
     summary="Baja lógica de un socio",
     responses={
         401: _ERROR_401,
@@ -195,9 +196,12 @@ def rehabilitar_socio(socio_id: int, servicio: Servicio, actor: Registrador) -> 
 )
 def dar_de_baja_socio(
     socio_id: int, datos: MotivoRequest, servicio: Servicio, actor: Administrador
-) -> SocioResponse:
-    """Baja lógica con motivo; conserva el historial."""
-    return SocioResponse.desde(servicio.dar_de_baja(actor, socio_id, datos.motivo))
+) -> BajaSocioResponse:
+    """Baja lógica con motivo; conserva el historial.
+
+    Cancela las reservas activas del socio e informa cuántas en `reservas_canceladas`.
+    """
+    return BajaSocioResponse.desde_baja(servicio.dar_de_baja(actor, socio_id, datos.motivo))
 
 
 @router.post(
