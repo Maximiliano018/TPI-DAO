@@ -278,7 +278,7 @@ class CatalogoService:
         with self._transaccion():
             ejemplar = self._ejemplar_para_modificar(actor, ejemplar_id)
             ejemplar.validar_version(version)
-            extravio = self._uow.incidencias.extravio_pendiente(ejemplar_id)
+            extravio = self._uow.incidencias.extravio_pendiente(ejemplar_id, bloquear=True)
             if ejemplar.estado_nombre != EstadoEjemplarEnum.BAJA or extravio is None:
                 raise EjemplarNoRecuperable(
                     f"El ejemplar {ejemplar.codigo_inventario} no se puede recuperar: solo se "

@@ -528,8 +528,8 @@ class SqlAlchemyIncidenciaRepository:
             .order_by(IncidenciaORM.id)
         )
 
-    def extravio_pendiente(self, ejemplar_id: int) -> Incidencia | None:
-        filas = self._varias(
+    def extravio_pendiente(self, ejemplar_id: int, *, bloquear: bool = False) -> Incidencia | None:
+        consulta = (
             select(IncidenciaORM)
             .where(
                 IncidenciaORM.ejemplar_id == ejemplar_id,
@@ -538,8 +538,10 @@ class SqlAlchemyIncidenciaRepository:
             )
             .order_by(IncidenciaORM.fecha.desc(), IncidenciaORM.id.desc())
             .limit(1)
-            .with_for_update(of=IncidenciaORM)
         )
+        if bloquear:
+            consulta = consulta.with_for_update(of=IncidenciaORM)
+        filas = self._varias(consulta)
         return filas[0] if filas else None
 
     def _varias(self, consulta: Any) -> list[Incidencia]:

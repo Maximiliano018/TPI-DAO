@@ -131,8 +131,11 @@ class IncidenciaRepository(Protocol):
 
     def de_remito(self, remito_id: int) -> list[Incidencia]: ...
 
-    def extravio_pendiente(self, ejemplar_id: int) -> Incidencia | None:
-        """El último extravío del ejemplar todavía sin resolver (para recuperarlo)."""
+    def extravio_pendiente(self, ejemplar_id: int, *, bloquear: bool = False) -> Incidencia | None:
+        """El último extravío del ejemplar todavía sin resolver (para recuperarlo).
+
+        Con ``bloquear`` toma la fila (``FOR UPDATE``): lo usa la recuperación, no la consulta.
+        """
         ...
 
     def guardar(self, incidencia: Incidencia) -> None:

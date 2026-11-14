@@ -71,7 +71,7 @@ class IncidenciaRepositorioEnMemoria:
     def de_remito(self, remito_id: int) -> list[Incidencia]:
         return [i for i in self.incidencias if i.remito_id == remito_id]
 
-    def extravio_pendiente(self, ejemplar_id: int) -> Incidencia | None:
+    def extravio_pendiente(self, ejemplar_id: int, *, bloquear: bool = False) -> Incidencia | None:
         pendientes = [
             i
             for i in self.incidencias
