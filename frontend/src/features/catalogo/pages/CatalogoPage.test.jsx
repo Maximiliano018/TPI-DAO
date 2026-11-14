@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   ADMIN,
   BIBLIOTECARIO,
@@ -33,6 +33,9 @@ const DISPONIBILIDAD = {
 };
 
 describe('Catálogo', () => {
+  // La ficha del libro muestra al personal la cola de reservas (vacía en estas pruebas).
+  beforeEach(() => responder('get', '/reservas', pagina([])));
+
   it('el socio busca libros y ve cuántos hay disponibles, sin acciones de alta', async () => {
     sesionDe(SOCIO);
     responder('get', '/categorias', CATEGORIAS);

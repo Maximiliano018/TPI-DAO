@@ -5,6 +5,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import text
 
+from tests.controllers.test_devolucion_api import _devolver, _entregado
 from tests.controllers.test_prestamo_api import HOY, _prestar, mundo  # noqa: F401
 from tests.controllers.test_sede_api import _error
 
@@ -20,8 +21,21 @@ def _reservar(cliente, headers, m, socio=None, libro=0, sede="b"):
 
 @pytest.fixture
 def ocupado(cliente, mundo):  # noqa: F811
-    """El único ejemplar del libro 0 en la sede B queda apartado por un préstamo de Juan."""
+    """El libro 0 sin disponibles en la red: B-0 apartado por un préstamo de Juan (el que
+    devuelve) y A-0 por el de otro socio."""
+    otro = _socio(cliente, mundo, "50999000", "Ocupante")
+    assert _prestar(cliente, mundo["h_a"], otro, mundo["ej_a"][0]).status_code == 201
     return _prestar(cliente, mundo["h_b"], mundo["juan"], mundo["ej_b"][0]).json()
+
+
+def _agotar(cliente, m, libro):
+    """Aparta todos los ejemplares del libro con préstamos de socios nuevos."""
+    ejemplares = [(m["h_a"], m["ej_a"][libro])]
+    if libro < len(m["ej_b"]):
+        ejemplares.append((m["h_b"], m["ej_b"][libro]))
+    for i, (headers, ejemplar) in enumerate(ejemplares):
+        socio = _socio(cliente, m, f"5098{libro}{i:03d}", f"Lector {libro}{i}")
+        assert _prestar(cliente, headers, socio, ejemplar).status_code == 201
 
 
 def _socio(cliente, m, documento, nombre):
@@ -73,7 +87,9 @@ def test_el_socio_reserva_para_si_y_ve_su_posicion(cliente, mundo, ocupado):  # 
 def test_reglas_al_reservar(cliente, mundo, ocupado):  # noqa: F811
     _reservar(cliente, mundo["h_lucia"], mundo)
     _error(_reservar(cliente, mundo["h_lucia"], mundo), 409, "RESERVA_DUPLICADA")
-    for i in (1, 2):  # completa tres reservas activas con libros sin disponibles en C
+    for i in (1, 2, 3):
+        _agotar(cliente, mundo, i)
+    for i in (1, 2):  # completa tres reservas activas con libros sin disponibles en la red
         assert _reservar(cliente, mundo["h_lucia"], mundo, libro=i, sede="c").status_code == 201
     _error(_reservar(cliente, mundo["h_lucia"], mundo, libro=3, sede="c"), 409, "LIMITE_RESERVAS")
 
@@ -228,3 +244,256 @@ def test_la_baja_del_socio_cancela_sus_reservas(cliente, mundo, ocupado):  # noq
         cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_b"]).json()["estado"]
         == "CANCELADA"
     )
+
+
+# --- disponibilidad en la red y alta de ejemplares --------------------------------------------
+
+
+@pytest.mark.ca("CA-RES-14")
+def test_con_disponibles_en_otra_sede_corresponde_un_prestamo_entre_sedes(cliente, mundo):  # noqa: F811
+    # El libro 2 solo está en A, disponible: Lucía quiere retirarlo en C.
+    error = _error(
+        _reservar(cliente, mundo["h_lucia"], mundo, libro=2, sede="c"),
+        409,
+        "HAY_EJEMPLARES_DISPONIBLES",
+    )
+
+    assert error["detalles"][0]["problema"] == "disponibles_en_otra_sede"
+    assert error["detalles"][0]["sedes"] == [mundo["a"]["id"]]
+    assert "préstamo entre sedes" in error["mensaje"]
+
+
+@pytest.mark.ca("CA-RES-14")
+def test_un_libro_sin_ejemplares_en_la_red_no_se_reserva(cliente, mundo, sesion):  # noqa: F811
+    categoria = mundo["libros"][0]["categoria"]["id"]
+    libro = cliente.post(
+        f"{API}/libros",
+        json={"titulo": "Sin ejemplares", "autores": ["Nadie"], "categoria_id": categoria},
+        headers=mundo["h_admin"],
+    ).json()
+    cuerpo = {"libro_id": libro["id"], "sede_retiro_id": mundo["b"]["id"]}
+
+    _error(
+        cliente.post(f"{API}/reservas", json=cuerpo, headers=mundo["h_lucia"]),
+        409,
+        "LIBRO_SIN_EJEMPLARES",
+    )
+
+
+@pytest.mark.ca("CA-RES-15")
+def test_un_ejemplar_nuevo_se_asigna_a_la_cola(cliente, mundo, ocupado):  # noqa: F811
+    reserva = _reservar(cliente, mundo["h_lucia"], mundo).json()  # libro 0, retiro en B
+
+    nuevo = cliente.post(
+        f"{API}/ejemplares",
+        json={
+            "libro_id": mundo["libros"][0]["id"],
+            "codigo_inventario": "B-0-NUEVO",
+            "sede_id": mundo["b"]["id"],
+        },
+        headers=mundo["h_admin"],
+    )
+
+    assert nuevo.status_code == 201, nuevo.json()
+    assert nuevo.json()["estado"] == "RESERVADO"
+    asignada = cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_lucia"]).json()
+    assert (asignada["estado"], asignada["codigo_ejemplar"]) == (
+        "DISPONIBLE_PARA_RETIRO",
+        "B-0-NUEVO",
+    )
+
+
+# --- autoría, permisos e historial ------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-RES-16")
+def test_la_reasignacion_la_hace_el_sistema_y_no_quien_libero(cliente, mundo, ocupado):  # noqa: F811
+    lucia = _reservar(cliente, mundo["h_lucia"], mundo).json()  # retiro en B
+    otro = _socio(cliente, mundo, "50111222", "Otro")
+    de_otro = _reservar(cliente, mundo["h_b"], mundo, socio=otro, sede="c").json()
+    cliente.post(f"{API}/prestamos/{ocupado['id']}/cancelar", json={}, headers=mundo["h_b"])
+
+    # Lucía cancela la suya ya asignada: el ejemplar pasa a Otro con un préstamo entre sedes.
+    cliente.post(f"{API}/reservas/{lucia['id']}/cancelar", headers=mundo["h_lucia"])
+
+    cumplida = cliente.get(f"{API}/reservas/{de_otro['id']}", headers=mundo["h_b"]).json()
+    assert cumplida["estado"] == "CUMPLIDA"
+    assert [(m["estado_nuevo"], m["autor"]) for m in cumplida["historial"]] == [
+        ("PENDIENTE", "Beto B"),
+        ("CUMPLIDA", "Sistema"),
+    ]
+    prestamo = cliente.get(
+        f"{API}/prestamos/{cumplida['prestamo_id']}", headers=mundo["h_b"]
+    ).json()
+    assert prestamo["registrado_por"] is None
+    assert prestamo["historial"][0]["autor"] == "Sistema"
+    propia = cliente.get(f"{API}/reservas/{lucia['id']}", headers=mundo["h_lucia"]).json()
+    assert [(m["estado_nuevo"], m["autor"]) for m in propia["historial"]] == [
+        ("PENDIENTE", "Vos"),
+        ("DISPONIBLE_PARA_RETIRO", "Sistema"),
+        ("CANCELADA", "Vos"),
+    ]
+
+
+@pytest.mark.ca("CA-RES-17")
+def test_cancela_el_socio_o_el_bibliotecario_de_la_sede_de_retiro(cliente, mundo, ocupado):  # noqa: F811
+    reserva = _reservar(cliente, mundo["h_lucia"], mundo).json()  # retiro en B
+    otro = _socio(cliente, mundo, "50111222", "Otro")
+    ajena = _reservar(cliente, mundo["h_b"], mundo, socio=otro).json()
+    url = f"{API}/reservas/{reserva['id']}/cancelar"
+
+    _error(cliente.post(url, headers=mundo["h_admin"]), 403, "FORBIDDEN")
+    _error(cliente.post(url, headers=mundo["h_a"]), 403, "FORBIDDEN")
+    _error(  # un socio no ve ni cancela la de otro (CU-RES-05, A3)
+        cliente.post(f"{API}/reservas/{ajena['id']}/cancelar", headers=mundo["h_lucia"]),
+        404,
+        "RESERVA_NO_ENCONTRADA",
+    )
+    r = cliente.post(
+        url, json={"motivo": "El socio avisó que ya no lo necesita"}, headers=mundo["h_b"]
+    )
+
+    assert r.status_code == 200, r.json()
+    assert r.json()["estado"] == "CANCELADA"
+    historial = cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_b"]).json()
+    assert historial["historial"][-1]["observacion"] == "El socio avisó que ya no lo necesita"
+
+
+@pytest.mark.ca("CA-RES-18")
+def test_el_socio_no_reserva_a_nombre_de_otro(cliente, mundo, ocupado):  # noqa: F811
+    _error(
+        _reservar(cliente, mundo["h_lucia"], mundo, socio=mundo["juan"]),
+        403,
+        "FORBIDDEN",
+    )
+    propia = _reservar(cliente, mundo["h_lucia"], mundo, socio=mundo["lucia"])
+
+    assert propia.status_code == 201
+    assert propia.json()["socio_id"] == mundo["lucia"]["id"]
+
+
+@pytest.mark.ca("CA-RES-19")
+def test_la_reserva_guarda_quien_la_registro_y_su_historial(cliente, mundo, ocupado):  # noqa: F811
+    reserva = _reservar(cliente, mundo["h_b"], mundo, socio=mundo["lucia"]).json()
+    assert reserva["registrada_por"]["nombre"] == "Beto B"
+
+    cliente.post(
+        f"{API}/reservas/{reserva['id']}/cancelar",
+        json={"motivo": "Ya lo conseguí"},
+        headers=mundo["h_lucia"],
+    )
+
+    personal = cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_b"]).json()
+    assert personal["registrada_por"]["nombre"] == "Beto B"
+    assert [
+        (m["estado_anterior"], m["estado_nuevo"], m["autor"]) for m in personal["historial"]
+    ] == [
+        (None, "PENDIENTE", "Beto B"),
+        ("PENDIENTE", "CANCELADA", "Lucía Socio"),
+    ]
+    propia = cliente.get(f"{API}/reservas/{reserva['id']}", headers=mundo["h_lucia"]).json()
+    assert "registrada_por" not in propia
+    assert [(m["autor"], m["usuario"], m["observacion"]) for m in propia["historial"]] == [
+        ("Personal de la biblioteca", None, "Reserva registrada"),
+        ("Vos", None, "Ya lo conseguí"),
+    ]
+    assert propia["fecha_cierre"] is not None
+
+
+# --- cola -------------------------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-RES-20")
+def test_la_asignacion_saltea_al_socio_que_no_puede_retirarlo(cliente, mundo, ocupado, sesion):  # noqa: F811
+    sesion.execute(
+        text("UPDATE parametro SET valor = '1' WHERE clave = 'prestamos_maximos_por_socio'")
+    )
+    sesion.commit()
+    assert _prestar(cliente, mundo["h_b"], mundo["lucia"], mundo["ej_b"][1]).status_code == 201
+    lucia = _reservar(cliente, mundo["h_lucia"], mundo).json()  # primera, pero sin cupo
+    otro = _socio(cliente, mundo, "50111222", "Otro")
+    de_otro = _reservar(cliente, mundo["h_b"], mundo, socio=otro).json()
+
+    cliente.post(f"{API}/prestamos/{ocupado['id']}/cancelar", json={}, headers=mundo["h_b"])
+
+    estados = [
+        cliente.get(f"{API}/reservas/{r['id']}", headers=mundo["h_b"]).json()
+        for r in (lucia, de_otro)
+    ]
+    assert [(e["estado"], e["posicion_en_cola"]) for e in estados] == [
+        ("PENDIENTE", 1),
+        ("DISPONIBLE_PARA_RETIRO", None),
+    ]
+
+
+@pytest.mark.ca("CA-RES-21")
+def test_sin_ejemplares_en_la_red_las_reservas_pendientes_se_cancelan(cliente, mundo, sesion):  # noqa: F811
+    ej = mundo["ej_a"][4]  # único ejemplar del libro 4
+    prestamo = _entregado(cliente, sesion, mundo["h_a"], mundo["juan"], ej)
+    reserva = _reservar(cliente, mundo["h_lucia"], mundo, libro=4).json()
+    devuelto = _devolver(cliente, mundo["h_a"], prestamo, "DANADO", observaciones="Hojas sueltas")
+    assert devuelto.status_code == 201, devuelto.json()
+    assert _reserva(cliente, mundo, reserva)["estado"] == "PENDIENTE"  # en revisión: puede volver
+
+    actual = cliente.get(f"{API}/ejemplares/{ej['id']}", headers=mundo["h_a"]).json()
+    baja = cliente.post(
+        f"{API}/ejemplares/{ej['id']}/baja",
+        json={"motivo": "Irreparable", "version": actual["version"]},
+        headers=mundo["h_a"],
+    )
+
+    assert baja.status_code == 200, baja.json()
+    cancelada = _reserva(cliente, mundo, reserva)
+    assert cancelada["estado"] == "CANCELADA"
+    assert (cancelada["historial"][-1]["autor"], cancelada["historial"][-1]["observacion"]) == (
+        "Sistema",
+        "El libro ya no tiene ejemplares en la red",
+    )
+
+
+def _reserva(cliente, m, reserva):
+    return cliente.get(f"{API}/reservas/{reserva['id']}", headers=m["h_b"]).json()
+
+
+@pytest.mark.ca("CA-RES-22")
+def test_cola_de_un_libro_en_orden_fifo_y_filtro_por_sede(cliente, mundo, ocupado):  # noqa: F811
+    socios = [_socio(cliente, mundo, f"5011100{i}", f"Socio {i}") for i in range(3)]
+    sedes = ["b", "c", "b"]
+    ids = [
+        _reservar(cliente, mundo["h_b"], mundo, socio=s, sede=sede).json()["id"]
+        for s, sede in zip(socios, sedes, strict=True)
+    ]
+    base = {"libro_id": mundo["libros"][0]["id"], "estado": "PENDIENTE"}
+
+    cola = cliente.get(
+        f"{API}/reservas", params={**base, "orden": "cola"}, headers=mundo["h_b"]
+    ).json()["items"]
+    en_c = cliente.get(
+        f"{API}/reservas", params={**base, "sede_retiro_id": mundo["c"]["id"]}, headers=mundo["h_b"]
+    ).json()["items"]
+
+    assert [(r["id"], r["posicion_en_cola"]) for r in cola] == [
+        (ids[0], 1),
+        (ids[1], 2),
+        (ids[2], 3),
+    ]
+    assert [r["id"] for r in en_c] == [ids[1]]
+
+
+# --- retiro -----------------------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-RES-12")
+def test_el_retiro_se_rechaza_en_otra_sede_o_con_el_socio_inhabilitado(cliente, mundo, ocupado):  # noqa: F811
+    reserva = _reservar(cliente, mundo["h_lucia"], mundo).json()
+    cliente.post(f"{API}/prestamos/{ocupado['id']}/cancelar", json={}, headers=mundo["h_b"])
+    url = f"{API}/reservas/{reserva['id']}/retirar"
+
+    _error(cliente.post(url, headers=mundo["h_a"]), 403, "FORBIDDEN")
+    cliente.post(
+        f"{API}/socios/{mundo['lucia']['id']}/inhabilitar",
+        json={"motivo": "Daño reiterado"},
+        headers=mundo["h_admin"],
+    )
+    _error(cliente.post(url, headers=mundo["h_b"]), 409, "SOCIO_INHABILITADO")
+    assert _reserva(cliente, mundo, reserva)["estado"] == "DISPONIBLE_PARA_RETIRO"

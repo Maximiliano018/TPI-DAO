@@ -2,6 +2,7 @@
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 
 from app.exceptions import (
     EjemplarNoEncontrado,
@@ -19,13 +20,21 @@ from app.models.ejemplar import Ejemplar
 from app.models.factories.prestamo_factory import PrestamoFactory
 from app.models.paginacion import Pagina
 from app.models.prestamo import Prestamo
-from app.models.reserva import Reserva
+from app.models.reserva import MovimientoReserva, Reserva
 from app.models.states.reserva import EstadoReservaEnum
-from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef
+from app.models.usuario import Permiso, Usuario, UsuarioRef
 from app.repositories.interfaces.prestamo_repository import FiltroReservas
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.cola_reservas import ColaDeReservas
 from app.utils.reloj import Reloj
+
+
+@dataclass(frozen=True)
+class DetalleReserva:
+    """Reserva con su historial de estados (RF-RES-16)."""
+
+    reserva: Reserva
+    historial: list[MovimientoReserva]
 
 
 class ReservaService:
@@ -46,7 +55,8 @@ class ReservaService:
             PermisoDenegado, SocioNoEncontrado, LibroNoEncontrado.
             SocioInhabilitado, SocioEnBaja (CA-RES-02); SedeEnBaja (CA-RES-03).
             LibroSinEjemplares: No hay ejemplares activos en la red.
-            HayEjemplaresDisponibles: Hay disponibles en la sede de retiro (CA-RES-01).
+            HayEjemplaresDisponibles: Hay disponibles en la sede de retiro (CA-RES-01) o en
+                otra sede activa, y corresponde un préstamo entre sedes (CA-RES-14).
             ReservaDuplicada (CA-RES-04); LimiteReservasExcedido (CA-RES-05).
         """
         socio_id = self._socio_de_la_reserva(actor, socio_id)
@@ -63,11 +73,27 @@ class ReservaService:
                 raise LibroSinEjemplares(
                     f"«{libro.titulo}» no tiene ejemplares en la red: no se puede reservar."
                 )
-            if self._uow.ejemplares.disponibles_en_sede(libro_id, sede_retiro_id):
+            disponibles = self._uow.ejemplares.disponibles_por_sede(libro_id)
+            if disponibles.get(sede_retiro_id):
                 raise HayEjemplaresDisponibles(
                     f"Hay ejemplares disponibles de «{libro.titulo}» en {sede.nombre}: "
                     "corresponde un préstamo, no una reserva.",
                     [{"campo": "libro_id", "problema": "hay_disponibles"}],
+                )
+            if disponibles:
+                # La reserva es para esperar un libro que no está en la red: si hay en otra
+                # sede, se pide como préstamo entre sedes (RF-RES-01, igual que RF-PRE-19).
+                raise HayEjemplaresDisponibles(
+                    f"Hay ejemplares disponibles de «{libro.titulo}» en otras sedes de la red: "
+                    f"corresponde un préstamo entre sedes con retiro en {sede.nombre}, no una "
+                    "reserva.",
+                    [
+                        {
+                            "campo": "libro_id",
+                            "problema": "disponibles_en_otra_sede",
+                            "sedes": sorted(disponibles),
+                        }
+                    ],
                 )
             activas = self._uow.reservas.activas_de_socio(socio_id)
             if any(r.libro_id == libro_id for r in activas):
@@ -81,34 +107,38 @@ class ReservaService:
                     f"El socio ya tiene {maximo} reservas activas.",
                     [{"campo": "socio_id", "problema": "limite", "maximo": maximo}],
                 )
-            reserva = Reserva(
-                id=None,
+            reserva = Reserva.registrar(
                 numero=self._uow.reservas.siguiente_numero(self._reloj.hoy().year),
                 socio_id=socio_id,
                 libro_id=libro_id,
                 sede_retiro_id=sede_retiro_id,
-                fecha_reserva=self._reloj.ahora(),
+                actor=_ref(actor),
+                ahora=self._reloj.ahora(),
             )
             self._uow.reservas.agregar(reserva)
         return self._releer(reserva)
 
-    def cancelar(self, actor: Usuario, reserva_id: int) -> Reserva:
+    def cancelar(self, actor: Usuario, reserva_id: int, motivo: str | None = None) -> Reserva:
         """Cancela una reserva activa; si tenía ejemplar, se ofrece al siguiente (CU-RES-05).
+
+        La cancela el socio (la propia) o el bibliotecario de la sede de retiro (CA-RES-17).
 
         Raises:
             ReservaNoEncontrada: No existe o es de otro socio.
+            PermisoDenegado: El personal no opera en la sede de retiro (o solo consulta).
             TransicionInvalida: Ya está cumplida, cancelada o vencida (CA-RES-11).
         """
         with self._transaccion():
             reserva = self._uow.reservas.obtener_para_modificar(reserva_id)
             if reserva is None or not self._puede_ver(actor, reserva):
                 raise ReservaNoEncontrada("La reserva solicitada no existe.")
+            self._validar_puede_cancelar(actor, reserva)
             ejemplar_id = (
                 reserva.ejemplar_id
                 if reserva.estado_nombre == EstadoReservaEnum.DISPONIBLE_PARA_RETIRO
                 else None
             )
-            reserva.cancelar(self._reloj.ahora())
+            reserva.cancelar(self._reloj.ahora(), _ref(actor), motivo)
             self._uow.reservas.guardar(reserva)
             if ejemplar_id is not None:
                 self._liberar(ejemplar_id, _ref(actor), f"Reserva {reserva.numero} cancelada")
@@ -126,7 +156,7 @@ class ReservaService:
                 if reserva.estado_nombre == EstadoReservaEnum.DISPONIBLE_PARA_RETIRO
                 else None
             )
-            reserva.cancelar(self._reloj.ahora())
+            reserva.cancelar(self._reloj.ahora(), actor, "Baja del socio")
             self._uow.reservas.guardar(reserva)
             if ejemplar_id is not None:
                 self._liberar(ejemplar_id, actor, f"Reserva {reserva.numero} cancelada (baja)")
@@ -174,7 +204,7 @@ class ReservaService:
             ejemplar.prestar(_ref(actor), ahora, f"Retiro de la reserva {reserva.numero}")
             self._uow.prestamos.agregar(prestamo)
             assert prestamo.id is not None
-            reserva.cumplir(prestamo.id, ahora)
+            reserva.cumplir(prestamo.id, _ref(actor), ahora, prestamo.numero)
             self._uow.reservas.guardar(reserva)
             self._uow.ejemplares.guardar(ejemplar)
         return self._uow.prestamos.obtener(prestamo.id) or prestamo
@@ -201,11 +231,12 @@ class ReservaService:
 
     # --- lectura --------------------------------------------------------------------------
 
-    def detalle(self, actor: Usuario, reserva_id: int) -> Reserva:
+    def detalle(self, actor: Usuario, reserva_id: int) -> DetalleReserva:
+        """Reserva con su posición en la cola y su historial (RF-RES-12, 16)."""
         reserva = self._uow.reservas.obtener(reserva_id)
         if reserva is None or not self._puede_ver(actor, reserva):
             raise ReservaNoEncontrada("La reserva solicitada no existe.")
-        return reserva
+        return DetalleReserva(reserva, self._uow.reservas.historial(reserva_id))
 
     def listar(
         self,
@@ -215,12 +246,21 @@ class ReservaService:
         estado: EstadoReservaEnum | None,
         page: int,
         size: int,
+        sede_retiro_id: int | None = None,
+        orden_cola: bool = False,
     ) -> Pagina[Reserva]:
-        """El socio ve solo las propias (CA-RES-13); el personal, todas (la cola de un libro)."""
+        """El socio ve solo las propias (CA-RES-13); el personal, todas, con filtro por sede de
+        retiro y la cola de un libro en orden FIFO (CA-RES-22)."""
         if not actor.puede(Permiso.RESERVA_LEER):
             actor.exigir(Permiso.RESERVA_PROPIA)
             socio_id = actor.socio_id
-        filtro = FiltroReservas(socio_id=socio_id, libro_id=libro_id, estado=estado)
+        filtro = FiltroReservas(
+            socio_id=socio_id,
+            libro_id=libro_id,
+            sede_id=sede_retiro_id,
+            estado=estado,
+            orden_cola=orden_cola,
+        )
         reservas, total = self._uow.reservas.listar(filtro, page, size)
         return Pagina(reservas, total, page, size)
 
@@ -238,17 +278,36 @@ class ReservaService:
 
     @staticmethod
     def _socio_de_la_reserva(actor: Usuario, socio_id: int | None) -> int:
-        if actor.rol == Rol.SOCIO:
-            actor.exigir(Permiso.RESERVA_PROPIA)
-            assert actor.socio_id is not None
-            return actor.socio_id
-        actor.exigir(Permiso.RESERVA_REGISTRAR)
-        if socio_id is None:
-            raise ErrorDeValidacion(
-                "Indique el socio de la reserva.",
-                [{"campo": "socio_id", "problema": "obligatorio"}],
+        """El personal reserva en nombre de un socio; el socio, solo para sí (CA-RES-18)."""
+        if actor.puede(Permiso.RESERVA_REGISTRAR):
+            if socio_id is None:
+                raise ErrorDeValidacion(
+                    "Indique el socio de la reserva.",
+                    [{"campo": "socio_id", "problema": "obligatorio"}],
+                )
+            return socio_id
+        actor.exigir(Permiso.RESERVA_PROPIA)
+        if actor.socio_id is None:
+            raise PermisoDenegado("Su usuario no tiene una ficha de socio.")
+        if socio_id is not None and socio_id != actor.socio_id:
+            raise PermisoDenegado(
+                "Solo puede reservar para usted.",
+                [{"campo": "socio_id", "problema": "ajeno"}],
             )
-        return socio_id
+        return actor.socio_id
+
+    @staticmethod
+    def _validar_puede_cancelar(actor: Usuario, reserva: Reserva) -> None:
+        """El socio cancela la propia; el personal, solo las que se retiran en su sede."""
+        if actor.puede(Permiso.RESERVA_PROPIA) and actor.socio_id == reserva.socio_id:
+            return
+        if not actor.puede(Permiso.RESERVA_REGISTRAR):
+            raise PermisoDenegado("No tiene permiso para cancelar reservas.")
+        if not actor.opera_en(reserva.sede_retiro_id):
+            raise PermisoDenegado(
+                "La reserva se retira en otra sede: la cancela esa sede.",
+                [{"campo": "sede_retiro_id", "problema": "otra_sede"}],
+            )
 
     @staticmethod
     def _puede_ver(actor: Usuario, reserva: Reserva) -> bool:
@@ -266,7 +325,7 @@ class ReservaService:
         ejemplar = self._ejemplar(ejemplar_id)
         ejemplar.liberar(actor, self._reloj.ahora(), motivo)
         self._uow.ejemplares.guardar(ejemplar)
-        ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, actor)
+        ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
 
     def _releer(self, reserva: Reserva) -> Reserva:
         assert reserva.id is not None

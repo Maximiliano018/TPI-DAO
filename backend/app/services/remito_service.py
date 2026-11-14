@@ -267,7 +267,12 @@ class RemitoService:
                 else:
                     self._incidencia_de_recepcion(remito, linea, ejemplar, yo)
                 self._uow.ejemplares.guardar(ejemplar)
-                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
+                cola = ColaDeReservas(self._uow, self._reloj)
+                cola.ofrecer(ejemplar)
+                if ejemplar.estado_nombre == EstadoEjemplarEnum.BAJA:
+                    # Destruido (o faltante, que deja un extravío pendiente): si era el último
+                    # ejemplar del libro, la cola ya no puede cumplirse (RF-RES-17).
+                    cola.revisar_libro(ejemplar.libro_id)
             self._uow.remitos.guardar(remito)
         return self.detalle(actor, remito_id)
 
@@ -288,7 +293,7 @@ class RemitoService:
                 ejemplar.liberar(yo, ahora, f"Remito {remito.numero} anulado")
                 self._uow.ejemplares.guardar(ejemplar)
                 self._cancelar_prestamo(linea, yo, f"Remito {remito.numero} anulado")
-                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
+                ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
             self._uow.remitos.guardar(remito)
         return self._releer(remito)
 

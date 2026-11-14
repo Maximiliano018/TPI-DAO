@@ -18,11 +18,13 @@ import {
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { ESTADOS_FISICOS, TIPOS_DE_MATERIAL } from '../../../utils/estados.js';
 import { mensajeDeError } from '../../../utils/errores.js';
+import { formatearFechaHora } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
 import SolicitarPrestamoDialog from '../../prestamos/components/SolicitarPrestamoDialog.jsx';
 import ReservarDialog from '../../reservas/components/ReservarDialog.jsx';
+import { useReservas } from '../../reservas/hooks/useReservas.js';
 import EstadoEjemplarBadge from '../components/EstadoEjemplarBadge.jsx';
 import {
   useDisponibilidad,
@@ -110,6 +112,51 @@ function Ejemplares({ libroId }) {
   );
 }
 
+/** Cola de espera del libro en orden de llegada (FIFO): quién sigue cuando se libere uno. */
+function ColaDeReservas({ libroId }) {
+  const { data, isPending, error, refetch } = useReservas({
+    libro_id: libroId,
+    estado: 'PENDIENTE',
+    orden: 'cola',
+    size: 10,
+  });
+  if (isPending) return <Skeleton alto={96} />;
+  if (error) return <ErrorState error={error} onReintentar={refetch} />;
+  if (data.items.length === 0) return <p style={{ margin: 0 }}>Nadie espera este libro.</p>;
+  const columnas = [
+    { clave: 'lugar', titulo: 'Lugar', render: (r) => r.posicion_en_cola },
+    {
+      clave: 'numero',
+      titulo: 'Reserva',
+      render: (r) => (
+        <Link to={`/reservas/${r.id}`} className="mono">
+          {r.numero}
+        </Link>
+      ),
+    },
+    { clave: 'socio', titulo: 'Socio' },
+    { clave: 'sede_retiro', titulo: 'Retira en' },
+    { clave: 'fecha', titulo: 'Reservada', render: (r) => formatearFechaHora(r.fecha_reserva) },
+  ];
+  return (
+    <>
+      <Table
+        etiqueta="Cola de reservas"
+        columnas={columnas}
+        filas={data.items}
+        idDe={(r) => r.id}
+      />
+      {data.total > data.items.length && (
+        <p style={{ marginBottom: 0 }}>
+          <Link to={`/reservas?libro_id=${libroId}&estado=PENDIENTE&sede_retiro_id=todas`}>
+            Ver las {data.total} reservas en espera
+          </Link>
+        </p>
+      )}
+    </>
+  );
+}
+
 function EliminarLibroDialog({ libro, onCerrar }) {
   const eliminar = useEliminarLibro();
   const navegar = useNavigate();
@@ -143,6 +190,9 @@ export default function LibroDetallePage() {
   const { id } = useParams();
   const { usuario, tienePermiso } = useSesion();
   const { data: libro, isPending, error, refetch } = useLibro(id);
+  // La reserva es para esperar un libro sin disponibles en la red; si hay, se pide un préstamo.
+  const disponibilidad = useDisponibilidad(Number(id));
+  const sinDisponibles = disponibilidad.data?.total_red.disponibles === 0;
   const [eliminando, setEliminando] = useState(false);
   const [reservando, setReservando] = useState(false);
   const [pidiendo, setPidiendo] = useState(false);
@@ -172,12 +222,13 @@ export default function LibroDetallePage() {
             {tienePermiso(PERMISOS.PRESTAMO_SOLICITAR_PROPIO) && (
               <Button onClick={() => setPidiendo(true)}>Pedir préstamo</Button>
             )}
-            {(tienePermiso(PERMISOS.RESERVA_PROPIA) ||
-              tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
-              <Button variante="secondary" onClick={() => setReservando(true)}>
-                Reservar
-              </Button>
-            )}
+            {sinDisponibles &&
+              (tienePermiso(PERMISOS.RESERVA_PROPIA) ||
+                tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
+                <Button variante="secondary" onClick={() => setReservando(true)}>
+                  Reservar
+                </Button>
+              )}
             {gestionaEjemplares && (
               <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`}>Agregar ejemplar</Button>
             )}
@@ -215,6 +266,11 @@ export default function LibroDetallePage() {
             <Disponibilidad libroId={libro.id} sedeId={usuario.sede_id} />
           </Card>
         </div>
+        {tienePermiso(PERMISOS.RESERVA_LEER) && (
+          <Card titulo="Cola de reservas">
+            <ColaDeReservas libroId={libro.id} />
+          </Card>
+        )}
         {tienePermiso(PERMISOS.EJEMPLAR_LEER) && (
           <Card titulo="Ejemplares">
             <Ejemplares libroId={libro.id} />

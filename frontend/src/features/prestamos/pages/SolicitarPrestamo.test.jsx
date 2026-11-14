@@ -151,6 +151,7 @@ describe('Autogestión de préstamos', () => {
     sesionDe(BIBLIOTECARIO);
     fichaDelLibro();
     responder('get', '/ejemplares', pagina([]));
+    responder('get', '/reservas', pagina([]));
     renderizarApp('/catalogo/12', { conSesion: true });
 
     await screen.findByRole('heading', { level: 1, name: 'Rayuela' });

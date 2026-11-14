@@ -3,6 +3,7 @@ import {
   cancelarReserva,
   crearReserva,
   listarReservas,
+  obtenerReserva,
   retirarReserva,
   vencerReservas,
 } from '../../../api/reservas.js';
@@ -10,11 +11,18 @@ import {
 // Reservar, cancelar o retirar cambia ejemplares, préstamos y la situación del socio.
 const AFECTADAS = [['reservas'], ['prestamos'], ['catalogo'], ['socios']];
 
-export const useReservas = (filtros = {}) =>
+export const useReservas = (filtros = {}, opciones = {}) =>
   useQuery({
     queryKey: ['reservas', 'lista', filtros],
     queryFn: () => listarReservas(filtros),
     placeholderData: keepPreviousData,
+    ...opciones,
+  });
+
+export const useReserva = (id) =>
+  useQuery({
+    queryKey: ['reservas', 'detalle', String(id)],
+    queryFn: () => obtenerReserva(id),
   });
 
 function useMutacion(mutationFn) {

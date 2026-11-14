@@ -69,6 +69,14 @@ class EjemplarRepositorioEnMemoria:
     def contar_de_libro(self, libro_id: int) -> int:
         return sum(1 for e in self.ejemplares.values() if e.libro_id == libro_id)
 
+    def activos_de_libro(self, libro_id: int) -> int:
+        """Sin filtrar por sede activa: alcanza para las pruebas de servicio."""
+        return sum(
+            1
+            for e in self.ejemplares.values()
+            if e.libro_id == libro_id and e.estado_nombre != _BAJA
+        )
+
     def alojados_en_sede(self, sede_id: int, limite: int) -> tuple[list[Ejemplar], int]:
         lista = [
             e
