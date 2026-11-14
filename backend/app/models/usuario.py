@@ -53,6 +53,8 @@ class Permiso(StrEnum):
     PRESTAMO_REGISTRAR = "PRESTAMO_REGISTRAR"
     PRESTAMO_LEER = "PRESTAMO_LEER"
     PRESTAMO_VER_PROPIOS = "PRESTAMO_VER_PROPIOS"
+    # Autogestión: pedir un préstamo para uno mismo (el socio sale de la sesión, nunca del cuerpo).
+    PRESTAMO_SOLICITAR_PROPIO = "PRESTAMO_SOLICITAR_PROPIO"
     REMITO_OPERAR = "REMITO_OPERAR"
     REMITO_LEER = "REMITO_LEER"
     REMITO_EXTRAVIO = "REMITO_EXTRAVIO"
@@ -125,6 +127,7 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.SOCIO_VER_PROPIO,
             Permiso.CATALOGO_LEER,
             Permiso.PRESTAMO_VER_PROPIOS,
+            Permiso.PRESTAMO_SOLICITAR_PROPIO,
             Permiso.RESERVA_PROPIA,
             Permiso.MULTA_VER_PROPIAS,
         }

@@ -106,9 +106,9 @@ stateDiagram-v2
     [*] --> Solicitado : registrar
     Solicitado --> EnEnvio : remito generado (interbibliotecario)
     Solicitado --> Activo : entrega (local)
-    Solicitado --> Cancelado : cancelar
+    Solicitado --> Cancelado : cancelar (personal o el propio socio)<br/>o plazo de retiro vencido (local)
     EnEnvio --> Activo : recepción y entrega al socio
-    EnEnvio --> Cancelado : remito anulado, extraviado, dañado o destruido
+    EnEnvio --> Cancelado : remito anulado, extraviado, dañado o destruido<br/>o plazo de retiro vencido
     Activo --> Vencido : pasó la fecha de vencimiento
     Activo --> Devuelto : devolución
     Vencido --> Devuelto : devolución (con multa)
@@ -123,6 +123,15 @@ stateDiagram-v2
 | `Vencido → Devuelto` | Ídem | Genera multa por los días de atraso |
 
 El día de vencimiento es el último día válido: `Vencido` solo se alcanza al día siguiente.
+
+**Plazo de retiro.** Mientras no se entrega, el préstamo tiene una fecha límite de retiro (`vigencia_retiro_prestamo_dias`, 3 días):
+
+- **Local:** se fija al registrarlo.
+- **Interbibliotecario:** se fija cuando el remito de envío se recibe en la sede destino; queda en el historial como un movimiento sin cambio de estado, «Disponible para retirar hasta…».
+
+La tarea diaria (`vencer_retiros`) cancela los vencidos con autor «Sistema». El local libera el ejemplar; el interbibliotecario genera el remito de retorno. Como el vencimiento, el día límite todavía es válido.
+
+**Cancelación por el socio.** El socio cancela sus propios préstamos solo en `Solicitado`, es decir, antes de que salga de la sede origen. En `En envío` ya hay un remito en marcha y lo maneja el personal.
 
 ## Remito
 

@@ -12,6 +12,8 @@ from typing import Protocol
 class PoliticaPlazo(Protocol):
     """Calcula la fecha de vencimiento a partir de una fecha de inicio."""
 
+    dias: int  # duración del plazo, para informarla antes de pedir el préstamo
+
     def vencimiento(self, inicio: date) -> date:
         """Último día válido para devolver (el día de vencimiento todavía está en término)."""
         ...

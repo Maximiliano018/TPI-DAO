@@ -109,10 +109,12 @@ class Remito:
         motivo: MotivoRemito,
         lineas: list[LineaRemito],
         observaciones: str | None,
-        actor: UsuarioRef,
+        actor: UsuarioRef | None,
         ahora: datetime,
     ) -> "Remito":
         """Crea el remito ``Generado`` con su detalle (RF-REM-01 a 03).
+
+        ``actor`` es ``None`` cuando lo genera el sistema (retiro vencido de un préstamo).
 
         Raises:
             RemitoInvalido: Mismo origen y destino, sin líneas, ejemplares repetidos o líneas

@@ -7,7 +7,11 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from app.controllers.dependencies import get_reserva_service, requiere, usuario_actual
-from app.dtos.response.prestamo_response import PrestamoResponse, TareaResponse
+from app.dtos.response.prestamo_response import (
+    PrestamoResponse,
+    TareaResponse,
+    prestamo_a_response,
+)
 from app.models.paginacion import Pagina
 from app.models.reserva import Reserva
 from app.models.states.reserva import EstadoReservaEnum
@@ -176,7 +180,7 @@ def retirar_reserva(
     actor: Annotated[Usuario, Depends(requiere(Permiso.RESERVA_REGISTRAR))],
 ) -> PrestamoResponse:
     """La reserva queda cumplida y se crea el préstamo activo con su vencimiento."""
-    return PrestamoResponse.desde(servicio.retirar(actor, reserva_id))
+    return prestamo_a_response(servicio.retirar(actor, reserva_id), actor)
 
 
 @router.post(

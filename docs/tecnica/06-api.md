@@ -163,14 +163,17 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /prestamos` | B | Registrar solicitud (local o interbibliotecario) | RF-PRE-01 a 08 |
+| `POST /prestamos` | B (`PRESTAMO_REGISTRAR`) | Registrar en mostrador en nombre del socio (el bibliotecario elige el ejemplar; local o interbibliotecario según dónde está) | RF-PRE-01 a 08 |
+| `GET /prestamos/solicitudes/propuesta` | S (`PRESTAMO_SOLICITAR_PROPIO`) | Qué préstamo se haría si el socio pide el libro ahora (`?libro_id=&sede_destino_id=`); no aparta nada | RF-PRE-16, 17 |
+| `POST /prestamos/solicitudes` | S (`PRESTAMO_SOLICITAR_PROPIO`) | El socio pide un libro para sí; el sistema elige tipo y ejemplar | RF-PRE-16 a 19 |
 | `GET /prestamos` | A, B, S | Listado; `?estado=`, `?tipo=`, `?socio_id=` | RF-PRE-15 |
-| `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito | RF-PRE-15 |
+| `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito (esquema por rol, ver abajo) | RF-PRE-15, 22 |
 | `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
 | `POST /prestamos/{id}/renovar` | B | Renovación | RF-PRE-14 |
-| `POST /prestamos/{id}/cancelar` | B | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno | RF-PRE-13 |
+| `POST /prestamos/{id}/cancelar` | B, S | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno. El socio solo cancela los propios en `SOLICITADO` | RF-PRE-13, 21 |
 | `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11 |
 | `POST /admin/tareas/detectar-vencidos` | A | Ejecuta la detección de vencidos (también corre sola cada día) | RF-PRE-12 |
+| `POST /admin/tareas/vencer-retiros` | A | Cancela los préstamos no retirados a tiempo (también corre sola cada día) | RF-PRE-20 |
 
 ### Remitos
 
@@ -602,6 +605,36 @@ Response `200`:
 }
 ```
 
+### Autogestión del socio: `GET /prestamos/solicitudes/propuesta` y `POST /prestamos/solicitudes`
+
+El socio pide un libro para sí. El socio es siempre el de la sesión: si el cuerpo (o la consulta) trae otro `socio_id`, responde `403 FORBIDDEN`. Sin `sede_destino_id`, se usa la sede de alta del socio.
+
+```json
+// GET /prestamos/solicitudes/propuesta?libro_id=12  →  200
+{
+  "tipo": "INTERBIBLIOTECARIO",
+  "libro_id": 12,
+  "libro": "Rayuela",
+  "sede_origen": { "id": 3, "nombre": "Sede Río Cuarto" },
+  "sede_destino": { "id": 1, "nombre": "Sede Central" },
+  "plazo_dias": 21,
+  "retiro_hasta": null
+}
+
+// POST /prestamos/solicitudes
+{ "libro_id": 12, "sede_destino_id": 1, "sede_origen_esperada_id": 3 }
+```
+
+Response `201`: el préstamo `SOLICITADO` (esquema del socio). Un local trae `fecha_limite_retiro`.
+
+Errores:
+- `409 SOCIO_INHABILITADO`, `SOCIO_EN_BAJA`, `LIMITE_PRESTAMOS` o `LIBRO_REPETIDO`: se controlan antes de mirar la disponibilidad.
+- `409 SIN_EJEMPLARES_DISPONIBLES`: `detalles[0].sede_destino_id` indica la sede para ofrecer la reserva.
+- `409 DISPONIBILIDAD_CAMBIADA`: la sede origen ya no es `sede_origen_esperada_id`; `detalles[0].sede_origen_id` trae la nueva.
+- `409 SEDE_EN_BAJA`, `404 LIBRO_NO_ENCONTRADO`.
+
+**Préstamo por rol.** El socio recibe `PrestamoPropioResponse`, sin `registrado_por`. En el historial, cada movimiento trae `autor` («Vos», «Personal de la biblioteca» o «Sistema») y `usuario` nulo. El personal recibe `PrestamoPersonalResponse`, con `registrado_por` y el `usuario` de cada movimiento. Todos los préstamos traen `fecha_limite_retiro`.
+
 ### `POST /prestamos` — préstamo interbibliotecario
 
 Request (el tipo se deduce de las sedes):
@@ -609,6 +642,8 @@ Request (el tipo se deduce de las sedes):
 ```json
 { "socio_id": 45, "ejemplar_id": 301, "sede_destino_id": 2 }
 ```
+
+El origen es la sede donde está el ejemplar: no se indica (el campo `sede_origen_id` se quitó porque solo podía producir un error). Un préstamo local nace con `fecha_limite_retiro`.
 
 Response `201`:
 

@@ -6,7 +6,7 @@ igual.
 """
 
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 from app.exceptions import (
     EjemplarNoDisponible,
@@ -36,6 +36,33 @@ class PrestamoFactory:
             return PlazoLocal(self._parametros.plazo_prestamo_local_dias)
         return PlazoInterbibliotecario(self._parametros.plazo_prestamo_inter_dias)
 
+    def validar_socio(
+        self, socio: Socio, abiertos_del_socio: Sequence[Prestamo], libro_id: int
+    ) -> None:
+        """Reglas del socio, que se controlan antes de buscar un ejemplar (CA-PRE-23).
+
+        Raises:
+            SocioInhabilitado, SocioEnBaja: El socio no puede operar (CA-PRE-02).
+            LimitePrestamosExcedido: El socio ya tiene el máximo de préstamos (CA-PRE-06).
+            LibroYaPrestado: El socio ya tiene un préstamo abierto del mismo libro.
+        """
+        socio.validar_puede_operar()
+        maximo = self._parametros.prestamos_maximos_por_socio
+        if len(abiertos_del_socio) >= maximo:
+            raise LimitePrestamosExcedido(
+                f"El socio {socio.numero_socio} ya tiene {maximo} préstamos en curso.",
+                [{"campo": "socio_id", "problema": "limite", "maximo": maximo}],
+            )
+        if any(p.libro_id == libro_id for p in abiertos_del_socio):
+            raise LibroYaPrestado(
+                f"El socio {socio.numero_socio} ya tiene un préstamo en curso de este libro.",
+                [{"campo": "ejemplar_id", "problema": "libro_repetido"}],
+            )
+
+    def limite_de_retiro(self, desde: date) -> date:
+        """Último día para retirar un préstamo en la sede destino (RF-PRE-20)."""
+        return desde + timedelta(days=self._parametros.vigencia_retiro_prestamo_dias)
+
     def crear(
         self,
         *,
@@ -48,12 +75,16 @@ class PrestamoFactory:
         actor: UsuarioRef | None,
         ahora: datetime,
         reservado: bool = False,
+        hoy: date | None = None,
     ) -> Prestamo:
         """Valida las reglas del enunciado, aparta el ejemplar y devuelve el préstamo.
 
         Con ``reservado`` el ejemplar ya está ``Reservado`` para el socio (retiro de una reserva):
         se exige ese estado en lugar de ``Disponible`` y no se aparta. ``actor`` es ``None``
         cuando el préstamo lo genera el sistema al asignar una reserva.
+
+        Con ``hoy``, un préstamo local queda con plazo de retiro (``hoy`` + la vigencia); el
+        interbibliotecario lo recibe recién cuando el ejemplar llega a la sede destino.
 
         Raises:
             SedeEnBaja: Origen o destino dados de baja (CA-PRE-04, 05).
@@ -80,17 +111,7 @@ class PrestamoFactory:
                 f"{TEXTO_ESTADO[ejemplar.estado_nombre]}.",
                 [{"campo": "ejemplar_id", "problema": ejemplar.estado_nombre.value}],
             )
-        maximo = self._parametros.prestamos_maximos_por_socio
-        if len(abiertos_del_socio) >= maximo:
-            raise LimitePrestamosExcedido(
-                f"El socio {socio.numero_socio} ya tiene {maximo} préstamos en curso.",
-                [{"campo": "socio_id", "problema": "limite", "maximo": maximo}],
-            )
-        if any(p.libro_id == ejemplar.libro_id for p in abiertos_del_socio):
-            raise LibroYaPrestado(
-                f"El socio {socio.numero_socio} ya tiene un préstamo en curso de este libro.",
-                [{"campo": "ejemplar_id", "problema": "libro_repetido"}],
-            )
+        self.validar_socio(socio, abiertos_del_socio, ejemplar.libro_id)
         assert socio.id is not None and ejemplar.id is not None
         tipo = (
             TipoPrestamo.LOCAL
@@ -109,6 +130,8 @@ class PrestamoFactory:
             fecha_solicitud=ahora,
             registrado_por=actor,
         )
+        if tipo == TipoPrestamo.LOCAL and not reservado and hoy is not None:
+            prestamo.fecha_limite_retiro = self.limite_de_retiro(hoy)
         prestamo.registrar_alta(actor, ahora)
         if not reservado:
             ejemplar.apartar(actor, ahora, f"Apartado para el préstamo {numero}")

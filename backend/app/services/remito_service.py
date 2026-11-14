@@ -20,6 +20,7 @@ from app.exceptions import (
     RemitoNoEncontrado,
 )
 from app.models.ejemplar import Ejemplar, EstadoFisico
+from app.models.factories.prestamo_factory import PrestamoFactory
 from app.models.incidencia import Incidencia, OrigenIncidencia, TipoIncidencia
 from app.models.paginacion import Pagina
 from app.models.prestamo import Prestamo
@@ -148,11 +149,14 @@ class RemitoService:
                     self._uow.ejemplares.guardar(ejemplar)
         return self._releer(remito)
 
-    def generar_retorno(self, prestamo: Prestamo, ejemplar: Ejemplar, actor: UsuarioRef) -> Remito:
+    def generar_retorno(
+        self, prestamo: Prestamo, ejemplar: Ejemplar, actor: UsuarioRef | None
+    ) -> Remito:
         """Remito de vuelta del ejemplar a su sede propietaria (RF-REM-04, RF-DEV-09).
 
         No abre transacción: lo usan otros casos de uso (devolución, cancelación sin retiro)
         dentro de la suya. El ejemplar tiene que estar ``Apartado`` en la sede donde está.
+        ``actor`` es ``None`` cuando lo genera el sistema (plazo de retiro vencido).
         """
         assert ejemplar.id is not None
         numero = self._uow.remitos.siguiente_numero(self._reloj.hoy().year)
@@ -246,6 +250,7 @@ class RemitoService:
                 if linea.resultado == ResultadoLinea.RECIBIDO:
                     if remito.motivo == MotivoRemito.ENVIO:
                         ejemplar.apartar(yo, ahora, f"{texto}: espera el retiro del socio")
+                        self._habilitar_retiro(linea, yo)
                     else:
                         ejemplar.liberar(yo, ahora, texto)
                 elif _danio_ya_informado(remito, linea):
@@ -449,6 +454,18 @@ class RemitoService:
             prestamo.cancelar(motivo, actor, self._reloj.ahora())
             self._uow.prestamos.guardar(prestamo)
         return prestamo
+
+    def _habilitar_retiro(self, linea: LineaRemito, actor: UsuarioRef) -> None:
+        """El préstamo llegó a destino: empieza el plazo para retirarlo (RF-PRE-20)."""
+        if linea.prestamo_id is None:
+            return
+        prestamo = self._uow.prestamos.obtener_para_modificar(linea.prestamo_id)
+        if prestamo is None:
+            return
+        fabrica = PrestamoFactory(self._uow.parametros.vigentes())
+        hasta = fabrica.limite_de_retiro(self._reloj.hoy())
+        prestamo.habilitar_retiro(hasta, actor, self._reloj.ahora())
+        self._uow.prestamos.guardar(prestamo)
 
     def _socio_de(self, prestamo_id: int | None) -> int | None:
         if prestamo_id is None:

@@ -286,7 +286,8 @@ Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 | fecha_solicitud | TIMESTAMPTZ | NOT NULL |
 | fecha_inicio, fecha_vencimiento, fecha_devolucion | DATE / TIMESTAMPTZ | |
 | renovaciones | SMALLINT | NOT NULL, por defecto 0 |
-| registrado_por_id | FK usuario | NOT NULL |
+| fecha_limite_retiro | DATE | último día para retirarlo en la sede destino; NULL mientras un interbibliotecario no llegó |
+| registrado_por_id | FK usuario | quien lo pidió: el personal o el propio socio; NULL si lo generó el sistema al asignar una reserva |
 
 Restricciones que garantizan reglas de negocio en la base:
 
@@ -294,6 +295,11 @@ Restricciones que garantizan reglas de negocio en la base:
 -- origen = destino solo en préstamos locales
 CHECK ((tipo = 'LOCAL' AND sede_origen_id = sede_destino_id)
     OR (tipo = 'INTERBIBLIOTECARIO' AND sede_origen_id <> sede_destino_id))
+
+-- fechas coherentes con el estado (0012)
+CHECK ((estado IN ('ACTIVO','VENCIDO','DEVUELTO'))
+       = (fecha_inicio IS NOT NULL AND fecha_vencimiento IS NOT NULL))
+CHECK ((estado = 'DEVUELTO') = (fecha_devolucion IS NOT NULL))
 
 -- un ejemplar no puede tener dos préstamos abiertos a la vez
 CREATE UNIQUE INDEX uq_prestamo_abierto_por_ejemplar
@@ -366,6 +372,7 @@ Parámetros iniciales (`parametro`):
 | `prestamos_maximos_por_socio` | 3 |
 | `reservas_maximas_por_socio` | 3 |
 | `vigencia_retiro_reserva_dias` | 3 |
+| `vigencia_retiro_prestamo_dias` | 3 |
 | `multa_por_dia` | 200.00 |
 | `transito_maximo_dias` | 7 |
 
@@ -423,6 +430,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0009_causas_de_inhabilitacion` | `socio.causa_prestamo_vencido` y `causa_multa_impaga` (todas las causas automáticas, no solo la principal), completadas con los préstamos y multas reales |
 | `0010_bajas_y_historial_de_socios` | `socio.tipo_baja` y la solicitud de reactivación; restricciones para conservar la inhabilitación administrativa en la baja; `historial_socio` con su disparador de solo inserción. Las bajas existentes quedan como `A_PEDIDO` |
 | `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
+| `0012_autogestion_de_prestamos` | `prestamo.fecha_limite_retiro`, el parámetro `vigencia_retiro_prestamo_dias` y los `CHECK` de fechas según el estado. Los préstamos que esperaban retiro reciben 3 días desde la migración |
 
 ### Seed de demostración
 

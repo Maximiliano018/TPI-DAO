@@ -71,6 +71,7 @@ export const SOCIO = {
   permisos: [
     'CATALOGO_LEER',
     'MULTA_VER_PROPIAS',
+    'PRESTAMO_SOLICITAR_PROPIO',
     'PRESTAMO_VER_PROPIOS',
     'RESERVA_PROPIA',
     'SEDE_LEER_PUBLICO',
@@ -335,6 +336,7 @@ export function prestamo(over = {}) {
     fecha_inicio: null,
     fecha_vencimiento: null,
     fecha_devolucion: null,
+    fecha_limite_retiro: null,
     renovaciones: 0,
     registrado_por: { id: 2, nombre: 'Lucía Gómez' },
     historial: [
@@ -342,6 +344,7 @@ export function prestamo(over = {}) {
         estado_anterior: null,
         estado_nuevo: 'SOLICITADO',
         fecha_hora: '2026-11-10T15:00:00Z',
+        autor: 'Lucía Gómez',
         usuario: { id: 2, nombre: 'Lucía Gómez' },
         observacion: 'Solicitud registrada',
       },

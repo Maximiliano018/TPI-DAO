@@ -7,8 +7,10 @@ import {
   listarParametros,
   listarPrestamos,
   obtenerPrestamo,
+  proponerPrestamo,
   registrarPrestamo,
   renovarPrestamo,
+  solicitarPrestamo,
 } from '../../../api/prestamos.js';
 import {
   anularRemito,
@@ -26,6 +28,7 @@ const AFECTADAS = [['prestamos'], ['remitos'], ['catalogo'], ['socios']];
 export const claves = {
   prestamos: (filtros) => ['prestamos', 'lista', filtros],
   prestamo: (id) => ['prestamos', 'detalle', String(id)],
+  propuesta: (params) => ['prestamos', 'propuesta', params],
   remitos: (filtros) => ['remitos', 'lista', filtros],
   remito: (id) => ['remitos', 'detalle', String(id)],
   parametros: ['parametros'],
@@ -41,6 +44,14 @@ export const usePrestamos = (filtros = {}, opciones = {}) =>
 
 export const usePrestamo = (id) =>
   useQuery({ queryKey: claves.prestamo(id), queryFn: () => obtenerPrestamo(id) });
+
+/** Propuesta de préstamo para el socio; se recalcula al cambiar la sede de retiro. */
+export const usePropuestaPrestamo = (params) =>
+  useQuery({
+    queryKey: claves.propuesta(params),
+    queryFn: () => proponerPrestamo(params),
+    staleTime: 0,
+  });
 
 export const useRemitos = (filtros = {}) =>
   useQuery({
@@ -80,3 +91,4 @@ export const useMarcarExtraviado = () =>
   useMutacion(({ id, motivo }) => marcarExtraviado(id, motivo));
 export const useActualizarParametro = () =>
   useMutacion(({ clave, valor }) => actualizarParametro(clave, valor), [claves.parametros]);
+export const useSolicitarPrestamo = () => useMutacion(solicitarPrestamo);

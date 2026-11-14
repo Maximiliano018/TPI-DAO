@@ -78,6 +78,10 @@ class PrestamoRepository(Protocol):
         """Préstamos ``Activo`` cuyo vencimiento ya pasó, bloqueados para cambiarlos."""
         ...
 
+    def retiros_vencidos(self, hoy: date) -> list[Prestamo]:
+        """Préstamos sin entregar cuyo plazo de retiro ya pasó, bloqueados para cambiarlos."""
+        ...
+
     def listar(
         self, filtro: FiltroPrestamos, page: int, size: int
     ) -> tuple[list[Prestamo], int]: ...

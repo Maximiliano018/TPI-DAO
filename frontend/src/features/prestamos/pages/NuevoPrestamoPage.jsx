@@ -6,7 +6,6 @@ import {
   Breadcrumb,
   Button,
   Card,
-  Combobox,
   EmptyState,
   ErrorState,
   PageHeader,
@@ -19,19 +18,20 @@ import { mensajeDeError } from '../../../utils/errores.js';
 import { ESTADOS_FISICOS } from '../../../utils/estados.js';
 import inicio from '../../inicio/components/Inicio.module.css';
 import ElegirSocio from '../../socios/components/ElegirSocio.jsx';
-import { useEjemplares, useLibros } from '../../catalogo/hooks/useCatalogo.js';
+import SelectorDeLibro from '../../catalogo/components/SelectorDeLibro.jsx';
+import { useEjemplares } from '../../catalogo/hooks/useCatalogo.js';
 import { useRegistrarPrestamo } from '../hooks/usePrestamos.js';
 
-/** Paso 2: el libro y un ejemplar disponible (de su sede: local; de otra: entre sedes). */
+/**
+ * Paso 2: el libro (buscado en todo el catálogo) y un ejemplar disponible: de su sede, local;
+ * de otra, entre sedes.
+ */
 function ElegirEjemplar({ sedeId, elegido, onElegir }) {
-  const libros = useLibros({ size: 100 });
   const [libroId, setLibroId] = useState('');
   const ejemplares = useEjemplares(
     { libro_id: libroId, estado: 'DISPONIBLE', size: 100 },
     { enabled: libroId !== '' },
   );
-  if (libros.isPending) return <Skeleton alto={48} />;
-  if (libros.error) return <ErrorState error={libros.error} onReintentar={libros.refetch} />;
   const disponibles = [...(ejemplares.data?.items ?? [])].sort(
     (a, b) => Number(b.sede_propietaria_id === sedeId) - Number(a.sede_propietaria_id === sedeId),
   );
@@ -69,19 +69,17 @@ function ElegirEjemplar({ sedeId, elegido, onElegir }) {
   ];
   return (
     <>
-      <Combobox
-        etiqueta="Libro"
-        opciones={libros.data.items.map((lb) => ({
-          id: lb.id,
-          texto: lb.titulo,
-          detalle: lb.autores.join(', '),
-        }))}
-        valor={libroId}
+      <SelectorDeLibro
+        requerido={false}
+        valor={libroId === '' ? undefined : libroId}
         onCambiar={(id) => {
-          setLibroId(id);
+          setLibroId(id ?? '');
           onElegir(null);
         }}
       />
+      {ejemplares.error && (
+        <ErrorState error={ejemplares.error} onReintentar={ejemplares.refetch} />
+      )}
       {ejemplares.isFetching && <Skeleton alto={48} />}
       {libroId !== '' && ejemplares.data && disponibles.length === 0 && (
         <EmptyState titulo="No hay ejemplares disponibles en la red">

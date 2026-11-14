@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 TAREAS: list[tuple[str, Callable[[UnitOfWork, Reloj], int]]] = [
     ("préstamos vencidos", lambda uow, reloj: PrestamoService(uow, reloj).detectar_vencidos()),
+    ("retiros vencidos", lambda uow, reloj: PrestamoService(uow, reloj).vencer_retiros()),
     ("reservas vencidas", lambda uow, reloj: ReservaService(uow, reloj).vencer_reservas()),
 ]
 

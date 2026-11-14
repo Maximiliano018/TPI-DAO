@@ -1,21 +1,38 @@
-"""Respuestas de préstamos, remitos y parámetros."""
+"""Respuestas de préstamos, remitos y parámetros.
+
+El préstamo tiene un esquema por rol, como sedes y socios:
+
+- **Socio** (``PrestamoPropioResponse``): su préstamo sin la identidad del personal. En el
+  historial, el autor es «Vos», «Personal de la biblioteca» o «Sistema».
+- **Personal** (``PrestamoPersonalResponse``): agrega quién lo registró y el usuario de cada
+  movimiento.
+"""
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel
 
+from app.dtos.response.autoria import autor_visible
 from app.dtos.response.devolucion_response import DevolucionResponse, MultaResponse
 from app.dtos.response.sede_response import UsuarioRefResponse
 from app.models.incidencia import Incidencia
 from app.models.paginacion import Pagina
 from app.models.prestamo import MovimientoPrestamo, Prestamo
 from app.models.remito import LineaRemito, MovimientoRemito, Remito
+from app.models.usuario import Permiso, Usuario
 from app.repositories.interfaces.prestamo_repository import Parametro
-from app.services.prestamo_service import DetallePrestamo
+from app.services.prestamo_service import DetallePrestamo, PropuestaPrestamo
 from app.services.remito_service import DetalleRemito
 
 
-class PrestamoResponse(BaseModel):
+class PrestamoPropioResponse(BaseModel):
+    """Lo que ve el socio de su préstamo.
+
+    ``fecha_limite_retiro``: último día para retirarlo en la sede destino; si pasa sin retirarlo,
+    se cancela solo.
+    """
+
     id: int
     numero: str
     tipo: str
@@ -35,38 +52,91 @@ class PrestamoResponse(BaseModel):
     fecha_inicio: date | None
     fecha_vencimiento: date | None
     fecha_devolucion: datetime | None
+    fecha_limite_retiro: date | None
     renovaciones: int
+
+
+class PrestamoPersonalResponse(PrestamoPropioResponse):
+    """Lo que ve el personal: agrega quién registró el préstamo."""
+
     registrado_por: UsuarioRefResponse | None
 
+
+PrestamoResponse = PrestamoPersonalResponse | PrestamoPropioResponse
+
+
+def _es_personal(lector: Usuario) -> bool:
+    return lector.puede(Permiso.PRESTAMO_LEER)
+
+
+def _campos(p: Prestamo) -> dict[str, Any]:
+    assert p.id is not None
+    return {
+        "id": p.id,
+        "numero": p.numero,
+        "tipo": p.tipo.value,
+        "estado": p.estado_nombre.value,
+        "socio_id": p.socio_id,
+        "socio": p.socio_nombre,
+        "numero_socio": p.numero_socio,
+        "ejemplar_id": p.ejemplar_id,
+        "codigo_ejemplar": p.codigo_ejemplar,
+        "libro_id": p.libro_id,
+        "libro": p.libro_titulo,
+        "sede_origen_id": p.sede_origen_id,
+        "sede_origen": p.sede_origen_nombre,
+        "sede_destino_id": p.sede_destino_id,
+        "sede_destino": p.sede_destino_nombre,
+        "fecha_solicitud": p.fecha_solicitud,
+        "fecha_inicio": p.fecha_inicio,
+        "fecha_vencimiento": p.fecha_vencimiento,
+        "fecha_devolucion": p.fecha_devolucion,
+        "fecha_limite_retiro": p.fecha_limite_retiro,
+        "renovaciones": p.renovaciones,
+    }
+
+
+def _registrado_por(p: Prestamo) -> UsuarioRefResponse | None:
+    return UsuarioRefResponse.desde(p.registrado_por) if p.registrado_por else None
+
+
+def prestamo_a_response(p: Prestamo, lector: Usuario) -> PrestamoResponse:
+    """Arma el esquema que corresponde al rol del lector."""
+    if not _es_personal(lector):
+        return PrestamoPropioResponse(**_campos(p))
+    return PrestamoPersonalResponse(**_campos(p), registrado_por=_registrado_por(p))
+
+
+class MovimientoPrestamoResponse(BaseModel):
+    """Movimiento del historial del préstamo.
+
+    ``autor`` es el nombre para mostrar. El personal ve quién fue (``usuario``); el socio ve
+    «Vos», «Personal de la biblioteca» o «Sistema», y ``usuario`` llega siempre nulo.
+    """
+
+    estado_anterior: str | None
+    estado_nuevo: str
+    fecha_hora: datetime
+    autor: str
+    usuario: UsuarioRefResponse | None
+    observacion: str | None
+
     @classmethod
-    def desde(cls, p: Prestamo) -> "PrestamoResponse":
-        assert p.id is not None
+    def desde(cls, m: MovimientoPrestamo, lector: Usuario) -> "MovimientoPrestamoResponse":
+        personal = _es_personal(lector)
         return cls(
-            id=p.id,
-            numero=p.numero,
-            tipo=p.tipo.value,
-            estado=p.estado_nombre.value,
-            socio_id=p.socio_id,
-            socio=p.socio_nombre,
-            numero_socio=p.numero_socio,
-            ejemplar_id=p.ejemplar_id,
-            codigo_ejemplar=p.codigo_ejemplar,
-            libro_id=p.libro_id,
-            libro=p.libro_titulo,
-            sede_origen_id=p.sede_origen_id,
-            sede_origen=p.sede_origen_nombre,
-            sede_destino_id=p.sede_destino_id,
-            sede_destino=p.sede_destino_nombre,
-            fecha_solicitud=p.fecha_solicitud,
-            fecha_inicio=p.fecha_inicio,
-            fecha_vencimiento=p.fecha_vencimiento,
-            fecha_devolucion=p.fecha_devolucion,
-            renovaciones=p.renovaciones,
-            registrado_por=UsuarioRefResponse.desde(p.registrado_por) if p.registrado_por else None,
+            estado_anterior=m.estado_anterior.value if m.estado_anterior else None,
+            estado_nuevo=m.estado_nuevo.value,
+            fecha_hora=m.fecha_hora,
+            autor=autor_visible(m.usuario, lector, personal=personal),
+            usuario=UsuarioRefResponse.desde(m.usuario) if personal and m.usuario else None,
+            observacion=m.observacion,
         )
 
 
 class MovimientoResponse(BaseModel):
+    """Movimiento del historial de un remito (solo lo ve el personal)."""
+
     estado_anterior: str | None
     estado_nuevo: str
     fecha_hora: datetime
@@ -74,7 +144,7 @@ class MovimientoResponse(BaseModel):
     observacion: str | None
 
     @classmethod
-    def desde(cls, m: MovimientoPrestamo | MovimientoRemito) -> "MovimientoResponse":
+    def desde(cls, m: MovimientoRemito) -> "MovimientoResponse":
         return cls(
             estado_anterior=m.estado_anterior.value if m.estado_anterior else None,
             estado_nuevo=m.estado_nuevo.value,
@@ -168,22 +238,71 @@ class RemitoResumenResponse(BaseModel):
         )
 
 
-class PrestamoDetalleResponse(PrestamoResponse):
-    """Préstamo con su historial, los remitos de ida y vuelta, la devolución y la multa."""
+class _Detalle(BaseModel):
+    """Lo que agrega la ficha: historial, remitos de ida y vuelta, devolución y multa."""
 
-    historial: list[MovimientoResponse]
+    historial: list[MovimientoPrestamoResponse]
     remitos: list[RemitoResumenResponse]
     devolucion: DevolucionResponse | None = None
     multa: MultaResponse | None = None
 
+
+class PrestamoDetallePropioResponse(PrestamoPropioResponse, _Detalle):
+    """Ficha que ve el socio."""
+
+
+class PrestamoDetallePersonalResponse(PrestamoPersonalResponse, _Detalle):
+    """Ficha que ve el personal."""
+
+
+PrestamoDetalleResponse = PrestamoDetallePersonalResponse | PrestamoDetallePropioResponse
+
+
+def detalle_a_response(d: DetallePrestamo, lector: Usuario) -> PrestamoDetalleResponse:
+    detalle: dict[str, Any] = {
+        "historial": [MovimientoPrestamoResponse.desde(m, lector) for m in d.historial],
+        "remitos": [RemitoResumenResponse.desde(r) for r in d.remitos],
+        "devolucion": DevolucionResponse.desde(d.devolucion) if d.devolucion else None,
+        "multa": MultaResponse.desde(d.multa) if d.multa else None,
+    }
+    if not _es_personal(lector):
+        return PrestamoDetallePropioResponse(**_campos(d.prestamo), **detalle)
+    return PrestamoDetallePersonalResponse(
+        **_campos(d.prestamo), registrado_por=_registrado_por(d.prestamo), **detalle
+    )
+
+
+class SedeRefResponse(BaseModel):
+    id: int
+    nombre: str
+
+
+class PropuestaPrestamoResponse(BaseModel):
+    """Qué préstamo se haría si el socio confirma ahora (no aparta nada).
+
+    ``retiro_hasta`` solo en el local; en el interbibliotecario el plazo de retiro empieza
+    cuando el ejemplar llega a la sede destino.
+    """
+
+    tipo: str
+    libro_id: int
+    libro: str
+    sede_origen: SedeRefResponse
+    sede_destino: SedeRefResponse
+    plazo_dias: int
+    retiro_hasta: date | None
+
     @classmethod
-    def desde_detalle(cls, d: DetallePrestamo) -> "PrestamoDetalleResponse":
+    def desde(cls, p: PropuestaPrestamo) -> "PropuestaPrestamoResponse":
+        assert p.sede_origen.id is not None and p.sede_destino.id is not None
         return cls(
-            **PrestamoResponse.desde(d.prestamo).model_dump(),
-            historial=[MovimientoResponse.desde(m) for m in d.historial],
-            remitos=[RemitoResumenResponse.desde(r) for r in d.remitos],
-            devolucion=DevolucionResponse.desde(d.devolucion) if d.devolucion else None,
-            multa=MultaResponse.desde(d.multa) if d.multa else None,
+            tipo=p.tipo.value,
+            libro_id=p.libro_id,
+            libro=p.libro_titulo,
+            sede_origen=SedeRefResponse(id=p.sede_origen.id, nombre=p.sede_origen.nombre),
+            sede_destino=SedeRefResponse(id=p.sede_destino.id, nombre=p.sede_destino.nombre),
+            plazo_dias=p.plazo_dias,
+            retiro_hasta=p.retiro_hasta,
         )
 
 
@@ -222,9 +341,9 @@ class PaginaPrestamosResponse(BaseModel):
     size: int
 
     @classmethod
-    def desde(cls, pagina: Pagina[Prestamo]) -> "PaginaPrestamosResponse":
+    def desde(cls, pagina: Pagina[Prestamo], lector: Usuario) -> "PaginaPrestamosResponse":
         return cls(
-            items=[PrestamoResponse.desde(p) for p in pagina.items],
+            items=[prestamo_a_response(p, lector) for p in pagina.items],
             total=pagina.total,
             page=pagina.page,
             size=pagina.size,

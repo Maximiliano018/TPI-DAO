@@ -81,7 +81,9 @@ function Acciones({ prestamo }) {
   const entregar = useEntregarPrestamo();
   const renovar = useRenovarPrestamo();
   const cancelar = useCancelarPrestamo();
-  if (!tienePermiso(PERMISOS.PRESTAMO_REGISTRAR)) return null;
+  if (!tienePermiso(PERMISOS.PRESTAMO_REGISTRAR)) {
+    return <AccionesDelSocio prestamo={prestamo} />;
+  }
   const enDestino = usuario.sede_id === prestamo.sede_destino_id;
   const puedeDevolver =
     enDestino &&
@@ -159,6 +161,35 @@ function Acciones({ prestamo }) {
   );
 }
 
+/** El socio cancela su propia solicitud mientras no salió de la sede origen. */
+function AccionesDelSocio({ prestamo }) {
+  const { tienePermiso } = useSesion();
+  const [cancelando, setCancelando] = useState(false);
+  const cancelar = useCancelarPrestamo();
+  if (!tienePermiso(PERMISOS.PRESTAMO_SOLICITAR_PROPIO) || prestamo.estado !== 'SOLICITADO') {
+    return null;
+  }
+  return (
+    <>
+      <Button variante="danger" onClick={() => setCancelando(true)}>
+        Cancelar solicitud
+      </Button>
+      {cancelando && (
+        <Accion
+          titulo={`Cancelar ${prestamo.numero}`}
+          descripcion="El ejemplar deja de estar apartado para vos."
+          texto="Cancelar solicitud"
+          peligro
+          mutacion={cancelar}
+          variables={() => ({ id: prestamo.id, motivo: null })}
+          listo="Solicitud cancelada"
+          onCerrar={() => setCancelando(false)}
+        />
+      )}
+    </>
+  );
+}
+
 /** Ficha del préstamo: datos, plazo, remitos de ida y vuelta e historial. */
 export default function PrestamoDetallePage() {
   const { id } = useParams();
@@ -195,6 +226,13 @@ export default function PrestamoDetallePage() {
         acciones={<Acciones prestamo={prestamo} />}
       />
       <div className={inicio.pagina}>
+        {prestamo.fecha_limite_retiro && ['SOLICITADO', 'EN_ENVIO'].includes(prestamo.estado) && (
+          <Alert tono="info">
+            {esPersonal ? 'El socio puede retirarlo' : 'Podés retirarlo'} en {prestamo.sede_destino}{' '}
+            hasta el {formatearFecha(prestamo.fecha_limite_retiro)}. Si no se retira a tiempo, el
+            préstamo se cancela solo.
+          </Alert>
+        )}
         {prestamo.estado === 'VENCIDO' && (
           <Alert tono="danger">
             Venció el {formatearFecha(prestamo.fecha_vencimiento)}. Al devolverlo se genera una
@@ -233,6 +271,12 @@ export default function PrestamoDetallePage() {
             <dl className={estilos.definiciones}>
               <dt>Solicitado</dt>
               <dd>{formatearFechaHora(prestamo.fecha_solicitud)}</dd>
+              {prestamo.fecha_limite_retiro && (
+                <>
+                  <dt>Retirar hasta</dt>
+                  <dd>{formatearFecha(prestamo.fecha_limite_retiro)}</dd>
+                </>
+              )}
               <dt>Entregado</dt>
               <dd>
                 {prestamo.fecha_inicio ? formatearFecha(prestamo.fecha_inicio) : 'Todavía no'}
@@ -305,7 +349,8 @@ export default function PrestamoDetallePage() {
               items={[...prestamo.historial].reverse().map((m, i) => ({
                 id: i,
                 titulo: estadoDe('prestamo', m.estado_nuevo).texto,
-                meta: `${m.usuario?.nombre ?? 'Sistema'} · ${formatearFechaHora(m.fecha_hora)}`,
+                // El socio ve «Vos», «Personal de la biblioteca» o «Sistema» (lo resuelve la API).
+                meta: `${m.autor} · ${formatearFechaHora(m.fecha_hora)}`,
                 contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
               }))}
             />

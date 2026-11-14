@@ -69,6 +69,7 @@ Los usuarios del personal (administradores y bibliotecarios) los ve y administra
 ## ¿Qué acciones puede realizar un socio?
 
 - Consultar el catálogo y la disponibilidad por sede.
+- Pedir un préstamo para sí (el sistema elige el ejemplar) y cancelar su solicitud mientras no salió de la sede origen.
 - Reservar un libro no disponible.
 - Cancelar sus reservas.
 - Ver sus préstamos (activos, vencidos, historial), fechas de vencimiento y multas.
@@ -81,14 +82,15 @@ Su cuenta sigue activa aunque esté inhabilitado o dado de baja: puede entrar a 
 | Ingresar y ver su ficha, situación e historial | ✔ | ✔ | ✔ (salvo fallecimiento) |
 | Ver sus préstamos y multas con su monto | ✔ | ✔ | ✔ |
 | Consultar el catálogo (solo lectura) | ✔ | ✔ | ✔ |
-| Reservar y recibir préstamos | ✔ | — | — |
+| Pedir préstamos, reservar y recibir préstamos | ✔ | — | — |
+| Cancelar sus solicitudes de préstamo sin enviar | ✔ | ✔ | — (la baja exige no tener préstamos en curso) |
 | Cancelar sus reservas | ✔ | ✔ | — (se cancelaron con la baja) |
 | Devolver y saldar multas (en mostrador) | ✔ | ✔ | — (no tiene deudas) |
 | Solicitar la reactivación desde su cuenta | — | — | ✔ (si el tipo de baja lo permite) |
 
 **Deudas e inhabilitación.** Las deudas no llevan a la baja sino a la inhabilitación: la baja exige no tener préstamos en curso ni multas, así que un socio en baja nunca debe nada. El socio inhabilitado regulariza su situación así: ve desde su cuenta qué debe, devuelve el material o paga en el mostrador de cualquier sede, el personal registra la multa como saldada y el sistema lo habilita solo. El cobro real de las multas queda fuera del alcance.
 
-La **solicitud de un préstamo** la registra el personal en nombre del socio (en mostrador). *A consultar con la cátedra* si el socio debe poder pedirlo directamente.
+El socio puede **pedir un préstamo para sí** desde su cuenta: elige el libro y la sede donde lo retira, y el sistema decide si es local o entre sedes (ver [Préstamos](04-prestamos.md#qué-usuarios-pueden-solicitar-un-préstamo)). Nunca a nombre de otro socio. En el mostrador, el personal lo registra en su nombre.
 
 ## Casos de uso y flujos
 

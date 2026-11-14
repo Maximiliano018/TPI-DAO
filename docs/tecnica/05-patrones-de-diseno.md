@@ -148,6 +148,8 @@ class PoliticaPlazo(Protocol):
 
 **Costos.** Mínimos; es una clase o función con una responsabilidad.
 
+**Autogestión del socio.** Cuando el socio pide un libro, la sede origen la elige una función pura, `elegir_sede_origen` (`models/policies/asignacion_prestamo.py`): la sede destino si tiene disponibles; si no, la de más disponibles, con la de menor id para desempatar. El servicio bloquea un ejemplar de esa sede (`FOR UPDATE SKIP LOCKED`) y se lo pasa a la fábrica, que aplica las mismas reglas que en el mostrador. `PrestamoFactory.validar_socio` permite controlar al socio antes de buscar ejemplares.
+
 ---
 
 ## 4. Repository (Repositorio)
