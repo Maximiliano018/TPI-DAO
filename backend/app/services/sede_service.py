@@ -3,7 +3,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import date, time, timedelta
+from datetime import date, datetime, time, timedelta
 from typing import Any
 
 from app.exceptions import (
@@ -20,9 +20,22 @@ from app.exceptions import (
 from app.models.horario import MAX_DIAS_POR_RANGO, ExcepcionHorario, TipoExcepcion
 from app.models.paginacion import Pagina
 from app.models.policies.verificacion_baja_sede import Impedimento, VerificadorBajaSede
-from app.models.sede import MENSAJE_NO_DISPONIBLE, EventoSede, Sede, validar_nombre
+from app.models.sede import (
+    MENSAJE_NO_DISPONIBLE,
+    EventoSede,
+    Sede,
+    TipoEventoSede,
+    validar_nombre,
+)
 from app.models.usuario import Permiso, Usuario, UsuarioRef
-from app.models.valores import CodigoSede, Contacto, Direccion, FranjaHoraria, Localidad
+from app.models.valores import (
+    CodigoSede,
+    Contacto,
+    Direccion,
+    FranjaHoraria,
+    Localidad,
+    error_de_campo,
+)
 from app.repositories.interfaces.sede_repository import (
     FiltroEstado,
     FiltroHistorial,
@@ -102,6 +115,7 @@ class SedeService:
         with self._transaccion():
             codigo_vo = CodigoSede.crear(codigo)
             direccion, contacto = self._armar(datos)
+            validar_nombre(datos.nombre)
             self._verificar_unicidad(codigo_vo.valor, datos.nombre, None)
             confirmadas = self._verificar_direccion(direccion, None, confirmar_direccion_duplicada)
             ahora = self._reloj.ahora()
@@ -170,6 +184,10 @@ class SedeService:
     def dar_de_baja(self, actor: Usuario, sede_id: int, version: int, motivo: str) -> VistaSede:
         """Da de baja la sede si no tiene actividad pendiente (nunca cancela nada).
 
+        Es el **cliente** del Composite: hace una sola llamada a ``VerificadorBajaSede.verificar``
+        sin saber cuántos verificadores hay, y entrega los impedimentos a ``Sede.dar_de_baja``,
+        que es quien decide.
+
         Raises:
             SedeYaEnBaja, ConflictoDeVersion, ErrorDeValidacion (motivo),
             SedeConActividadPendiente: Con el detalle por tipo de impedimento.
@@ -230,12 +248,13 @@ class SedeService:
         ]
         with self._transaccion():
             sede = self._para_modificar(sede_id)
+            existentes = {e.id for e in sede.excepciones}
             sede.agregar_excepciones(
                 nuevas, actor=_ref(actor), ahora=self._reloj.ahora(), hoy=self._reloj.hoy()
             )
             self._uow.sedes.guardar(sede)
-        fechas = {n.fecha for n in nuevas}
-        return [e for e in sede.excepciones if e.fecha in fechas and e.id is not None]
+        # Solo las recién creadas: la misma fecha puede tener otros cierres parciales previos.
+        return [e for e in sede.excepciones if e.id is not None and e.id not in existentes]
 
     def quitar_excepcion(self, actor: Usuario, sede_id: int, excepcion_id: int) -> None:
         """Elimina una excepción de hoy o futura.
@@ -315,12 +334,35 @@ class SedeService:
         return vista.sede.excepciones_vigentes(vista.hoy)
 
     def historial(
-        self, actor: Usuario, sede_id: int, filtro: FiltroHistorial, page: int, size: int
+        self,
+        actor: Usuario,
+        sede_id: int,
+        page: int,
+        size: int,
+        tipo_evento: TipoEventoSede | None = None,
+        desde: date | None = None,
+        hasta: date | None = None,
     ) -> Pagina[EventoSede]:
-        """Historial de eventos de la sede (solo administrador)."""
+        """Historial de eventos de la sede (solo administrador).
+
+        ``desde`` y ``hasta`` son días completos en la zona de negocio, ``hasta`` inclusive.
+
+        Raises:
+            PermisoDenegado: Si el usuario no es administrador.
+            ErrorDeValidacion: Si ``hasta`` es anterior a ``desde``.
+            SedeNoEncontrada: Si la sede no existe.
+        """
         actor.exigir(Permiso.SEDE_VER_HISTORIAL)
+        if desde is not None and hasta is not None and hasta < desde:
+            raise error_de_campo("hasta", "La fecha final no puede ser anterior a la inicial.")
         if self._uow.sedes.obtener(sede_id) is None:
             raise SedeNoEncontrada(MENSAJE_NO_DISPONIBLE)
+        zona = self._reloj.ahora_local().tzinfo
+        filtro = FiltroHistorial(
+            tipo_evento=tipo_evento,
+            desde=datetime.combine(desde, time.min, zona) if desde else None,
+            hasta=datetime.combine(hasta + timedelta(days=1), time.min, zona) if hasta else None,
+        )
         eventos, total = self._uow.sedes.historial(sede_id, filtro, page, size)
         return Pagina(eventos, total, page, size)
 

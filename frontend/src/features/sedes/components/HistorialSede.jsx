@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import {
+  Alert,
   EmptyState,
   ErrorState,
   FilterBar,
+  FiltroFecha,
   FiltroSelect,
   Pagination,
   Skeleton,
@@ -74,34 +76,36 @@ function Contenido({ evento }) {
   );
 }
 
-/** Línea de tiempo de auditoría (solo administrador), paginada y con filtro por tipo. */
+/** Línea de tiempo de auditoría (solo administrador), paginada y con filtro por tipo y fechas. */
 export default function HistorialSede({ sedeId }) {
   const [tipo, setTipo] = useState('');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
   const [page, setPage] = useState(1);
-  const { data, isPending, error, refetch } = useHistorialSede(sedeId, {
-    tipo_evento: tipo,
-    page,
-    size: 10,
-  });
+  const rangoInvalido = Boolean(desde && hasta && hasta < desde);
+  const { data, isPending, error, refetch } = useHistorialSede(
+    sedeId,
+    { tipo_evento: tipo, desde, hasta, page, size: 10 },
+    { enabled: !rangoInvalido },
+  );
+  const filtrar = (cambiar) => (valor) => {
+    cambiar(valor);
+    setPage(1);
+  };
 
   return (
     <div className={estilos.seccion}>
       <FilterBar
         etiqueta="Filtros del historial"
-        hayFiltros={Boolean(tipo)}
+        hayFiltros={Boolean(tipo || desde || hasta)}
         onLimpiar={() => {
           setTipo('');
+          setDesde('');
+          setHasta('');
           setPage(1);
         }}
       >
-        <FiltroSelect
-          etiqueta="Tipo de evento"
-          valor={tipo}
-          onCambiar={(v) => {
-            setTipo(v);
-            setPage(1);
-          }}
-        >
+        <FiltroSelect etiqueta="Tipo de evento" valor={tipo} onCambiar={filtrar(setTipo)}>
           <option value="">Todos</option>
           {Object.entries(EVENTOS).map(([valor, etiqueta]) => (
             <option key={valor} value={valor}>
@@ -109,8 +113,14 @@ export default function HistorialSede({ sedeId }) {
             </option>
           ))}
         </FiltroSelect>
+        <FiltroFecha etiqueta="Desde" valor={desde} onCambiar={filtrar(setDesde)} />
+        <FiltroFecha etiqueta="Hasta" valor={hasta} onCambiar={filtrar(setHasta)} />
       </FilterBar>
-      {isPending && <Skeleton alto={120} />}
+      {rangoInvalido ? (
+        <Alert tono="danger">La fecha «Hasta» no puede ser anterior a «Desde».</Alert>
+      ) : (
+        isPending && <Skeleton alto={120} />
+      )}
       {error && <ErrorState error={error} onReintentar={refetch} />}
       {data && data.items.length === 0 && <EmptyState titulo="Sin eventos para mostrar" />}
       {data && data.items.length > 0 && (

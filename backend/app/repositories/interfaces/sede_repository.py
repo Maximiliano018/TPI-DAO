@@ -34,6 +34,8 @@ class FiltroSedes:
 
 @dataclass(frozen=True)
 class FiltroHistorial:
+    """Eventos en el rango ``[desde, hasta)``: ``desde`` inclusive y ``hasta`` exclusivo."""
+
     tipo_evento: TipoEventoSede | None = None
     desde: datetime | None = None
     hasta: datetime | None = None

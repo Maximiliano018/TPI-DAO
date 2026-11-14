@@ -7,7 +7,12 @@ export { default as Combobox } from './Combobox.jsx';
 export { default as ConfirmDialog } from './ConfirmDialog.jsx';
 export { default as EmptyState } from './EmptyState.jsx';
 export { default as ErrorState } from './ErrorState.jsx';
-export { default as FilterBar, BusquedaConEspera, FiltroSelect } from './FilterBar.jsx';
+export {
+  default as FilterBar,
+  BusquedaConEspera,
+  FiltroFecha,
+  FiltroSelect,
+} from './FilterBar.jsx';
 export { default as FormField } from './FormField.jsx';
 export { Checkbox, Input, Select, Textarea } from './controles.jsx';
 export { EstanteriaVacia } from './Ilustraciones.jsx';

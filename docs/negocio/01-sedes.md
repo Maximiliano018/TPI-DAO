@@ -9,8 +9,8 @@ Proceso obligatorio 1 del enunciado.
 | Campo | Obligatorio | Regla |
 |-------|:---:|-------|
 | Código de sede | Sí | Identificador único corto (ej. `CEN`, `NORTE_2`). De 3 a 15 caracteres, solo `A-Z`, `0-9` y `_`. Se guarda siempre en mayúsculas (si se carga en minúsculas se convierte). **Inmutable** después del alta |
-| Nombre | Sí | De 3 a 100 caracteres. Único en la red, sin distinguir mayúsculas ni tildes |
-| Calle | Sí | Hasta 100 caracteres |
+| Nombre | Sí | De 3 a 100 caracteres. Único en la red, sin distinguir mayúsculas, tildes, puntuación ni espacios de más (`Centro.` = `centro`) |
+| Calle | Sí | De 2 a 100 caracteres |
 | Número | Sí | Número de puerta (`1250`, `1250B`) o `S/N` |
 | Localidad | Sí | Se elige de una **lista cerrada** (ver [Domicilio](#domicilio-lista-cerrada-de-provincias-y-localidades)) |
 | Provincia | — | No se carga: se deduce de la localidad elegida |
@@ -201,7 +201,7 @@ Los intentos de baja rechazados no quedan en el historial de la sede (no cambió
 
 ## ¿Cómo evitamos sedes duplicadas?
 
-- **Código** único y **nombre** único, comparado sin distinguir mayúsculas ni tildes. Se rechaza el alta o el cambio.
+- **Código** único y **nombre** único. El código se compara en mayúsculas; el nombre, sin distinguir mayúsculas, tildes, puntuación ni espacios de más. Se rechaza el alta o el cambio.
 - **Dirección repetida:** se compara la combinación localidad + calle + número, normalizada (sin mayúsculas, tildes, puntuación ni espacios de más, y con abreviaturas unificadas: `Av.` = `Avenida`, `Gral.` = `General`, etc.). Se compara contra **todas** las sedes, activas o en baja.
   - No se rechaza: se **advierte**, mostrando la sede que ya está en esa dirección.
   - El administrador puede **corregir** los datos y reintentar, o **confirmar** que la duplicación es intencional.

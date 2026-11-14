@@ -17,6 +17,8 @@ Guarda de `dar_de_baja`: la baja se rechaza con `SedeConActividadPendiente` si a
 
 Efectos: `dar_de_baja` registra fecha, motivo y usuario y escribe el evento `BAJA`; `reactivar` no tiene guarda, limpia esos datos y escribe `REACTIVACION`. Ambas transiciones bloquean la fila (`FOR UPDATE`) y la repetición de la misma transición se rechaza con `SEDE_YA_EN_BAJA` o `SEDE_YA_ACTIVA`. En `Baja` toda operación de modificación (datos, horarios, excepciones) se rechaza con `SEDE_EN_BAJA`.
 
+Implementación: un enum (`EstadoSede`) con guardas en la entidad, sin patrón State, porque son dos estados que solo habilitan o bloquean operaciones ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)). La guarda de la baja usa Strategy + Composite ([detalle](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede)).
+
 ## Socio
 
 ```mermaid
@@ -174,4 +176,4 @@ stateDiagram-v2
 
 ## Implementación
 
-El patrón State se aplica a remito, préstamo, ejemplar y reserva: cada estado es una clase que define qué operaciones admite; una operación no permitida lanza `TransicionInvalida`. Los efectos entre entidades los orquesta el servicio de aplicación, no los estados, para que cada máquina siga siendo simple. Detalle en [Patrones de diseño](05-patrones-de-diseno.md#1-state-estado).
+El patrón State se aplica a remito, préstamo, ejemplar y reserva (la sede no lo usa, ver [Sede](#sede)): cada estado es una clase que define qué operaciones admite; una operación no permitida lanza `TransicionInvalida`. Los efectos entre entidades los orquesta el servicio de aplicación, no los estados, para que cada máquina siga siendo simple. Detalle en [Patrones de diseño](05-patrones-de-diseno.md#1-state-estado).

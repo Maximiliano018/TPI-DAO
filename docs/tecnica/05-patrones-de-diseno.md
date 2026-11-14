@@ -6,7 +6,7 @@ El enunciado exige **al menos dos patrones**. Este documento analiza los que enc
 
 | # | Patrón | Dónde | Prioridad | Implementar |
 |---|--------|-------|-----------|-------------|
-| 1 | State | Ciclo de vida de remito, préstamo, ejemplar y reserva | Alta | Sí |
+| 1 | State | Ciclo de vida de remito, préstamo, ejemplar y reserva (no en sede: [por qué](#por-qué-la-sede-no-usa-state)) | Alta | Sí |
 | 2 | Strategy | Cálculo de multa y plazo de préstamo | Alta | Sí |
 | 3 | Factory | Creación de préstamo local o interbibliotecario | Alta | Sí |
 | 4 | Repository | Acceso a datos | Alta | Sí |
@@ -56,6 +56,16 @@ class Empaquetado(EstadoRemito):
 **Costos.** Más clases (una por estado) y hace falta convertir entre la clase y el valor guardado en la base (el repositorio mapea `EstadoRemitoEnum ↔ clase`).
 
 **Alternativa.** Una tabla de transiciones permitidas (`dict`) con un enum. Es más corta, pero deja el comportamiento por estado repartido en condicionales; conviene solo si los estados no tienen lógica propia, que no es el caso del remito.
+
+### Por qué la sede no usa State
+
+La sede tiene un ciclo de vida que State no mejora:
+
+- **Dos estados y dos transiciones** (`Activa → Baja` con `dar_de_baja`, `Baja → Activa` con `reactivar`), sin estados intermedios ni ramas.
+- **El estado no cambia el comportamiento, solo lo habilita o lo bloquea.** En `Baja` todas las operaciones se rechazan con el mismo error (`SedeEnBaja`), y lo resuelve una sola guarda, `Sede.validar_operativa()`. Con State habría dos clases cuyos métodos serían, en una, «hacer lo de siempre» y, en la otra, «rechazar».
+- **La regla difícil no depende del estado.** La guarda de la baja (los seis impedimentos) consulta otros módulos y se resuelve con Strategy + Composite ([sección 10](#10-strategy--composite-verificación-de-baja-de-sede)), no con una clase de estado.
+
+Por eso la sede usa un enum (`EstadoSede`) y dos métodos con guardas explícitas (`dar_de_baja`, `reactivar`) en `models/sede.py`. Si en el futuro aparecieran estados con comportamiento propio (por ejemplo, una «baja temporal» con reapertura programada que admita algunas operaciones y otras no), conviene migrar a State como en el remito.
 
 ---
 
@@ -163,61 +173,104 @@ class PoliticaPlazo(Protocol):
 
 ## 10. Strategy + Composite: verificación de baja de sede
 
-**Problema.** La baja de una sede se bloquea por seis tipos de actividad pendiente que viven en procesos distintos y que se construyen en iteraciones distintas (usuarios hoy; ejemplares, préstamos, remitos y reservas después). Si `SedeService` consultara todo directamente, estaría acoplado a módulos que no existen y cada módulo nuevo obligaría a modificarlo (viola abierto/cerrado).
+**Problema.** La baja de una sede se bloquea por seis tipos de actividad pendiente, que viven en módulos distintos: usuarios, ejemplares, préstamos, remitos y reservas. Si `SedeService` consultara cada tabla directamente, quedaría acoplado a todos esos módulos, y cada causa nueva obligaría a modificarlo (viola abierto/cerrado).
 
-**Solución.** Un **puerto** definido por el dominio, una implementación por módulo y un compuesto que las agrupa.
+**Solución.** Cada causa de bloqueo es una **estrategia** de verificación detrás de una misma interfaz que define el dominio, y un **compuesto** las agrupa para que el servicio las use como si fueran una sola. Los dos patrones comparten la interfaz y las clases concretas: Strategy explica por qué cada verificación es intercambiable, y Composite explica cómo se aplican todas juntas.
 
-```python
-@dataclass(frozen=True)
-class Impedimento:
-    tipo: TipoImpedimento          # PRESTAMOS_EN_CURSO, REMITOS_ABIERTOS, ...
-    cantidad: int
-    elementos: list[ElementoImpedimento]   # muestra de hasta 10: id y referencia legible
-    hay_mas: bool
-
-class VerificadorImpedimentoBaja(Protocol):          # puerto (models/policies)
-    tipo: TipoImpedimento
-    def verificar(self, sede_id: int) -> Impedimento | None: ...
-    # devuelve None si no hay nada que bloquee
-
-class VerificadorBajaSede:                           # Composite (models/policies)
-    def __init__(self, verificadores: Sequence[VerificadorImpedimentoBaja]): ...
-    def verificar(self, sede_id: int) -> list[Impedimento]:
-        return [i for v in self._verificadores if (i := v.verificar(sede_id))]
+```mermaid
+classDiagram
+    class VerificadorImpedimentoBaja {
+        <<Protocol>>
+        +tipo: TipoImpedimento
+        +verificar(sede_id) Optional~Impedimento~
+    }
+    class VerificadorBajaSede {
+        -verificadores: list~VerificadorImpedimentoBaja~
+        +tipos_cubiertos: set~TipoImpedimento~
+        +verificar(sede_id) list~Impedimento~
+    }
+    class VerificadorPrestamosEnCurso
+    class VerificadorRemitosAbiertos
+    class VerificadorReservasPendientes
+    class VerificadorEjemplaresEnSede
+    class VerificadorEjemplaresPropiosFuera
+    class VerificadorBibliotecariosAsignados
+    class Impedimento {
+        +tipo: TipoImpedimento
+        +cantidad: int
+        +elementos: list~ElementoImpedimento~
+    }
+    VerificadorImpedimentoBaja <|.. VerificadorPrestamosEnCurso
+    VerificadorImpedimentoBaja <|.. VerificadorRemitosAbiertos
+    VerificadorImpedimentoBaja <|.. VerificadorReservasPendientes
+    VerificadorImpedimentoBaja <|.. VerificadorEjemplaresEnSede
+    VerificadorImpedimentoBaja <|.. VerificadorEjemplaresPropiosFuera
+    VerificadorImpedimentoBaja <|.. VerificadorBibliotecariosAsignados
+    VerificadorBajaSede o-- "1..*" VerificadorImpedimentoBaja : agrupa
+    VerificadorImpedimentoBaja ..> Impedimento : devuelve
+    SedeService --> VerificadorBajaSede : usa
+    SedeService ..> Sede : entrega impedimentos a dar_de_baja
 ```
 
-El servicio obtiene la lista y se la entrega al dominio, que es quien decide:
+### Strategy: roles
+
+| Rol | Clase | Archivo | Qué hace |
+|-----|-------|---------|----------|
+| **Estrategia abstracta** | `VerificadorImpedimentoBaja` | `models/policies/verificacion_baja_sede.py` | Interfaz común: `tipo` y `verificar(sede_id) -> Impedimento \| None`. Es un `Protocol` (interfaz abstracta con tipado estructural): las estrategias la cumplen sin heredar, y así el dominio no importa nada de los módulos que las implementan. |
+| **Estrategias concretas** | `VerificadorPrestamosEnCurso`, `VerificadorRemitosAbiertos`, `VerificadorReservasPendientes`, `VerificadorEjemplaresEnSede`, `VerificadorEjemplaresPropiosFuera`, `VerificadorBibliotecariosAsignados` | `services/verificadores_baja_sede.py` | Cada una resuelve una causa con el repositorio de su módulo (por ejemplo, `PrestamoRepository.en_curso_de_sede`). Devuelve la cantidad y una muestra de hasta 10 elementos, o `None` si no bloquea. En las pruebas, `VerificadorFalso` (`tests/fakes/verificadores.py`) es otra estrategia concreta. |
+| **Contexto** | `VerificadorBajaSede` | `models/policies/verificacion_baja_sede.py` | Guarda las estrategias y les delega la verificación. No sabe cómo verifica cada una. |
+| **Cliente** | `get_verificador_baja_sede` | `controllers/dependencies.py` | Raíz de composición: elige las estrategias concretas, les inyecta su repositorio y se las entrega al contexto. Es el único lugar que conoce las clases concretas. |
+
+**Diferencia con el Strategy clásico.** En el ejemplo de manual, el contexto usa *una* estrategia elegida entre varias, como la multa o el plazo de la [sección 2](#2-strategy-estrategia). Acá el contexto aplica *todas* las estrategias registradas, porque la baja se bloquea por cualquiera de las causas. Por eso se combina con Composite.
+
+### Composite: roles
+
+| Rol | Clase | Qué hace |
+|-----|-------|----------|
+| **Componente** | `VerificadorImpedimentoBaja` | La operación común `verificar(sede_id)`. |
+| **Hoja** | cada verificador concreto | Verifica una sola causa y no contiene otros verificadores. |
+| **Contenedor (Composite)** | `VerificadorBajaSede` | Contiene la lista de verificadores. Su `verificar` recorre los hijos, junta los impedimentos y descarta los `None`. `tipos_cubiertos` informa qué causas están registradas. |
+| **Cliente** | `SedeService.dar_de_baja` | Trata el conjunto como un único verificador: hace una sola llamada, `verificar(sede.id)`, y pasa el resultado a la entidad. No sabe cuántas hojas hay. |
+
+**Simplificaciones respecto del Composite clásico.** El contenedor no es intercambiable con una hoja: devuelve `list[Impedimento]` en lugar de `Impedimento | None` y no tiene `tipo`, porque la baja necesita el detalle *por tipo* de impedimento y no un único resultado. Tampoco se anidan contenedores: hay un solo nivel, porque las seis causas son independientes y no se agrupan en subcategorías.
+
+### Flujo de una baja
 
 ```python
-sede.dar_de_baja(motivo, usuario, impedimentos=verificador.verificar(sede.id))
-# lanza SedeConActividadPendiente(sede, impedimentos) si la lista no está vacía
+# controllers/dependencies.py — el cliente arma las estrategias
+VerificadorBajaSede([
+    VerificadorBibliotecariosAsignados(uow.usuarios),
+    VerificadorEjemplaresEnSede(uow.ejemplares),
+    VerificadorEjemplaresPropiosFuera(uow.ejemplares),
+    VerificadorPrestamosEnCurso(uow.prestamos),
+    VerificadorRemitosAbiertos(uow.remitos),
+    VerificadorReservasPendientes(uow.reservas),
+])
+
+# services/sede_service.py — el cliente del compuesto obtiene la lista y la entrega al dominio
+sede.dar_de_baja(motivo=motivo, actor=..., ahora=..., impedimentos=self._verificador.verificar(sede.id))
+
+# models/sede.py — la entidad decide: si hay impedimentos lanza SedeConActividadPendiente
+# con el resumen ("3 préstamos en curso, 1 remito abierto") y el detalle por tipo; si no, pasa a BAJA.
 ```
 
-**Dónde vive cada pieza.**
+La **decisión** (bloquear si la lista no está vacía) queda en un único lugar del dominio, `Sede.dar_de_baja`. Las estrategias solo **informan**.
 
-| Pieza | Capa y archivo |
-|-------|----------------|
-| `Impedimento`, `TipoImpedimento`, puerto y compuesto | `models/policies/verificacion_baja_sede.py` |
-| Implementación de **usuarios** (bibliotecarios activos asignados) | `repositories/impl/usuario_verificador_baja_sede.py` (esta iteración) |
-| Implementaciones de ejemplares, préstamos, remitos y reservas | `repositories/impl/<modulo>_verificador_baja_sede.py`, cada una en el PR del módulo que corresponda |
-| Armado del compuesto con las implementaciones registradas | `controllers/dependencies.py` (raíz de composición) |
+**Cómo se suma una causa nueva.** Se agrega el valor a `TipoImpedimento` y su etiqueta en `ETIQUETAS`, se crea la estrategia concreta y se registra en `get_verificador_baja_sede`. No cambian ni `SedeService` ni `Sede`.
 
-**Cómo se suma un módulo.** El PR del módulo agrega su verificador, lo registra en la lista de la raíz de composición y suma las pruebas de su criterio de aceptación. No toca `SedeService` ni el dominio de sede.
+**Garantía de cobertura.** Una prueba de contrato (`tests/contract/test_verificadores_baja_sede.py`) falla si algún `TipoImpedimento` no tiene un verificador registrado, salvo los anotados en `TIPOS_PENDIENTES_DE_MODULO`. Esa lista solo puede achicarse y hoy está vacía: los seis tipos están cubiertos.
 
-**Garantía de cobertura.** `TipoImpedimento` enumera los seis tipos. Una prueba de contrato (`tests/contract/test_verificadores_baja_sede.py`) falla si hay un tipo sin verificador registrado, salvo los de una lista explícita de pendientes (`TIPOS_PENDIENTES_DE_MODULO`) que **solo puede achicarse**. Así no se puede olvidar una verificación al agregar un módulo ni dar la baja por completa antes de tiempo.
-
-**Contrato para los demás módulos (concurrencia).** Toda operación que tome una sede como origen, destino, retiro o alta debe obtenerla con `SedeRepository.obtener_para_operar(id)`, que la bloquea con `FOR SHARE` y llama a `sede.validar_operativa()` (lanza `SedeEnBaja` si no está activa). La baja bloquea con `FOR UPDATE`. Así las dos se serializan: si la baja llega primero, la operación se rechaza; si la operación llega primero, la baja espera y después la ve.
+**Contrato para los demás módulos (concurrencia).** Toda operación que tome una sede como origen, destino, retiro o alta debe obtenerla con `SedeRepository.obtener_para_operar(id)`. Ese método la bloquea con `FOR SHARE` y llama a `sede.validar_operativa()`, que lanza `SedeEnBaja` si no está activa. La baja bloquea con `FOR UPDATE`, así que las dos se serializan: si la baja llega primero, la operación se rechaza; si la operación llega primero, la baja espera y después la ve.
 
 **Ventajas.**
 
-- `SedeService` no cambia cuando aparece un módulo nuevo.
-- Cada verificación se prueba sola, con datos propios.
-- La regla de decisión (bloquear si hay impedimentos) queda en un único lugar del dominio.
-- Para las pruebas de servicio se inyectan verificadores falsos que simulan cada tipo de actividad, sin esperar a los demás módulos.
+- `SedeService` y `Sede` no cambian cuando aparece una causa nueva (abierto/cerrado).
+- Cada estrategia se prueba sola, con sus propios datos.
+- Las pruebas del servicio inyectan estrategias falsas (`verificador_con(PRESTAMOS_EN_CURSO=2)`) y simulan cada causa sin armar préstamos ni remitos reales.
 
-**Costos.** Una abstracción más y una prueba de contrato que mantener. Se justifica porque el negocio ya declaró que son seis causas en cuatro módulos que se construyen por separado.
+**Costos.** Una abstracción más y una prueba de contrato que mantener. Se justifica porque son seis causas en cinco módulos que se construyeron por separado.
 
-**Alternativas descartadas.** (a) Consultas SQL directas en `SedeService`: acoplamiento fuerte y tablas que aún no existen. (b) Eventos de dominio: la verificación debe ser síncrona y dentro de la misma transacción que la baja, y un evento la volvería asincrónica y opaca. (c) Una vista SQL «actividad por sede»: oculta reglas de negocio en la base y se desactualiza con cada módulo.
+**Alternativas descartadas.** (a) Consultas SQL directas en `SedeService`: acoplamiento fuerte con todos los módulos. (b) Eventos de dominio: la verificación tiene que ser síncrona y en la misma transacción que la baja. (c) Una vista SQL de «actividad por sede»: esconde reglas de negocio en la base y hay que actualizarla con cada módulo.
 
 ---
 

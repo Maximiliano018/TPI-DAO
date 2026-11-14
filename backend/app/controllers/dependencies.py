@@ -55,6 +55,9 @@ def get_auth_service(
 def get_verificador_baja_sede(uow: UnitOfWork = Depends(get_uow)) -> VerificadorBajaSede:
     """Compuesto de verificadores de impedimentos de baja.
 
+    Es el **cliente** de Strategy: el único lugar que conoce las estrategias concretas, las crea
+    con su repositorio y se las entrega al contexto (``VerificadorBajaSede``).
+
     Cada módulo registra el suyo acá cuando se implementa; ver ``TIPOS_PENDIENTES_DE_MODULO``
     en la prueba de contrato.
     """

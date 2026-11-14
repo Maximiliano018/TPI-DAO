@@ -41,6 +41,21 @@ export function FiltroSelect({ etiqueta, valor, onCambiar, children }) {
   );
 }
 
+/** Selector nativo de fecha (`AAAA-MM-DD`) para un filtro. */
+export function FiltroFecha({ etiqueta, valor, onCambiar }) {
+  return (
+    <label className={estilos.campo}>
+      <span className={estilos.etiqueta}>{etiqueta}</span>
+      <input
+        type="date"
+        className={estilos.control}
+        value={valor ?? ''}
+        onChange={(e) => onCambiar(e.target.value)}
+      />
+    </label>
+  );
+}
+
 /** Contenedor de filtros con el botón «Limpiar». */
 export default function FilterBar({ etiqueta, onLimpiar, hayFiltros = true, children }) {
   return (

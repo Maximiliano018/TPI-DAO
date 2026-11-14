@@ -8,6 +8,7 @@ from app.exceptions import (
     CodigoInmutable,
     ConflictoDeVersion,
     DireccionDuplicada,
+    ErrorDeValidacion,
     ExcepcionHorarioInvalida,
     ExcepcionHorarioSuperpuesta,
     LocalidadInvalida,
@@ -24,7 +25,7 @@ from app.models.horario import TipoExcepcion
 from app.models.policies.verificacion_baja_sede import TipoImpedimento
 from app.models.sede import EstadoSede, TipoEventoSede
 from app.models.valores import FranjaHoraria
-from app.repositories.interfaces.sede_repository import FiltroEstado, FiltroHistorial, OrdenSedes
+from app.repositories.interfaces.sede_repository import FiltroEstado, OrdenSedes
 from app.services.sede_service import DatosExcepcion, SedeService
 from tests.factories.dominio import BibliotecarioFactory, SocioUsuarioFactory, UsuarioFactory
 from tests.factories.sede import datos_sede
@@ -139,12 +140,20 @@ def test_una_direccion_en_otra_localidad_no_es_duplicada(servicio):
 
 
 def test_con_formato_invalido_no_se_persiste_nada(servicio, uow):
-    from app.exceptions import ErrorDeValidacion
-
     with pytest.raises(ErrorDeValidacion):
         servicio.crear(ADMIN, "CEN", datos_sede(telefono="123"))
 
     assert uow.sedes.sedes == {} and uow.reversiones == 1
+
+
+def test_el_formato_se_valida_antes_que_los_duplicados(servicio):
+    _crear(servicio, "CEN")
+
+    # Código duplicado y nombre inválido: gana la validación de forma (422), no el 409.
+    with pytest.raises(ErrorDeValidacion) as error:
+        servicio.crear(ADMIN, "CEN", datos_sede(nombre="AB"))
+
+    assert error.value.detalles[0]["campo"] == "nombre"
 
 
 # --- modificación ----------------------------------------------------------------------------
@@ -455,6 +464,20 @@ def test_las_excepciones_se_agregan_por_rango_y_se_pueden_quitar(servicio, uow, 
     assert tipos[-2:] == [TipoEventoSede.EXCEPCION_AGREGADA, TipoEventoSede.EXCEPCION_ELIMINADA]
 
 
+def test_el_alta_de_excepciones_devuelve_solo_las_creadas(servicio):
+    sede = _crear(servicio, "CEN")
+    dia = date(2026, 12, 1)
+    servicio.agregar_excepciones(
+        ADMIN, sede.id, DatosExcepcion(dia, None, TipoExcepcion.CIERRE_PARCIAL, time(9), time(10))
+    )
+
+    creadas = servicio.agregar_excepciones(
+        ADMIN, sede.id, DatosExcepcion(dia, None, TipoExcepcion.CIERRE_PARCIAL, time(14), time(15))
+    )
+
+    assert [(e.desde, e.hasta) for e in creadas] == [(time(14), time(15))]
+
+
 def test_un_rango_de_mas_de_31_dias_o_invertido_se_rechaza(servicio):
     sede = _crear(servicio, "CEN")
 
@@ -523,7 +546,7 @@ def test_el_historial_es_solo_del_administrador(servicio):
 
     for usuario in (BIBLIO, SOCIO):
         with pytest.raises(PermisoDenegado):
-            servicio.historial(usuario, sede.id, FiltroHistorial(), 1, 20)
+            servicio.historial(usuario, sede.id, 1, 20)
 
 
 @pytest.mark.ca("CA-SED-34", "CA-SED-35", "CA-SED-36")
@@ -533,7 +556,7 @@ def test_el_historial_lista_los_eventos_del_mas_reciente_al_mas_antiguo(servicio
     servicio.dar_de_baja(ADMIN, sede.id, 2, "Cierre temporal")
     servicio.reactivar(ADMIN, sede.id, 3)
 
-    pagina = servicio.historial(ADMIN, sede.id, FiltroHistorial(), 1, 20)
+    pagina = servicio.historial(ADMIN, sede.id, 1, 20)
 
     assert [e.tipo for e in pagina.items] == [
         TipoEventoSede.REACTIVACION,
@@ -542,12 +565,33 @@ def test_el_historial_lista_los_eventos_del_mas_reciente_al_mas_antiguo(servicio
         TipoEventoSede.ALTA,
     ]
     assert pagina.total == 4
-    solo_baja = servicio.historial(
-        ADMIN, sede.id, FiltroHistorial(tipo_evento=TipoEventoSede.BAJA), 1, 20
-    )
+    solo_baja = servicio.historial(ADMIN, sede.id, 1, 20, tipo_evento=TipoEventoSede.BAJA)
     assert [e.motivo for e in solo_baja.items] == ["Cierre temporal"]
     with pytest.raises(SedeNoEncontrada):
-        servicio.historial(ADMIN, 99, FiltroHistorial(), 1, 20)
+        servicio.historial(ADMIN, 99, 1, 20)
+
+
+def test_el_historial_filtra_por_dias_completos_en_la_zona_de_negocio(servicio, reloj):
+    sede = _crear(servicio, "CEN")  # martes 10/11 12:00
+    reloj.avanzar(horas=11)  # 10/11 23:00 en Córdoba (ya es 11/11 en UTC)
+    servicio.modificar(ADMIN, sede.id, 1, datos_sede(nombre="Nuevo"))
+    reloj.avanzar(horas=2)  # 11/11 01:00
+    servicio.dar_de_baja(ADMIN, sede.id, 2, "Cierre temporal")
+
+    def tipos(**filtros):
+        return [e.tipo for e in servicio.historial(ADMIN, sede.id, 1, 20, **filtros).items]
+
+    assert tipos(hasta=date(2026, 11, 10)) == [TipoEventoSede.MODIFICACION, TipoEventoSede.ALTA]
+    assert tipos(desde=date(2026, 11, 11)) == [TipoEventoSede.BAJA]
+    assert tipos(desde=date(2026, 11, 10), hasta=date(2026, 11, 11)) == [
+        TipoEventoSede.BAJA,
+        TipoEventoSede.MODIFICACION,
+        TipoEventoSede.ALTA,
+    ]
+    with pytest.raises(ErrorDeValidacion):
+        servicio.historial(
+            ADMIN, sede.id, 1, 20, desde=date(2026, 11, 11), hasta=date(2026, 11, 10)
+        )
 
 
 def test_los_horarios_se_envian_como_objetos_de_dominio_validados(servicio):

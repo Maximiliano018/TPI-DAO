@@ -109,7 +109,7 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `GET /sedes/{id}/excepciones-horario` | A, B, S | Excepciones vigentes (A: `?incluir_pasadas=true`) | RF-SED-09 |
 | `POST /sedes/{id}/excepciones-horario` | A | Alta de cierre por fecha o rango | RF-SED-09 |
 | `DELETE /sedes/{id}/excepciones-horario/{excepcion_id}` | A | Quitar un cierre de hoy o futuro | RF-SED-09 |
-| `GET /sedes/{id}/historial` | A | Historial de eventos; `?tipo_evento=`, `?desde=`, `?hasta=` | RF-SED-10 |
+| `GET /sedes/{id}/historial` | A | Historial de eventos; `?tipo_evento=`, `?desde=`, `?hasta=` (días completos, inclusive) | RF-SED-10 |
 | `GET /provincias` | A, B, S | Catálogo cerrado de provincias | RF-SED-11 |
 | `GET /localidades` | A, B, S | Catálogo cerrado; `?provincia_id=`, `?q=` | RF-SED-11 |
 
@@ -415,7 +415,7 @@ La operación es atómica: si algún día falla, no se crea ninguno. Errores: `4
 
 ### `GET /sedes/{id}/historial`
 
-Roles: A. Paginado, del más reciente al más antiguo.
+Roles: A. Paginado, del más reciente al más antiguo. `?tipo_evento=` filtra por tipo; `?desde=` y `?hasta=` son fechas (`AAAA-MM-DD`) que toman días completos en la zona de negocio, `hasta` inclusive. Un rango con `hasta` anterior a `desde` responde `422 VALIDACION`.
 
 ```json
 {
