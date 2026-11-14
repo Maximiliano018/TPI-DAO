@@ -33,6 +33,16 @@ MENSAJE_NO_DISPONIBLE = "La sede solicitada no existe o no está disponible."
 
 
 class EstadoSede(StrEnum):
+    """Estado de la sede: un enum con guardas en la entidad, **sin patrón State**.
+
+    No se usa State (a diferencia de remito, préstamo, ejemplar y reserva) porque hay solo dos
+    estados y dos transiciones, y el estado no cambia el comportamiento: solo habilita o bloquea
+    las operaciones. Eso lo resuelve una guarda (``Sede.validar_operativa``). La regla compleja,
+    la guarda de la baja, no depende del estado y usa Strategy + Composite
+    (``app/models/policies/verificacion_baja_sede.py``).
+    Ver ``docs/tecnica/05-patrones-de-diseno.md``, «Por qué la sede no usa State».
+    """
+
     ACTIVA = "ACTIVA"
     BAJA = "BAJA"
 

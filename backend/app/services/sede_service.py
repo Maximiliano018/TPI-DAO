@@ -184,6 +184,10 @@ class SedeService:
     def dar_de_baja(self, actor: Usuario, sede_id: int, version: int, motivo: str) -> VistaSede:
         """Da de baja la sede si no tiene actividad pendiente (nunca cancela nada).
 
+        Es el **cliente** del Composite: hace una sola llamada a ``VerificadorBajaSede.verificar``
+        sin saber cuántos verificadores hay, y entrega los impedimentos a ``Sede.dar_de_baja``,
+        que es quien decide.
+
         Raises:
             SedeYaEnBaja, ConflictoDeVersion, ErrorDeValidacion (motivo),
             SedeConActividadPendiente: Con el detalle por tipo de impedimento.
