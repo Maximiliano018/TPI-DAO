@@ -316,10 +316,10 @@ CREATE UNIQUE INDEX uq_prestamo_abierto_por_ejemplar
 | numero | VARCHAR(20) | NOT NULL, UNIQUE (secuencia) |
 | sede_origen_id, sede_destino_id | FK sede | `CHECK (sede_origen_id <> sede_destino_id)` |
 | motivo | VARCHAR(15) | `ENVIO`, `RETORNO` o `TRASLADO` |
-| estado | VARCHAR(15) | `GENERADO`, `EMPAQUETADO`, `DESPACHADO`, `EN_TRANSITO`, `RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`, `ANULADO` |
-| fecha_despacho, fecha_recepcion | TIMESTAMPTZ | denormalizadas para consultas rápidas; la fuente es `movimiento_remito` |
+| estado | VARCHAR(15) | `GENERADO`, `EMPAQUETADO`, `DESPACHADO`, `EN_TRANSITO`, `RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`, `INCOMPLETO`, `ANULADO` |
+| fecha_despacho, fecha_recepcion | TIMESTAMPTZ | denormalizadas para consultas rápidas; la fuente es `movimiento_remito`. `CHECK`: hay fecha de despacho si y solo si salió (todo salvo `GENERADO`, `EMPAQUETADO` y `ANULADO`), y de recepción si y solo si se recibió (`RECIBIDO`, `DANADO`, `DESTRUIDO`, `INCOMPLETO`) |
 | observaciones | TEXT | |
-| version | INT | concurrencia optimista |
+| version | INT | cuenta las transiciones; la concurrencia la resuelve el bloqueo de fila (`FOR UPDATE`) de cada operación |
 
 **detalle_remito**
 
@@ -328,7 +328,8 @@ CREATE UNIQUE INDEX uq_prestamo_abierto_por_ejemplar
 | remito_id | FK remito | NOT NULL |
 | ejemplar_id | FK ejemplar | NOT NULL, **UNIQUE (remito_id, ejemplar_id)** |
 | prestamo_id | FK prestamo | NULL en los traslados |
-| estado_fisico_salida, estado_fisico_llegada | VARCHAR | |
+| estado_fisico_salida, estado_fisico_llegada | VARCHAR | `NUEVO`, `BUENO`, `REGULAR` o `DANADO` (la llegada, NULL mientras no se verificó o si faltó) |
+| resultado | VARCHAR | `RECIBIDO`, `DANADO`, `DESTRUIDO` o `FALTANTE`; NULL mientras no se recibió. `CHECK`: hay estado físico de llegada si y solo si llegó (resultado distinto de `FALTANTE`) |
 | observacion | TEXT | |
 
 Que un ejemplar no esté en dos remitos abiertos a la vez no se expresa con un índice simple porque el estado vive en `remito`; lo garantizan el estado `Apartado`, `Reservado` o `EnTransito` del ejemplar y el bloqueo de fila al armar el remito.
@@ -357,7 +358,7 @@ CREATE UNIQUE INDEX uq_reserva_activa
 |-------|----------------|---------------|
 | devolucion | prestamo_id, sede_id, fecha_hora, estado_fisico_recibido, dias_atraso, observaciones, registrada_por_id | `prestamo_id` UNIQUE |
 | multa | prestamo_id, socio_id, dias_atraso, monto_por_dia, monto_total, estado (`PENDIENTE`, `SALDADA`), fecha_saldada | `prestamo_id` UNIQUE; `monto_total >= 0` |
-| incidencia | tipo (`EXTRAVIO`, `DANIO`, `DESTRUCCION`), origen (`DEVOLUCION`, `REMITO`), ejemplar_id, socio_id, prestamo_id, remito_id, descripcion, fecha, usuario_id | descripción NOT NULL |
+| incidencia | tipo (`EXTRAVIO`, `DANIO`, `DESTRUCCION`), origen (`DEVOLUCION`, `REMITO`), ejemplar_id, socio_id, prestamo_id, remito_id, sede_responsable_id, descripcion, fecha, usuario_id, resuelta_en, resuelta_por_id, resolucion | descripción NOT NULL. Responsable según el origen (`CHECK`): una de **remito** tiene `remito_id` y `sede_responsable_id` (la sede origen) y **no** tiene socio; una de **devolución** tiene préstamo y socio y no tiene sede responsable. Solo un extravío se resuelve, y la resolución va completa (fecha y texto) |
 | parametro | clave (PK), valor, descripcion | ver abajo |
 
 `multa` guarda el `monto_por_dia` vigente al generarla: un cambio posterior de la configuración no altera multas ya emitidas.
@@ -373,6 +374,7 @@ Parámetros iniciales (`parametro`):
 | `reservas_maximas_por_socio` | 3 |
 | `vigencia_retiro_reserva_dias` | 3 |
 | `vigencia_retiro_prestamo_dias` | 3 |
+| `despacho_maximo_dias` | 3 |
 | `multa_por_dia` | 200.00 |
 | `transito_maximo_dias` | 7 |
 
@@ -431,6 +433,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0010_bajas_y_historial_de_socios` | `socio.tipo_baja` y la solicitud de reactivación; restricciones para conservar la inhabilitación administrativa en la baja; `historial_socio` con su disparador de solo inserción. Las bajas existentes quedan como `A_PEDIDO` |
 | `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
 | `0012_autogestion_de_prestamos` | `prestamo.fecha_limite_retiro`, el parámetro `vigencia_retiro_prestamo_dias` y los `CHECK` de fechas según el estado. Los préstamos que esperaban retiro reciben 3 días desde la migración |
+| `0013_remitos_incidencias_y_plazos` | `incidencia.sede_responsable_id` (las de remito pasan de socio a la sede origen) y la resolución de extravíos; estado `INCOMPLETO` y resultado `FALTANTE`; parámetro `despacho_maximo_dias`; `CHECK` de fechas del remito, del detalle y del responsable de la incidencia |
 
 ### Seed de demostración
 

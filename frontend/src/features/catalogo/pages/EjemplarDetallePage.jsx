@@ -31,6 +31,7 @@ import {
   useBajaEjemplar,
   useEjemplar,
   useModificarEjemplar,
+  useRecuperarEjemplar,
   useRepararEjemplar,
 } from '../hooks/useCatalogo.js';
 
@@ -212,6 +213,68 @@ function RepararDialog({ ejemplar, onCerrar }) {
   );
 }
 
+/**
+ * Un ejemplar dado de baja por extravío apareció: vuelve a su sede propietaria (disponible o en
+ * revisión si llegó dañado) y la incidencia queda resuelta.
+ */
+function RecuperarDialog({ ejemplar, onCerrar }) {
+  const recuperar = useRecuperarEjemplar();
+  const { mostrar } = useToast();
+  const [fallo, setFallo] = useState(null);
+  const [estadoFisico, setEstadoFisico] = useState('BUENO');
+  const [observacion, setObservacion] = useState('');
+  return (
+    <ConfirmDialog
+      titulo={`Recuperar ${ejemplar.codigo_inventario}`}
+      descripcion={`Apareció el ejemplar extraviado: vuelve a ${ejemplar.sede_propietaria}. Los préstamos cancelados por el extravío no se reabren.`}
+      textoConfirmar="Recuperar"
+      procesando={recuperar.isPending}
+      deshabilitarConfirmar={observacion.trim().length < 5}
+      onConfirmar={() =>
+        recuperar.mutate(
+          {
+            id: ejemplar.id,
+            estado_fisico: estadoFisico,
+            observacion,
+            version: ejemplar.version,
+          },
+          {
+            onSuccess: () => {
+              mostrar('Ejemplar recuperado');
+              onCerrar();
+            },
+            onError: setFallo,
+          },
+        )
+      }
+      onCancelar={onCerrar}
+    >
+      <Select
+        etiqueta="Estado físico"
+        requerido
+        value={estadoFisico}
+        onChange={(e) => setEstadoFisico(e.target.value)}
+        ayuda="Si llegó dañado, queda en revisión."
+      >
+        {Object.entries(ESTADOS_FISICOS).map(([valor, texto]) => (
+          <option key={valor} value={valor}>
+            {texto}
+          </option>
+        ))}
+      </Select>
+      <Textarea
+        etiqueta="Dónde apareció"
+        requerido
+        rows={2}
+        ayuda="Entre 5 y 300 caracteres."
+        value={observacion}
+        onChange={(e) => setObservacion(e.target.value)}
+      />
+      {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
+    </ConfirmDialog>
+  );
+}
+
 /** Ficha de un ejemplar con su historial: estados, estado físico y sedes (solo personal). */
 export default function EjemplarDetallePage() {
   const { id } = useParams();
@@ -250,23 +313,29 @@ export default function EjemplarDetallePage() {
         }
         migas={<Breadcrumb items={migas} />}
         acciones={
-          gestiona &&
-          ejemplar.estado !== 'BAJA' && (
-            <>
-              <Button variante="secondary" onClick={() => setDialogo('editar')}>
-                Editar
-              </Button>
-              {ejemplar.estado === 'EN_REVISION' && (
-                <Button variante="secondary" onClick={() => setDialogo('reparar')}>
-                  Marcar como reparado
+          gestiona && ejemplar.estado === 'BAJA' && ejemplar.recuperable ? (
+            <Button variante="secondary" onClick={() => setDialogo('recuperar')}>
+              Recuperar
+            </Button>
+          ) : (
+            gestiona &&
+            ejemplar.estado !== 'BAJA' && (
+              <>
+                <Button variante="secondary" onClick={() => setDialogo('editar')}>
+                  Editar
                 </Button>
-              )}
-              {['DISPONIBLE', 'EN_REVISION'].includes(ejemplar.estado) && (
-                <Button variante="danger" onClick={() => setDialogo('baja')}>
-                  Dar de baja
-                </Button>
-              )}
-            </>
+                {ejemplar.estado === 'EN_REVISION' && (
+                  <Button variante="secondary" onClick={() => setDialogo('reparar')}>
+                    Marcar como reparado
+                  </Button>
+                )}
+                {['DISPONIBLE', 'EN_REVISION'].includes(ejemplar.estado) && (
+                  <Button variante="danger" onClick={() => setDialogo('baja')}>
+                    Dar de baja
+                  </Button>
+                )}
+              </>
+            )
           )
         }
       />
@@ -306,6 +375,7 @@ export default function EjemplarDetallePage() {
       {dialogo === 'editar' && <EditarDialog ejemplar={ejemplar} onCerrar={cerrar} />}
       {dialogo === 'baja' && <BajaDialog ejemplar={ejemplar} onCerrar={cerrar} />}
       {dialogo === 'reparar' && <RepararDialog ejemplar={ejemplar} onCerrar={cerrar} />}
+      {dialogo === 'recuperar' && <RecuperarDialog ejemplar={ejemplar} onCerrar={cerrar} />}
     </>
   );
 }

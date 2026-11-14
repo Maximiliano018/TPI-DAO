@@ -12,8 +12,9 @@ import { ESTADOS_FISICOS } from '../../../utils/estados.js';
 import { useRecibirRemito } from '../../prestamos/hooks/usePrestamos.js';
 
 /**
- * Recepción del remito en la sede destino: se verifica cada ejemplar. Un daño o una destrucción
- * exige describirlo (el backend lo vuelve a validar y registra la incidencia).
+ * Recepción del remito en la sede destino: se verifica cada ejemplar. Un daño, una destrucción
+ * o un ejemplar que no llegó (faltante) exige describirlo; el backend lo vuelve a validar y
+ * registra la incidencia, a cargo de la sede origen.
  */
 export default function RecepcionDialog({ remito, onCerrar }) {
   const recibir = useRecibirRemito();
@@ -25,6 +26,7 @@ export default function RecepcionDialog({ remito, onCerrar }) {
       codigo: l.codigo_ejemplar,
       estado_fisico: l.estado_fisico_salida,
       destruido: false,
+      faltante: false,
       observacion: '',
     })),
   );
@@ -34,7 +36,7 @@ export default function RecepcionDialog({ remito, onCerrar }) {
   return (
     <ConfirmDialog
       titulo={`Recibir ${remito.numero}`}
-      descripcion="Verifique cada ejemplar. Si alguno llegó dañado o inutilizable, descríbalo."
+      descripcion="Verifique cada ejemplar. Si alguno llegó dañado, inutilizable o no llegó, descríbalo."
       textoConfirmar="Confirmar recepción"
       procesando={recibir.isPending}
       onConfirmar={() => {
@@ -44,6 +46,8 @@ export default function RecepcionDialog({ remito, onCerrar }) {
             id: remito.id,
             lineas: lineas.map(({ codigo: _codigo, observacion, ...resto }) => ({
               ...resto,
+              estado_fisico: resto.faltante ? null : resto.estado_fisico,
+              destruido: resto.faltante ? false : resto.destruido,
               observacion: observacion || null,
             })),
           },
@@ -61,9 +65,15 @@ export default function RecepcionDialog({ remito, onCerrar }) {
       {lineas.map((linea, i) => (
         <fieldset key={linea.ejemplar_id} style={{ border: 0, padding: 0, margin: 0 }}>
           <legend className="mono">{linea.codigo}</legend>
+          <Checkbox
+            etiqueta={`${linea.codigo} no llegó (faltante)`}
+            checked={linea.faltante}
+            onChange={(e) => cambiar(i, { faltante: e.target.checked })}
+          />
           <Select
             etiqueta={`Estado físico de ${linea.codigo}`}
             value={linea.estado_fisico}
+            disabled={linea.faltante}
             onChange={(e) => cambiar(i, { estado_fisico: e.target.value })}
           >
             {Object.entries(ESTADOS_FISICOS).map(([valor, texto]) => (
@@ -75,9 +85,10 @@ export default function RecepcionDialog({ remito, onCerrar }) {
           <Checkbox
             etiqueta="Llegó inutilizable (destruido)"
             checked={linea.destruido}
+            disabled={linea.faltante}
             onChange={(e) => cambiar(i, { destruido: e.target.checked })}
           />
-          {(linea.destruido || linea.estado_fisico === 'DANADO') && (
+          {(linea.faltante || linea.destruido || linea.estado_fisico === 'DANADO') && (
             <Input
               etiqueta={`Qué le pasó a ${linea.codigo}`}
               requerido

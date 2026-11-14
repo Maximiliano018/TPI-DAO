@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
+  Badge,
   BusquedaConEspera,
   Button,
   EmptyState,
@@ -32,6 +33,7 @@ export default function RemitosPage() {
     motivo: filtros.motivo,
     numero: filtros.numero,
     abiertos: filtros.abiertos === 'si' ? true : undefined,
+    atrasados: filtros.abiertos === 'atrasados' ? true : undefined,
     page,
     size,
   });
@@ -58,7 +60,12 @@ export default function RemitosPage() {
     {
       clave: 'estado',
       titulo: 'Estado',
-      render: (r) => <EstadoBadge entidad="remito" estado={r.estado} />,
+      render: (r) => (
+        <>
+          <EstadoBadge entidad="remito" estado={r.estado} />{' '}
+          {r.atrasado && <Badge tono="danger">Atrasado</Badge>}
+        </>
+      ),
     },
   ];
 
@@ -84,6 +91,7 @@ export default function RemitosPage() {
         >
           <option value="">Todos</option>
           <option value="si">Solo sin cerrar</option>
+          <option value="atrasados">Sin despachar fuera de plazo</option>
         </FiltroSelect>
         <FiltroSelect
           etiqueta="Estado"

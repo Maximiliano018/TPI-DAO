@@ -44,7 +44,7 @@ Todos los roles ven el catálogo y la disponibilidad. El estado físico detallad
 
 ## ¿Se puede dar de baja un ejemplar? ¿Bajo qué condiciones?
 
-**Sí, baja lógica**, solo si el ejemplar está `Disponible` (sin reservas asignadas) o `En revisión` (daño irreparable). Motivos: destrucción, extravío, daño irreparable, depuración del catálogo. Un ejemplar `Prestado`, `Apartado`, `Reservado` o `En tránsito` no se puede dar de baja: primero debe completarse el flujo, y si hay una incidencia (extravío, daño) la baja es el resultado del cierre del envío o de la devolución. Un ejemplar dado de baja ya no se edita: queda como historial.
+**Sí, baja lógica**, solo si el ejemplar está `Disponible` (sin reservas asignadas) o `En revisión` (daño irreparable). Motivos: destrucción, extravío, daño irreparable, depuración del catálogo. Un ejemplar `Prestado`, `Apartado`, `Reservado` o `En tránsito` no se puede dar de baja: primero debe completarse el flujo, y si hay una incidencia (extravío, daño) la baja es el resultado del cierre del envío o de la devolución. Un ejemplar dado de baja ya no se edita: queda como historial. La única excepción es un **extravío** que se resuelve: si el ejemplar aparece, la sede propietaria lo recupera (vuelve a `Disponible`, o a `En revisión` si llegó dañado) y la incidencia queda resuelta.
 
 ## ¿Cómo evitamos duplicados?
 

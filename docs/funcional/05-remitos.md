@@ -8,10 +8,10 @@ Origen: [negocio/05-remitos.md](../negocio/05-remitos.md). Proceso obligatorio 5
 Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ──▶ Recibido
    │              │              │               │
    └──▶ Anulado   └──▶ Anulado   │               ├──▶ Extraviado
-                                 └──▶ Extraviado └──▶ Dañado / Destruido
+                                 └──▶ Extraviado └──▶ Dañado / Destruido / Incompleto
 ```
 
-Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
+Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` (recibido con faltantes), `Anulado`.
 
 ## Requerimientos funcionales
 
@@ -29,8 +29,10 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 | RF-REM-10 | El sistema debe rechazar remitos con una sede en `Baja` como origen o destino, ejemplares que no pertenezcan o no estén en la sede origen, o ejemplares ya incluidos en otro remito abierto. | Obligatorio |
 | RF-REM-11 | El sistema debe permitir anular un remito solo antes del despacho, liberando los ejemplares. | Obligatorio |
 | RF-REM-12 | El sistema debe permitir marcar `Extraviado` un remito despachado cuando venció el plazo máximo de tránsito (7 días). | Obligatorio |
-| RF-REM-13 | El sistema debe registrar la revisión de recepción: ejemplar dañado o destruido, con efecto sobre el ejemplar (revisión o baja). La revisión la hace siempre la sede propietaria: un envío dañado vuelve a su sede con un remito de retorno, y un traslado dañado queda en revisión en la nueva sede propietaria. | Opcional |
+| RF-REM-13 | El sistema debe registrar la revisión de recepción: ejemplar dañado o destruido, con efecto sobre el ejemplar (revisión o baja). La revisión la hace siempre la sede propietaria: un envío dañado vuelve a su sede con un remito de retorno, y un traslado dañado queda en revisión en la nueva sede propietaria. Las incidencias de un remito quedan a cargo de la **sede origen** (que lo despachó) y nunca del socio. | Opcional |
 | RF-REM-14 | El sistema debe permitir consultar un remito y su historial completo de movimientos, con la visibilidad que corresponda a cada rol. | Obligatorio |
+| RF-REM-15 | Un remito sin despachar debe tener un plazo de despacho (parámetro, 3 días desde la generación). Vencido, el sistema debe marcarlo como atrasado en el listado y en su ficha, y permitir filtrar los atrasados. | Obligatorio |
+| RF-REM-16 | Al recibir, el sistema debe permitir marcar una línea como faltante (no llegó). El ejemplar se da de baja por extravío con incidencia, su préstamo se cancela, el resto se recibe y el remito queda `Incompleto`. Si no llegó ninguno, rechaza la recepción. | Obligatorio |
 
 ## Casos de uso
 
@@ -73,9 +75,9 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
   1. Abre el remito `En tránsito` dirigido a su sede.
   2. Verifica cada línea y registra su estado físico.
   3. Confirma la recepción: pasa a `Recibido`.
-  4. Los ejemplares quedan `Prestado` (entrega al socio, si el motivo es préstamo), `Disponible` (retorno o traslado) y, en traslados, cambian de sede propietaria.
+  4. Los ejemplares quedan `Apartado` hasta la entrega al socio (si el motivo es préstamo), `Disponible` (retorno o traslado) y, en traslados, cambian de sede propietaria.
 - **Flujos alternativos:**
-  - **A1 (paso 2): una línea llega dañada.** Se registra la incidencia (CU-REM-05).
+  - **A1 (paso 2): una línea llega dañada, destruida o no llega.** Se registra la incidencia (CU-REM-05).
   - **A2 (paso 1): sede distinta del destino.** Rechaza.
   - **A3 (paso 1): remito en `Despachado` sin pasar a `En tránsito`.** Se permite recibir; el sistema completa el estado intermedio y lo registra.
   - **A4 (paso 3): la sede destino pasó a `Baja` durante el tránsito.** No ocurre: la baja se bloqueó por el remito abierto.
@@ -83,7 +85,8 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 ### CU-REM-05. Registrar una incidencia de recepción
 
 - **Actor:** Bibliotecario de la sede destino.
-- **Flujo normal:** al verificar, marca la línea como dañada o destruida con observaciones; el remito queda `Dañado` o `Destruido` y se registra la incidencia. En un envío, el préstamo asociado pasa a `Cancelado`. El ejemplar:
+- **Flujo normal:** al verificar, marca la línea como dañada, destruida o faltante con observaciones; el remito queda `Dañado`, `Destruido` o `Incompleto` (gana el faltante, después la destrucción) y se registra la incidencia, a cargo de la sede origen. En un envío, el préstamo asociado pasa a `Cancelado`. El ejemplar:
+  - **faltante:** pasa a `Baja` por extravío (se puede recuperar si aparece);
   - **destruido:** pasa a `Baja`;
   - **dañado en un envío:** queda `Apartado` en la sede destino y el sistema genera un remito de retorno a la sede propietaria, que lo revisa al recibirlo (pasa a `En revisión` sin otra incidencia). La sede destino no es la dueña y no lo repara;
   - **dañado en un retorno:** pasa a `En revisión` en su sede;
@@ -98,13 +101,14 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 - **Flujo normal:** sobre un remito despachado cuyo plazo máximo de tránsito venció, marca `Extraviado` con observación; los ejemplares pasan a `Baja` con incidencia y los préstamos a `Cancelado`.
 - **Flujos alternativos:**
   - **A1:** el plazo todavía no venció; rechaza.
-  - **A2:** el remito llega luego de marcarse; no se revierte. Se registra aparte como hallazgo y se corrige por un ajuste administrativo.
+  - **A2:** el remito llega luego de marcarse; no se revierte, pero la sede propietaria recupera cada ejemplar que apareció (CU-CAT-07) y la incidencia queda resuelta.
 
 ### CU-REM-07. Consultar un remito
 
 - **Actores:** Bibliotecario (sedes involucradas), Administrador, Socio (remito de su préstamo).
 - **Flujo normal:** busca por número, préstamo o ejemplar; ve estado actual, detalle y movimientos ordenados en el tiempo.
 - **Flujo alternativo A1:** sede ajena al remito; rechaza.
+- **Flujo alternativo A2:** el remito pasó el plazo de despacho sin salir; se muestra como atrasado y se puede filtrar.
 
 ## Criterios de aceptación
 
@@ -131,3 +135,8 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 | CA-REM-19 | RF-REM-09 | **Dado** un traslado recibido, **cuando** se cierra, **entonces** el ejemplar cambia de sede propietaria. |
 | CA-REM-20 | RF-REM-13 | **Dado** un ejemplar que llega dañado en un envío, **cuando** se registra la recepción, **entonces** el préstamo se cancela, el ejemplar queda `Apartado` con un remito de retorno a su sede y, al recibirse allí, pasa a `En revisión` sin una nueva incidencia y su sede lo puede reparar. |
 | CA-REM-21 | RF-REM-13 | **Dado** un ejemplar que llega dañado en un traslado, **cuando** se registra la recepción, **entonces** cambia de sede propietaria y queda `En revisión` en la nueva. |
+| CA-REM-22 | RF-REM-13 | **Dado** un ejemplar que llega dañado o se extravía en un envío, **cuando** se registra la incidencia, **entonces** queda a cargo de la sede origen (con quién lo despachó) y sin socio; una incidencia de devolución sigue a cargo del socio. |
+| CA-REM-23 | RF-REM-16 | **Dado** un remito de dos ejemplares en el que uno no llegó, **cuando** se recibe marcándolo faltante, **entonces** el remito queda `Incompleto`, el faltante en `Baja` con incidencia de extravío, su préstamo `Cancelado` y el otro se recibe normalmente. |
+| CA-REM-24 | RF-REM-16 | **Dado** un remito en el que no llegó ningún ejemplar, **cuando** se intenta recibir, **entonces** se rechaza y el remito no cambia. |
+| CA-REM-25 | RF-REM-15 | **Dado** un remito generado hace 5 días y sin despachar, **cuando** se consulta, **entonces** figura atrasado y aparece al filtrar los atrasados; al despacharlo deja de estarlo. |
+| CA-REM-26 | RF-REM-06 | **Dado** un remito o un detalle con fechas o valores incoherentes con su estado, **cuando** se guarda, **entonces** la base lo rechaza. |

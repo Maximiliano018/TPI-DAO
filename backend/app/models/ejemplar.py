@@ -297,6 +297,35 @@ class Ejemplar:
             )
         self.registrar_baja(texto, actor, ahora)
 
+    def recuperar(
+        self, estado_fisico: EstadoFisico, observacion: str, actor: UsuarioRef, ahora: datetime
+    ) -> None:
+        """Un ejemplar dado de baja por extravío apareció y vuelve a su sede propietaria.
+
+        Queda ``Disponible`` (o ``En revisión`` si llegó dañado) y se borran los datos de la
+        baja. El historial registra la recuperación, la sede y el estado físico. Que la baja
+        haya sido por un extravío lo controla el servicio con la incidencia.
+
+        Raises:
+            TransicionInvalida: El ejemplar no está dado de baja.
+            ErrorDeValidacion: Observación inválida.
+        """
+        texto = validar_motivo(observacion)
+        anterior = self.estado_nombre
+        self.estado = self.estado.recuperar(danado=estado_fisico == EstadoFisico.DANADO)
+        cambios: list[Cambio] = []
+        if self.sede_actual_id != self.sede_propietaria_id:
+            cambios.append(Cambio(CAMPO_SEDE_ACTUAL, self.sede_actual_id, self.sede_propietaria_id))
+            self.sede_actual_id = self.sede_propietaria_id
+        if estado_fisico != self.estado_fisico:
+            cambios.append(
+                Cambio(CAMPO_ESTADO_FISICO, self.estado_fisico.value, estado_fisico.value)
+            )
+            self.estado_fisico = estado_fisico
+        self.fecha_baja = None
+        self.motivo_baja = None
+        self._registrar(actor, ahora, f"Recuperado: {texto}", cambios, anterior)
+
     def registrar_baja(self, motivo: str, actor: UsuarioRef | None, ahora: datetime) -> None:
         """Baja por una incidencia (extravío, destrucción) o por la decisión de baja manual."""
         self._transicion(self.estado.dar_de_baja, actor, ahora, motivo)

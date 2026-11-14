@@ -44,7 +44,7 @@ from app.services.reports.resultados import (
 )
 from app.utils.reloj import Reloj
 
-RECIBIDOS = ("RECIBIDO", "DANADO", "DESTRUIDO")
+RECIBIDOS = ("RECIBIDO", "DANADO", "DESTRUIDO", "INCOMPLETO")
 CERRADOS = (*RECIBIDOS, "EXTRAVIADO")
 REMITOS_ABIERTOS = ("GENERADO", "EMPAQUETADO", "DESPACHADO", "EN_TRANSITO")
 PRESTAMOS_AFUERA = ("ACTIVO", "VENCIDO")
@@ -159,6 +159,7 @@ class ReporteService:
             _contar(RemitoORM.estado == "EXTRAVIADO"),
             _contar(RemitoORM.estado == "DANADO"),
             _contar(RemitoORM.estado == "DESTRUIDO"),
+            _contar(RemitoORM.estado == "INCOMPLETO"),
         )
         total = self._sesion.execute(select(*conteos).where(*condiciones)).one()
         por_sede = self._sesion.execute(
@@ -563,7 +564,7 @@ class ReporteService:
 
 
 def _conteo(fila: Sequence[Any]) -> dict[str, int]:
-    claves = ("total_envios", "recibidos", "extraviados", "danados", "destruidos")
+    claves = ("total_envios", "recibidos", "extraviados", "danados", "destruidos", "incompletos")
     return {clave: int(valor) for clave, valor in zip(claves, fila, strict=True)}
 
 

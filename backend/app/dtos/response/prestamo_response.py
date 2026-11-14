@@ -20,7 +20,8 @@ from app.models.incidencia import Incidencia
 from app.models.paginacion import Pagina
 from app.models.prestamo import MovimientoPrestamo, Prestamo
 from app.models.remito import LineaRemito, MovimientoRemito, Remito
-from app.models.usuario import Permiso, Usuario
+from app.models.states.remito import EstadoRemitoEnum
+from app.models.usuario import Permiso, Usuario, UsuarioRef
 from app.repositories.interfaces.prestamo_repository import Parametro
 from app.services.prestamo_service import DetallePrestamo, PropuestaPrestamo
 from app.services.remito_service import DetalleRemito
@@ -194,6 +195,8 @@ class RemitoResponse(BaseModel):
     fecha_recepcion: datetime | None
     observaciones: str | None
     lineas: list[LineaResponse]
+    despachar_hasta: date | None
+    atrasado: bool
 
     @classmethod
     def desde(cls, r: Remito) -> "RemitoResponse":
@@ -212,6 +215,8 @@ class RemitoResponse(BaseModel):
             fecha_recepcion=r.fecha_recepcion,
             observaciones=r.observaciones,
             lineas=[LineaResponse.desde(linea) for linea in r.lineas],
+            despachar_hasta=r.despachar_hasta,
+            atrasado=r.atrasado,
         )
 
 
@@ -306,16 +311,49 @@ class PropuestaPrestamoResponse(BaseModel):
         )
 
 
+class SedeResponsableResponse(BaseModel):
+    id: int
+    nombre: str | None
+
+
 class IncidenciaResponse(BaseModel):
+    """Incidencia de un remito.
+
+    El responsable es la sede origen, que despachó el envío (``sede_responsable``); quién lo
+    despachó es ``despachado_por``. ``usuario`` es quien la registró. Un extravío resuelto
+    (el ejemplar apareció) trae ``resuelta_en`` y ``resolucion``.
+    """
+
+    id: int | None
     tipo: str
+    origen: str
     ejemplar_id: int
     descripcion: str
     fecha: datetime
+    usuario: UsuarioRefResponse | None
+    sede_responsable: SedeResponsableResponse | None
+    despachado_por: UsuarioRefResponse | None
+    resuelta_en: datetime | None
+    resolucion: str | None
 
     @classmethod
-    def desde(cls, i: Incidencia) -> "IncidenciaResponse":
+    def desde(cls, i: Incidencia, despachado_por: UsuarioRef | None = None) -> "IncidenciaResponse":
         return cls(
-            tipo=i.tipo.value, ejemplar_id=i.ejemplar_id, descripcion=i.descripcion, fecha=i.fecha
+            id=i.id,
+            tipo=i.tipo.value,
+            origen=i.origen.value,
+            ejemplar_id=i.ejemplar_id,
+            descripcion=i.descripcion,
+            fecha=i.fecha,
+            usuario=UsuarioRefResponse.desde(i.usuario) if i.usuario else None,
+            sede_responsable=(
+                SedeResponsableResponse(id=i.sede_responsable_id, nombre=i.sede_responsable_nombre)
+                if i.sede_responsable_id is not None
+                else None
+            ),
+            despachado_por=UsuarioRefResponse.desde(despachado_por) if despachado_por else None,
+            resuelta_en=i.resuelta_en,
+            resolucion=i.resolucion,
         )
 
 
@@ -327,10 +365,14 @@ class RemitoDetalleResponse(RemitoResponse):
 
     @classmethod
     def desde_detalle(cls, d: DetalleRemito) -> "RemitoDetalleResponse":
+        despacho = next(
+            (m for m in d.historial if m.estado_nuevo == EstadoRemitoEnum.DESPACHADO), None
+        )
+        despachado_por = despacho.usuario if despacho else None
         return cls(
             **RemitoResponse.desde(d.remito).model_dump(),
             movimientos=[MovimientoResponse.desde(m) for m in d.historial],
-            incidencias=[IncidenciaResponse.desde(i) for i in d.incidencias],
+            incidencias=[IncidenciaResponse.desde(i, despachado_por) for i in d.incidencias],
         )
 
 

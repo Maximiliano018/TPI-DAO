@@ -11,6 +11,7 @@ from app.dtos.request.catalogo_request import (
     EjemplarModificarRequest,
     LibroModificarRequest,
     LibroRequest,
+    RecuperarEjemplarRequest,
     VersionRequest,
 )
 from app.dtos.response.catalogo_response import (
@@ -285,3 +286,36 @@ def reparar_ejemplar(
 ) -> EjemplarResponse:
     """Un ejemplar en revisión vuelve a estar disponible."""
     return EjemplarResponse.desde(servicio.reparar_ejemplar(actor, ejemplar_id, datos.version))
+
+
+@router.post(
+    "/ejemplares/{ejemplar_id}/recuperar",
+    response_model=EjemplarResponse,
+    summary="Recuperar un ejemplar extraviado",
+    responses={
+        401: _ERROR_401,
+        403: _ERROR_403,
+        404: _ERROR_404_EJEMPLAR,
+        409: {
+            "description": "No está dado de baja por un extravío (`EJEMPLAR_NO_RECUPERABLE`) "
+            "o `CONFLICTO_DE_VERSION`"
+        },
+        422: _ERROR_422,
+    },
+)
+def recuperar_ejemplar(
+    ejemplar_id: int,
+    datos: RecuperarEjemplarRequest,
+    servicio: Servicio,
+    actor: GestorEjemplares,
+) -> EjemplarResponse:
+    """Un ejemplar dado de baja por extravío apareció: vuelve a su sede propietaria.
+
+    Queda disponible (o en revisión si llegó dañado) y la incidencia de extravío queda resuelta.
+    Una baja por destrucción o daño irreparable es definitiva.
+    """
+    return EjemplarResponse.desde(
+        servicio.recuperar_ejemplar(
+            actor, ejemplar_id, datos.version, datos.estado_fisico, datos.observacion
+        )
+    )

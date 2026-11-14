@@ -14,3 +14,4 @@ export const crearEjemplar = (datos) => api.post('/ejemplares', datos);
 export const modificarEjemplar = (id, datos) => api.put(`/ejemplares/${id}`, datos);
 export const darDeBajaEjemplar = (id, datos) => api.post(`/ejemplares/${id}/baja`, datos);
 export const repararEjemplar = (id, version) => api.post(`/ejemplares/${id}/reparado`, { version });
+export const recuperarEjemplar = (id, datos) => api.post(`/ejemplares/${id}/recuperar`, datos);

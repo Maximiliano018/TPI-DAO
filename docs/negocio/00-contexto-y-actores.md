@@ -55,6 +55,7 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Máximo de préstamos simultáneos por socio | 3 |
 | Multa por día de atraso | $200 por día de atraso, monto fijo; sin tope por defecto |
 | Vigencia de una reserva cumplida (retiro) | 3 días corridos |
+| Plazo de despacho de un remito | 3 días corridos desde la generación; vencido, el remito figura atrasado |
 | Plazo para retirar un préstamo solicitado | 3 días corridos (el local, desde la solicitud; el interbibliotecario, desde la llegada a la sede destino) |
 | Días de atraso que inhabilitan al socio | el socio queda inhabilitado mientras tenga un préstamo vencido o una multa impaga |
 

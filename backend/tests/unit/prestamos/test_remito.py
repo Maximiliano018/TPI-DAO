@@ -18,7 +18,7 @@ from app.models.usuario import UsuarioRef
 
 AHORA = datetime(2026, 11, 10, 15, 0, tzinfo=UTC)
 BIBLIO = UsuarioRef(2, "Biblio")
-FINALES = [R.RECIBIDO, R.EXTRAVIADO, R.DANADO, R.DESTRUIDO, R.ANULADO]
+FINALES = [R.RECIBIDO, R.EXTRAVIADO, R.DANADO, R.DESTRUIDO, R.INCOMPLETO, R.ANULADO]
 
 
 def remito(estado: R = R.GENERADO, lineas: int = 1, motivo=MotivoRemito.ENVIO) -> Remito:
@@ -236,3 +236,58 @@ def test_extraviado_solo_despues_del_plazo_de_transito(desde):
 def test_no_se_extravia_un_remito_que_no_salio():
     with pytest.raises(TransicionInvalida):
         remito(R.EMPAQUETADO).marcar_extraviado(7, "No llegó", BIBLIO, AHORA + timedelta(days=30))
+
+
+# --- faltantes y plazo de despacho -------------------------------------------------------------
+
+
+FALTA = RecepcionLinea(101, None, faltante=True, observacion="No venía en la caja")
+
+
+@pytest.mark.ca("CA-REM-23")
+def test_un_faltante_cierra_el_remito_como_incompleto_aunque_haya_destruidos():
+    r = remito(R.EN_TRANSITO, lineas=3)
+
+    r.recibir(
+        [
+            RecepcionLinea(100, EstadoFisico.BUENO),
+            FALTA,
+            RecepcionLinea(102, EstadoFisico.DANADO, destruido=True, observacion="Ilegible"),
+        ],
+        BIBLIO,
+        AHORA,
+    )
+
+    assert r.estado_nombre == R.INCOMPLETO
+    faltante = r.linea_de(101)
+    assert (faltante.resultado.value, faltante.estado_fisico_llegada) == ("FALTANTE", None)
+    assert r.movimientos_pendientes[-1].observacion == "Recibido con ejemplares faltantes"
+
+
+@pytest.mark.ca("CA-REM-24")
+def test_si_faltan_todos_o_uno_que_llego_no_tiene_estado_se_rechaza_sin_cambios():
+    r = remito(R.EN_TRANSITO, lineas=1)
+    with pytest.raises(RemitoInvalido, match="ningún ejemplar"):
+        r.recibir(
+            [RecepcionLinea(100, None, faltante=True, observacion="Caja vacía")], BIBLIO, AHORA
+        )
+    with pytest.raises(RemitoInvalido, match="estado físico"):
+        r.recibir([RecepcionLinea(100, None)], BIBLIO, AHORA)
+    assert r.estado_nombre == R.EN_TRANSITO
+    sin_obs = remito(R.EN_TRANSITO, lineas=2)
+    with pytest.raises(RemitoInvalido, match="observación"):
+        sin_obs.recibir(
+            [RecepcionLinea(100, EstadoFisico.BUENO), RecepcionLinea(101, None, faltante=True)],
+            BIBLIO,
+            AHORA,
+        )
+
+
+@pytest.mark.ca("CA-REM-25")
+def test_el_plazo_de_despacho_cuenta_desde_la_generacion_y_termina_al_despachar():
+    zona = UTC
+    generado = remito(R.GENERADO)
+    assert generado.limite_de_despacho(3, zona) == (AHORA + timedelta(days=3)).date()
+    assert remito(R.EMPAQUETADO).limite_de_despacho(3, zona) is not None
+    for estado in (R.DESPACHADO, R.EN_TRANSITO, R.RECIBIDO, R.ANULADO):
+        assert remito(estado).limite_de_despacho(3, zona) is None

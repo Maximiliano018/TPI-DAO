@@ -23,6 +23,7 @@ class Parametros:
     vigencia_retiro_prestamo_dias: int = 3
     multa_por_dia: Decimal = Decimal("200.00")
     transito_maximo_dias: int = 7
+    despacho_maximo_dias: int = 3
 
     @classmethod
     def claves(cls) -> list[str]:

@@ -120,6 +120,7 @@ const COLUMNAS_R2 = [
   { clave: 'extraviados', titulo: 'Extraviados', valor: (s) => s.extraviados },
   { clave: 'danados', titulo: 'Dañados', valor: (s) => s.danados },
   { clave: 'destruidos', titulo: 'Destruidos', valor: (s) => s.destruidos },
+  { clave: 'incompletos', titulo: 'Con faltantes', valor: (s) => s.incompletos },
   { clave: 'exito', titulo: 'Éxito', valor: (s) => porcentaje(s.tasa_exito) },
 ];
 

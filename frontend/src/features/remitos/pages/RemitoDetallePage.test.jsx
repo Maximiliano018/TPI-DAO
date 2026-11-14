@@ -54,9 +54,91 @@ describe('Remitos', () => {
     expect(await screen.findByText('Remito recibido')).toBeVisible();
     expect(llamadas[0].cuerpo).toEqual({
       lineas: [
-        { ejemplar_id: 301, estado_fisico: 'DANADO', destruido: false, observacion: 'Tapa rota' },
+        {
+          ejemplar_id: 301,
+          estado_fisico: 'DANADO',
+          destruido: false,
+          faltante: false,
+          observacion: 'Tapa rota',
+        },
       ],
     });
+  });
+
+  it('CA-REM-23: un ejemplar que no llegó se marca faltante, sin estado físico', async () => {
+    sesionDe(BIBLIO_NORTE);
+    const dos = remito({
+      estado: 'EN_TRANSITO',
+      lineas: [
+        ...remito().lineas,
+        {
+          ...remito().lineas[0],
+          ejemplar_id: 302,
+          codigo_ejemplar: 'CEN-000124',
+          prestamo_id: 119,
+        },
+      ],
+    });
+    responder('get', '/remitos/51', dos);
+    const llamadas = registrar('post', '/remitos/51/recibir', { ...dos, estado: 'INCOMPLETO' });
+    const user = userEvent.setup();
+    renderizarApp('/remitos/51', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Recibir' }));
+    const dialogo = screen.getByRole('dialog');
+    await user.click(within(dialogo).getByLabelText(/CEN-000124 no llegó/));
+    expect(within(dialogo).getByLabelText(/Estado físico de CEN-000124/)).toBeDisabled();
+    await user.type(
+      within(dialogo).getByLabelText(/Qué le pasó a CEN-000124/),
+      'No venía en la caja',
+    );
+    await user.click(within(dialogo).getByRole('button', { name: 'Confirmar recepción' }));
+
+    expect(await screen.findByText('Remito recibido')).toBeVisible();
+    expect(llamadas[0].cuerpo.lineas[1]).toEqual({
+      ejemplar_id: 302,
+      estado_fisico: null,
+      destruido: false,
+      faltante: true,
+      observacion: 'No venía en la caja',
+    });
+  });
+
+  it('CA-REM-22, CA-REM-25: muestra el atraso y el responsable de cada incidencia', async () => {
+    sesionDe(ADMIN);
+    responder(
+      'get',
+      '/remitos/51',
+      remito({
+        estado: 'INCOMPLETO',
+        atrasado: true,
+        lineas: [{ ...remito().lineas[0], resultado: 'FALTANTE' }],
+        incidencias: [
+          {
+            id: 9,
+            tipo: 'EXTRAVIO',
+            origen: 'REMITO',
+            ejemplar_id: 301,
+            descripcion: 'No venía en la caja',
+            fecha: '2026-11-12T15:00:00Z',
+            usuario: { id: 5, nombre: 'Beto Norte' },
+            sede_responsable: { id: 1, nombre: 'Sede Central' },
+            despachado_por: { id: 2, nombre: 'Lucía Gómez' },
+            resuelta_en: '2026-11-14T15:00:00Z',
+            resolucion: 'Recuperado: apareció en el depósito',
+          },
+        ],
+      }),
+    );
+    renderizarApp('/remitos/51', { conSesion: true });
+
+    expect(
+      await screen.findByText(/Atrasado: tenía que despacharse hasta el 13\/11\/2026/),
+    ).toBeVisible();
+    expect(screen.getByText(/Responsable: Sede Central \(despachó Lucía Gómez\)/)).toBeVisible();
+    expect(screen.getByText(/Recuperado: apareció en el depósito/)).toBeVisible();
+    const detalle = screen.getByRole('table', { name: 'Detalle del remito' });
+    expect(within(detalle).getByText('No llegó')).toBeVisible();
   });
 
   it('el administrador puede marcar extraviado un envío en viaje', async () => {

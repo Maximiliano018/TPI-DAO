@@ -8,6 +8,7 @@ préstamos e incidencias en una sola transacción (ver ``docs/tecnica/03-maquina
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, time, timedelta
 
 from app.exceptions import (
     EjemplarEnOtroRemito,
@@ -21,7 +22,7 @@ from app.exceptions import (
 )
 from app.models.ejemplar import Ejemplar, EstadoFisico
 from app.models.factories.prestamo_factory import PrestamoFactory
-from app.models.incidencia import Incidencia, OrigenIncidencia, TipoIncidencia
+from app.models.incidencia import Incidencia, TipoIncidencia
 from app.models.paginacion import Pagina
 from app.models.prestamo import Prestamo
 from app.models.remito import (
@@ -219,7 +220,11 @@ class RemitoService:
           propietaria (en el traslado, la nueva);
         * **destruido**: ``Baja`` con incidencia (y en un envío el préstamo se cancela);
         * **retorno de un ejemplar devuelto dañado**: pasa a ``En revisión`` en su sede sin otra
-          incidencia (ya se registró en la devolución).
+          incidencia (ya se registró en la devolución);
+        * **faltante** (no llegó): ``Baja`` por extravío con incidencia; en un envío el préstamo
+          se cancela. El resto del remito se recibe normalmente (``Incompleto``).
+
+        Las incidencias de un remito quedan a cargo de la sede origen, nunca del socio.
 
         Cada llegada queda en el historial del ejemplar: la sede donde está, el estado físico
         verificado y, en un traslado, la nueva sede propietaria.
@@ -231,6 +236,10 @@ class RemitoService:
             remito.recibir(recepcion, yo, ahora)
             for linea in remito.lineas:
                 ejemplar = self._ejemplar(linea.ejemplar_id)
+                if linea.resultado == ResultadoLinea.FALTANTE:
+                    self._faltante(remito, linea, ejemplar, yo)
+                    self._uow.ejemplares.guardar(ejemplar)
+                    continue
                 assert linea.estado_fisico_llegada is not None
                 texto = f"Recibido en {remito.numero}"
                 # Un traslado cambia la sede propietaria aunque llegue dañado: la nueva dueña
@@ -286,7 +295,9 @@ class RemitoService:
     def marcar_extraviado(self, actor: Usuario, remito_id: int, observacion: str) -> Remito:
         """Un envío que superó el plazo de tránsito se da por perdido (CU-REM-06).
 
-        Los ejemplares pasan a ``Baja`` con incidencia y los préstamos del envío se cancelan.
+        Los ejemplares pasan a ``Baja`` con incidencia (a cargo de la sede origen) y los
+        préstamos del envío se cancelan. Si un ejemplar aparece después, la sede propietaria lo
+        recupera (``CatalogoService.recuperar_ejemplar``).
         """
         actor.exigir(Permiso.REMITO_EXTRAVIO)
         with self._transaccion():
@@ -304,19 +315,7 @@ class RemitoService:
                 motivo = f"Extraviado en el remito {remito.numero}"
                 ejemplar.registrar_baja(motivo, yo, ahora)
                 self._uow.ejemplares.guardar(ejemplar)
-                self._uow.incidencias.agregar(
-                    Incidencia(
-                        tipo=TipoIncidencia.EXTRAVIO,
-                        origen=OrigenIncidencia.REMITO,
-                        ejemplar_id=linea.ejemplar_id,
-                        descripcion=observacion,
-                        fecha=ahora,
-                        usuario=yo,
-                        socio_id=self._socio_de(linea.prestamo_id),
-                        prestamo_id=linea.prestamo_id,
-                        remito_id=remito.id,
-                    )
-                )
+                self._registrar_incidencia(TipoIncidencia.EXTRAVIO, remito, linea, observacion, yo)
                 if remito.motivo == MotivoRemito.ENVIO:
                     self._cancelar_prestamo(linea, yo, motivo)
             self._uow.remitos.guardar(remito)
@@ -331,6 +330,7 @@ class RemitoService:
         if remito is None:
             raise RemitoNoEncontrado("El remito solicitado no existe.")
         self._exigir_visible(actor, remito)
+        self._con_plazo_de_despacho([remito])
         return DetalleRemito(
             remito,
             self._uow.remitos.historial(remito_id),
@@ -347,13 +347,29 @@ class RemitoService:
         solo_abiertos: bool,
         page: int,
         size: int,
+        solo_atrasados: bool = False,
     ) -> Pagina[Remito]:
-        """El bibliotecario ve los remitos de su sede (como origen o destino)."""
+        """El bibliotecario ve los remitos de su sede (como origen o destino).
+
+        ``solo_atrasados``: los que pasaron el plazo de despacho sin salir (RF-REM-15).
+        """
         actor.exigir(Permiso.REMITO_LEER)
         if actor.rol == Rol.BIBLIOTECARIO:
             sede_id = actor.sede_id
-        filtro = FiltroRemitos(estado, motivo, sede_id, numero, solo_abiertos)
+        generado_antes_de = None
+        if solo_atrasados:
+            # Atrasado: hoy > día de generación + plazo, o sea, generado antes del comienzo del
+            # día (hoy - plazo) en la zona de negocio.
+            plazo = self._uow.parametros.vigentes().despacho_maximo_dias
+            zona = self._reloj.ahora_local().tzinfo
+            generado_antes_de = datetime.combine(
+                self._reloj.hoy() - timedelta(days=plazo), time.min, zona
+            )
+        filtro = FiltroRemitos(
+            estado, motivo, sede_id, numero, solo_abiertos, generado_antes_de=generado_antes_de
+        )
         remitos, total = self._uow.remitos.listar(filtro, page, size)
+        self._con_plazo_de_despacho(remitos)
         return Pagina(remitos, total, page, size)
 
     # --- internos -------------------------------------------------------------------------
@@ -467,11 +483,40 @@ class RemitoService:
         prestamo.habilitar_retiro(hasta, actor, self._reloj.ahora())
         self._uow.prestamos.guardar(prestamo)
 
-    def _socio_de(self, prestamo_id: int | None) -> int | None:
-        if prestamo_id is None:
-            return None
-        prestamo = self._uow.prestamos.obtener(prestamo_id)
-        return prestamo.socio_id if prestamo else None
+    def _registrar_incidencia(
+        self,
+        tipo: TipoIncidencia,
+        remito: Remito,
+        linea: LineaRemito,
+        descripcion: str,
+        actor: UsuarioRef,
+    ) -> None:
+        """Incidencia del envío: responde la sede origen, que lo despachó y lo custodia hasta
+        la recepción. El socio no tenía el ejemplar, así que no se le asocia (RF-REM-13)."""
+        self._uow.incidencias.agregar(
+            Incidencia.de_remito(
+                tipo=tipo,
+                remito_id=remito.id,
+                sede_origen_id=remito.sede_origen_id,
+                ejemplar_id=linea.ejemplar_id,
+                prestamo_id=linea.prestamo_id,
+                descripcion=descripcion,
+                actor=actor,
+                ahora=self._reloj.ahora(),
+            )
+        )
+
+    def _faltante(
+        self, remito: Remito, linea: LineaRemito, ejemplar: Ejemplar, actor: UsuarioRef
+    ) -> None:
+        """Un ejemplar que no llegó: baja por extravío con incidencia (RF-REM-16)."""
+        motivo = f"Faltante en el remito {remito.numero}"
+        ejemplar.registrar_baja(motivo, actor, self._reloj.ahora())
+        self._registrar_incidencia(
+            TipoIncidencia.EXTRAVIO, remito, linea, linea.observacion or motivo, actor
+        )
+        if remito.motivo == MotivoRemito.ENVIO:
+            self._cancelar_prestamo(linea, actor, "Ejemplar faltante en el envío")
 
     def _incidencia_de_recepcion(
         self, remito: Remito, linea: LineaRemito, ejemplar: Ejemplar, actor: UsuarioRef
@@ -492,19 +537,7 @@ class RemitoService:
         else:
             tipo = TipoIncidencia.DANIO
             ejemplar.enviar_a_revision(actor, ahora, f"Dañado en el remito {remito.numero}")
-        self._uow.incidencias.agregar(
-            Incidencia(
-                tipo=tipo,
-                origen=OrigenIncidencia.REMITO,
-                ejemplar_id=linea.ejemplar_id,
-                descripcion=descripcion,
-                fecha=ahora,
-                usuario=actor,
-                socio_id=self._socio_de(linea.prestamo_id),
-                prestamo_id=linea.prestamo_id,
-                remito_id=remito.id,
-            )
-        )
+        self._registrar_incidencia(tipo, remito, linea, descripcion, actor)
         if envio:
             prestamo = self._cancelar_prestamo(
                 linea, actor, f"Ejemplar {tipo.value.lower()} en el envío"
@@ -514,7 +547,19 @@ class RemitoService:
 
     def _releer(self, remito: Remito) -> Remito:
         assert remito.id is not None
-        return self._uow.remitos.obtener(remito.id) or remito
+        releido = self._uow.remitos.obtener(remito.id) or remito
+        self._con_plazo_de_despacho([releido])
+        return releido
+
+    def _con_plazo_de_despacho(self, remitos: Sequence[Remito]) -> None:
+        """Completa hasta cuándo hay que despacharlos y si ya están atrasados (RF-REM-15)."""
+        plazo = self._uow.parametros.vigentes().despacho_maximo_dias
+        zona = self._reloj.ahora_local().tzinfo
+        assert zona is not None
+        hoy = self._reloj.hoy()
+        for remito in remitos:
+            remito.despachar_hasta = remito.limite_de_despacho(plazo, zona)
+            remito.atrasado = remito.despachar_hasta is not None and hoy > remito.despachar_hasta
 
 
 def _danio_ya_informado(remito: Remito, linea: LineaRemito) -> bool:

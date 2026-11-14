@@ -7,7 +7,7 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
 | RF-REP-01 | **R1.** El sistema debe emitir el movimiento de ejemplares entre sedes: por par origen → destino, cantidad de envíos, de ejemplares y tiempo promedio de tránsito (recepción − despacho) sobre remitos `Recibido`. | Obligatorio |
-| RF-REP-02 | **R2.** El sistema debe emitir la tasa de envíos exitosos e incidencias: total, % `Recibido`, % `Extraviado`, `Dañado` y `Destruido`, con detalle por sede. Excluye `Anulado` y los remitos abiertos. | Obligatorio |
+| RF-REP-02 | **R2.** El sistema debe emitir la tasa de envíos exitosos e incidencias: total, % `Recibido`, % `Extraviado`, `Dañado`, `Destruido` e `Incompleto` (recibido con faltantes), con detalle por sede. Excluye `Anulado` y los remitos abiertos. | Obligatorio |
 | RF-REP-03 | **R3.** El sistema debe emitir el ranking de libros más solicitados en préstamos interbibliotecarios no cancelados, con sedes origen y destino más frecuentes. | Obligatorio |
 | RF-REP-04 | **R4.** El sistema debe emitir los préstamos vencidos con socio, libro, sede, días de atraso y multa acumulada a la fecha, el total adeudado y las multas pendientes. | Obligatorio |
 | RF-REP-05 | **R5.** El sistema debe emitir la disponibilidad de catálogo por libro y sede: totales, disponibles, prestados, reservados y en tránsito. | Obligatorio |

@@ -301,3 +301,37 @@ def test_revision_y_reparacion_registran_el_estado_fisico_en_el_movimiento():
         (Cambio("estado_fisico", "BUENO", "DANADO"),),
     )
     assert reparacion.cambios == (Cambio("estado_fisico", "DANADO", "REGULAR"),)
+
+
+# --- recuperar un extraviado -------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-CAT-20")
+def test_un_ejemplar_dado_de_baja_se_recupera_en_su_sede():
+    e = ejemplar(E.EN_TRANSITO)
+    e.recibir_en(2, EstadoFisico.BUENO, trasladar=False, actor=BIBLIO, ahora=AHORA, observacion="x")
+    e.registrar_baja("Faltante en el remito R-1", BIBLIO, AHORA)
+    e.movimientos_pendientes.clear()
+
+    e.recuperar(EstadoFisico.REGULAR, "Apareció en el depósito", BIBLIO, AHORA)
+
+    assert (e.estado_nombre, e.fecha_baja, e.motivo_baja) == (E.DISPONIBLE, None, None)
+    assert (e.sede_actual_id, e.estado_fisico) == (1, EstadoFisico.REGULAR)
+    [mov] = e.movimientos_pendientes
+    assert (mov.estado_anterior, mov.estado_nuevo) == (E.BAJA, E.DISPONIBLE)
+    assert mov.observacion == "Recuperado: Apareció en el depósito"
+    assert mov.cambios == (
+        Cambio("sede_actual", 2, 1),
+        Cambio("estado_fisico", "BUENO", "REGULAR"),
+    )
+
+
+def test_un_recuperado_danado_va_a_revision_y_solo_se_recupera_desde_baja():
+    e = ejemplar(E.DISPONIBLE)
+    with pytest.raises(TransicionInvalida, match="recuperar"):
+        e.recuperar(EstadoFisico.BUENO, "Apareció", BIBLIO, AHORA)
+
+    e.dar_de_baja("Extraviado en la sala", BIBLIO, AHORA)
+    e.recuperar(EstadoFisico.DANADO, "Apareció mojado", BIBLIO, AHORA)
+
+    assert e.estado_nombre == E.EN_REVISION

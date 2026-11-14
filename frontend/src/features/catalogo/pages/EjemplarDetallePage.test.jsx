@@ -154,6 +154,50 @@ describe('Ejemplares', () => {
     expect(busquedas.at(-1).url.searchParams.get('q')).toBe('borges');
   });
 
+  it('CA-CAT-20: la sede propietaria recupera un ejemplar extraviado', async () => {
+    sesionDe(BIBLIOTECARIO);
+    const extraviado = ejemplar({
+      estado: 'BAJA',
+      fecha_baja: '2026-11-12T15:00:00Z',
+      motivo_baja: 'Faltante en el remito R-2026-000051',
+      recuperable: true,
+    });
+    responder('get', '/ejemplares/301', extraviado);
+    const llamadas = registrar('post', '/ejemplares/301/recuperar', {
+      ...extraviado,
+      estado: 'DISPONIBLE',
+      recuperable: false,
+    });
+    const user = userEvent.setup();
+    renderizarApp('/ejemplares/301', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Recuperar' }));
+    const dialogo = screen.getByRole('dialog');
+    await user.selectOptions(within(dialogo).getByLabelText(/Estado físico/), 'REGULAR');
+    await user.type(within(dialogo).getByLabelText(/Dónde apareció/), 'En el depósito');
+    await user.click(within(dialogo).getByRole('button', { name: 'Recuperar' }));
+
+    expect(await screen.findByText('Ejemplar recuperado')).toBeVisible();
+    expect(llamadas[0].cuerpo).toEqual({
+      estado_fisico: 'REGULAR',
+      observacion: 'En el depósito',
+      version: 1,
+    });
+  });
+
+  it('CA-CAT-21: un ejemplar dado de baja que no es por extravío no ofrece recuperarlo', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder(
+      'get',
+      '/ejemplares/301',
+      ejemplar({ estado: 'BAJA', fecha_baja: '2026-11-12T15:00:00Z', motivo_baja: 'Destruido' }),
+    );
+    renderizarApp('/ejemplares/301', { conSesion: true });
+
+    await screen.findByRole('heading', { level: 1, name: 'CEN-000123' });
+    expect(screen.queryByRole('button', { name: 'Recuperar' })).not.toBeInTheDocument();
+  });
+
   it('CA-CAT-02: un código repetido se marca en el campo', async () => {
     sesionDe(BIBLIOTECARIO);
     responder('get', '/libros', pagina([]));

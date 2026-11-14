@@ -81,6 +81,7 @@ class _Conteo(_Modelo):
     extraviados: int
     danados: int
     destruidos: int
+    incompletos: int
     tasa_exito: float | None
     tasa_incidencias: float | None
 
@@ -109,7 +110,8 @@ def envios_e_incidencias(
     hasta: Hasta = None,
     sede_id: SedeId = None,
 ) -> EnviosResponse:
-    """Tasa de remitos recibidos sin problemas frente a extraviados, dañados y destruidos.
+    """Tasa de remitos recibidos sin problemas frente a extraviados, dañados, destruidos e
+    incompletos (recibidos con faltantes).
 
     Solo el administrador. Excluye los anulados y los que siguen abiertos.
     """

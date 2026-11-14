@@ -51,7 +51,7 @@ El bibliotecario registra el estado físico y las observaciones.
 | `Dañado` | El ejemplar pasa a revisión; no está disponible hasta decidir si se repara o se da de baja |
 | `Extraviado` | Ejemplar en `Baja` con incidencia registrada |
 
-*La penalización económica al socio por daño o extravío queda fuera del alcance obligatorio.* Se deja registrada la incidencia asociada al socio por si se decide aplicarla más adelante.
+*La penalización económica al socio por daño o extravío queda fuera del alcance obligatorio.* Se deja registrada la incidencia asociada al socio por si se decide aplicarla más adelante. Las incidencias de un envío (remito), en cambio, no son del socio: quedan a cargo de la sede origen (ver [Remitos](05-remitos.md#quién-es-responsable-de-una-incidencia)).
 
 ## Validaciones y reglas
 

@@ -18,7 +18,7 @@ import {
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { mensajeDeError } from '../../../utils/errores.js';
 import { ESTADOS_FISICOS, MOTIVOS_DE_REMITO, estadoDe } from '../../../utils/estados.js';
-import { formatearFechaHora } from '../../../utils/formato.js';
+import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
 import { PERMISOS, ROLES } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
@@ -40,7 +40,44 @@ const PASOS = {
   },
   DESPACHADO: { accion: 'en-transito', texto: 'Marcar en tránsito', listo: 'Remito en tránsito' },
 };
-const RESULTADOS = { RECIBIDO: 'Recibido', DANADO: 'Dañado', DESTRUIDO: 'Destruido' };
+const RESULTADOS = {
+  RECIBIDO: 'Recibido',
+  DANADO: 'Dañado',
+  DESTRUIDO: 'Destruido',
+  FALTANTE: 'No llegó',
+};
+
+const TIPOS_DE_INCIDENCIA = { EXTRAVIO: 'Extravío', DANIO: 'Daño', DESTRUCCION: 'Destrucción' };
+
+/**
+ * Incidencias del remito. Responde la sede origen, que despachó el envío; se muestra quién lo
+ * despachó y quién la registró. Un extravío resuelto indica cuándo apareció el ejemplar.
+ */
+function Incidencias({ incidencias, lineas }) {
+  const codigo = (id) => lineas.find((l) => l.ejemplar_id === id)?.codigo_ejemplar ?? id;
+  return (
+    <ul className={inicio.lista}>
+      {incidencias.map((i) => (
+        <li key={i.id ?? `${i.ejemplar_id}-${i.tipo}`} className={inicio.elemento}>
+          <span>
+            <strong>{TIPOS_DE_INCIDENCIA[i.tipo]}</strong> de{' '}
+            <span className="mono">{codigo(i.ejemplar_id)}</span>: {i.descripcion}
+            <br />
+            Responsable: {i.sede_responsable?.nombre ?? '—'}
+            {i.despachado_por && ` (despachó ${i.despachado_por.nombre})`} · registró{' '}
+            {i.usuario?.nombre ?? 'Sistema'} el {formatearFechaHora(i.fecha)}
+            {i.resuelta_en && (
+              <>
+                <br />
+                Resuelta el {formatearFechaHora(i.resuelta_en)}: {i.resolucion}
+              </>
+            )}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /** Avance del ciclo (empaquetar, despachar, en tránsito) con su confirmación. */
 function Avanzar({ remito, paso, onCerrar }) {
@@ -207,10 +244,11 @@ export default function RemitoDetallePage() {
     {
       clave: 'llegada',
       titulo: 'Llegó',
-      render: (l) =>
-        l.resultado
-          ? `${RESULTADOS[l.resultado]} (${ESTADOS_FISICOS[l.estado_fisico_llegada]})`
-          : '—',
+      render: (l) => {
+        if (!l.resultado) return '—';
+        if (!l.estado_fisico_llegada) return RESULTADOS[l.resultado];
+        return `${RESULTADOS[l.resultado]} (${ESTADOS_FISICOS[l.estado_fisico_llegada]})`;
+      },
     },
   ];
 
@@ -228,11 +266,16 @@ export default function RemitoDetallePage() {
         acciones={<Acciones remito={remito} />}
       />
       <div className={inicio.pagina}>
-        {remito.incidencias.length > 0 && (
+        {remito.atrasado && (
           <Alert tono="warning">
-            Incidencias:{' '}
-            {remito.incidencias.map((i) => `${i.tipo.toLowerCase()}: ${i.descripcion}`).join('; ')}
+            Atrasado: tenía que despacharse hasta el {formatearFecha(remito.despachar_hasta)}. Si no
+            va a salir, anúlelo para liberar los ejemplares.
           </Alert>
+        )}
+        {remito.incidencias.length > 0 && (
+          <Card titulo="Incidencias">
+            <Incidencias incidencias={remito.incidencias} lineas={remito.lineas} />
+          </Card>
         )}
         <Card titulo="Ejemplares">
           <Table

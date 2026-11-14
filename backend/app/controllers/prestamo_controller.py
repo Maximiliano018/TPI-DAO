@@ -153,12 +153,15 @@ def listar_prestamos(
     tipo: TipoPrestamo | None = None,
     socio_id: int | None = None,
     numero: Annotated[str | None, Query(max_length=20)] = None,
+    sede_origen_id: Annotated[
+        int | None, Query(description="Solo los que salen de esta sede (envíos a armar)")
+    ] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaPrestamosResponse:
     """El administrador ve todos; el bibliotecario, los de su sede; el socio, los propios."""
     return PaginaPrestamosResponse.desde(
-        servicio.listar(actor, estado, tipo, socio_id, numero, page, size), actor
+        servicio.listar(actor, estado, tipo, socio_id, numero, page, size, sede_origen_id), actor
     )
 
 

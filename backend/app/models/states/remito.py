@@ -5,9 +5,12 @@
 | Generado    | empaquetar, anular                                                  |
 | Empaquetado | despachar, anular                                                   |
 | Despachado  | pasar_a_transito, marcar_extraviado                                 |
-| EnTransito  | recibir (Recibido, Dañado o Destruido según la peor línea),         |
-|             | marcar_extraviado                                                   |
-| Recibido, Extraviado, Danado, Destruido, Anulado | ninguna (finales)                |
+| EnTransito  | recibir (Recibido, Dañado, Destruido o Incompleto según la peor     |
+|             | línea), marcar_extraviado                                           |
+| Recibido, Extraviado, Danado, Destruido, Incompleto, Anulado | ninguna (finales)    |
+
+``Incompleto`` es un remito recibido con al menos un ejemplar que no llegó (faltante): los que
+llegaron se reciben normalmente y los faltantes se dan de baja por extravío.
 
 Sin saltos ni retrocesos: cualquier operación que no figura se rechaza con ``TransicionInvalida``.
 La recepción desde ``Despachado`` la resuelve la entidad pasando antes por ``EnTransito``, para
@@ -29,6 +32,7 @@ class EstadoRemitoEnum(StrEnum):
     EXTRAVIADO = "EXTRAVIADO"
     DANADO = "DANADO"
     DESTRUIDO = "DESTRUIDO"
+    INCOMPLETO = "INCOMPLETO"
     ANULADO = "ANULADO"
 
 
@@ -50,6 +54,7 @@ TEXTO_ESTADO = {
     EstadoRemitoEnum.EXTRAVIADO: "extraviado",
     EstadoRemitoEnum.DANADO: "recibido con daño",
     EstadoRemitoEnum.DESTRUIDO: "recibido destruido",
+    EstadoRemitoEnum.INCOMPLETO: "recibido con faltantes",
     EstadoRemitoEnum.ANULADO: "anulado",
 }
 
@@ -75,6 +80,9 @@ class EstadoRemito:
         raise self._invalida("recibir")
 
     def recibir_destruido(self) -> "EstadoRemito":
+        raise self._invalida("recibir")
+
+    def recibir_con_faltantes(self) -> "EstadoRemito":
         raise self._invalida("recibir")
 
     def anular(self) -> "EstadoRemito":
@@ -141,6 +149,9 @@ class EnTransito(EstadoRemito):
     def recibir_destruido(self) -> EstadoRemito:
         return Destruido()
 
+    def recibir_con_faltantes(self) -> EstadoRemito:
+        return Incompleto()
+
     def marcar_extraviado(self) -> EstadoRemito:
         return Extraviado()
 
@@ -161,6 +172,12 @@ class Destruido(EstadoRemito):
     nombre = EstadoRemitoEnum.DESTRUIDO
 
 
+class Incompleto(EstadoRemito):
+    """Recibido con ejemplares que no llegaron."""
+
+    nombre = EstadoRemitoEnum.INCOMPLETO
+
+
 class Anulado(EstadoRemito):
     nombre = EstadoRemitoEnum.ANULADO
 
@@ -176,6 +193,7 @@ _POR_NOMBRE: dict[EstadoRemitoEnum, type[EstadoRemito]] = {
         Extraviado,
         Danado,
         Destruido,
+        Incompleto,
         Anulado,
     )
 }

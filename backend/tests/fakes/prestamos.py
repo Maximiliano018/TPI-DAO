@@ -5,6 +5,7 @@ Los casos de uso de préstamos, remitos y reservas se prueban contra PostgreSQL
 (``tests/controllers``), porque dependen de bloqueos de fila y de varias tablas a la vez.
 """
 
+from app.models.incidencia import Incidencia, TipoIncidencia
 from app.models.parametros import Parametros
 from app.models.prestamo import Prestamo
 from app.models.remito import Remito
@@ -54,3 +55,26 @@ class ReservaRepositorioEnMemoria:
 
     def guardar(self, reserva: Reserva) -> None:
         assert reserva.id in self.reservas
+
+
+class IncidenciaRepositorioEnMemoria:
+    def __init__(self) -> None:
+        self.incidencias: list[Incidencia] = []
+
+    def agregar(self, incidencia: Incidencia) -> None:
+        incidencia.id = len(self.incidencias) + 1
+        self.incidencias.append(incidencia)
+
+    def guardar(self, incidencia: Incidencia) -> None:
+        assert incidencia in self.incidencias
+
+    def de_remito(self, remito_id: int) -> list[Incidencia]:
+        return [i for i in self.incidencias if i.remito_id == remito_id]
+
+    def extravio_pendiente(self, ejemplar_id: int, *, bloquear: bool = False) -> Incidencia | None:
+        pendientes = [
+            i
+            for i in self.incidencias
+            if i.ejemplar_id == ejemplar_id and i.tipo == TipoIncidencia.EXTRAVIO and not i.resuelta
+        ]
+        return pendientes[-1] if pendientes else None
