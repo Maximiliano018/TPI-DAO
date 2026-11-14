@@ -37,6 +37,7 @@ erDiagram
     LIBRO ||--o{ RESERVA : "se reserva"
     SEDE ||--o{ RESERVA : "retiro en"
     EJEMPLAR |o--o{ RESERVA : "asignado a"
+    RESERVA ||--o{ MOVIMIENTO_RESERVA : historial
     EJEMPLAR ||--o{ INCIDENCIA : sufre
 ```
 
@@ -257,13 +258,13 @@ Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que 
 | fecha_baja, motivo_baja | | NOT NULL si y solo si `estado = 'BAJA'` |
 | version | INT | control de concurrencia optimista |
 
-### movimiento_ejemplar, movimiento_prestamo, movimiento_remito
+### movimiento_ejemplar, movimiento_prestamo, movimiento_remito, movimiento_reserva
 
 Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 
 | Columna | Tipo |
 |---------|------|
-| ejemplar_id / prestamo_id / remito_id | FK, NOT NULL |
+| ejemplar_id / prestamo_id / remito_id / reserva_id | FK, NOT NULL |
 | estado_anterior | VARCHAR (NULL en el primer movimiento) |
 | estado_nuevo | VARCHAR, NOT NULL |
 | fecha_hora | TIMESTAMPTZ, NOT NULL, por defecto `now()` |
@@ -272,7 +273,9 @@ Historiales de solo inserción (nunca se modifican ni borran). Misma estructura:
 
 `movimiento_ejemplar` tiene además `cambios` (JSONB, NOT NULL, por defecto `[]`): los cambios que no son de disponibilidad, como `[{campo, antes, despues}]`. Los campos posibles son `estado_fisico`, `observaciones`, `sede_actual` y `sede_propietaria`; las sedes se guardan por id y la API las devuelve con su nombre. Un movimiento que solo cambia esos datos repite el estado (`estado_anterior = estado_nuevo`). Se agregó en `0011`; los movimientos anteriores quedan con la lista vacía.
 
-Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito. Un disparador (`historial_solo_insercion`, creado en `0005`) rechaza cualquier `UPDATE` o `DELETE` sobre estas tablas.
+`movimiento_reserva` usa `VARCHAR(25)` para los estados (`DISPONIBLE_PARA_RETIRO` no entra en 15). `usuario_id` es NULL cuando el cambio lo hizo el sistema (asignación, préstamo entre sedes, vencimiento o cancelación automática). Se agregó en `0014`: las reservas que ya existían recibieron su alta en `fecha_reserva` y, si no estaban pendientes, un movimiento con su estado actual ("Estado registrado al incorporar el historial").
+
+Índice en `(remito_id, fecha_hora)` para el seguimiento y los reportes de tránsito (y en `(reserva_id, fecha_hora)` para el historial de la reserva). Un disparador (`historial_solo_insercion`, creado en `0005`) rechaza cualquier `UPDATE` o `DELETE` sobre estas tablas.
 
 ### prestamo
 
@@ -344,6 +347,11 @@ Que un ejemplar no esté en dos remitos abiertos a la vez no se expresa con un �
 | estado | VARCHAR(25) | `PENDIENTE`, `DISPONIBLE_PARA_RETIRO`, `CUMPLIDA`, `CANCELADA`, `VENCIDA` |
 | fecha_reserva | TIMESTAMPTZ | NOT NULL; define el orden FIFO |
 | vencimiento_retiro | DATE | |
+| prestamo_id | FK prestamo | el préstamo con el que se cumplió |
+| fecha_cierre | TIMESTAMPTZ | cuándo se cumplió, canceló o venció |
+| registrada_por_id | FK usuario | el socio o el bibliotecario que la registró |
+
+`CHECK` `ck_reserva_datos_segun_estado` (desde `0014`): una `PENDIENTE` no tiene ejemplar, vencimiento, préstamo ni cierre; una `DISPONIBLE_PARA_RETIRO` tiene ejemplar y vencimiento, sin préstamo ni cierre; una `CUMPLIDA` tiene ejemplar, préstamo y cierre; una `VENCIDA` tiene ejemplar, vencimiento y cierre, sin préstamo; una `CANCELADA` tiene cierre y no tiene préstamo (puede conservar el ejemplar que tenía asignado).
 
 ```sql
 -- un socio no puede tener dos reservas activas del mismo libro
@@ -434,6 +442,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
 | `0012_autogestion_de_prestamos` | `prestamo.fecha_limite_retiro`, el parámetro `vigencia_retiro_prestamo_dias` y los `CHECK` de fechas según el estado. Los préstamos que esperaban retiro reciben 3 días desde la migración |
 | `0013_remitos_incidencias_y_plazos` | `incidencia.sede_responsable_id` (las de remito pasan de socio a la sede origen) y la resolución de extravíos; estado `INCOMPLETO` y resultado `FALTANTE`; parámetro `despacho_maximo_dias`; `CHECK` de fechas del remito, del detalle y del responsable de la incidencia |
+| `0014_trazabilidad_de_reservas` | `movimiento_reserva` (solo inserción, con el historial inicial de las reservas existentes) y `CHECK` `ck_reserva_datos_segun_estado`, que reemplaza a `ck_reserva_disponible_con_ejemplar` |
 
 ### Seed de demostración
 

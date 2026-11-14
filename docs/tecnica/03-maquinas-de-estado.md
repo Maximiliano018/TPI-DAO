@@ -192,7 +192,8 @@ La recepción desde `Despachado` se admite completando el estado `EnTransito` en
 ```mermaid
 stateDiagram-v2
     [*] --> Pendiente : reservar
-    Pendiente --> DisponibleParaRetiro : ejemplar asignado
+    Pendiente --> DisponibleParaRetiro : ejemplar asignado en la sede de retiro
+    Pendiente --> Cumplida : ejemplar asignado desde otra sede (préstamo entre sedes)
     Pendiente --> Cancelada : cancelar
     DisponibleParaRetiro --> Cumplida : retiro y préstamo
     DisponibleParaRetiro --> Vencida : 3 días sin retiro
@@ -200,6 +201,8 @@ stateDiagram-v2
 ```
 
 Al pasar a `Vencida` o `Cancelada` desde `DisponibleParaRetiro`, el ejemplar vuelve a `Disponible` y se reasigna a la siguiente reserva de la cola (FIFO).
+
+Cada transición agrega un movimiento a `movimiento_reserva` (estado anterior y nuevo, fecha, autor y observación). Las que dispara la cola (`asignar`, `convertir_en_prestamo`, `vencer` y las cancelaciones automáticas) no tienen autor: las hace el sistema.
 
 ## Multa
 

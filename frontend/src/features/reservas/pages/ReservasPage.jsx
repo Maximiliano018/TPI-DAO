@@ -2,9 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
-  Alert,
   Button,
-  ConfirmDialog,
   EmptyState,
   ErrorState,
   FilterBar,
@@ -13,52 +11,23 @@ import {
   Pagination,
   Skeleton,
   Table,
-  useToast,
 } from '../../../components/index.js';
 import { useFiltrosUrl } from '../../../hooks/useFiltrosUrl.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
-import { mensajeDeError } from '../../../utils/errores.js';
 import { ESTADOS } from '../../../utils/estados.js';
 import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
-import { useCancelarReserva, useReservas, useRetirarReserva } from '../hooks/useReservas.js';
+import { useSedes } from '../../sedes/hooks/useSedes.js';
+import AccionReserva from '../components/AccionReserva.jsx';
+import { useReservas } from '../hooks/useReservas.js';
+import { puedeCancelar, puedeEntregar } from '../permisos.js';
 
-function Accion({ reserva, tipo, onCerrar }) {
-  const cancelar = useCancelarReserva();
-  const retirar = useRetirarReserva();
-  const mutacion = tipo === 'retirar' ? retirar : cancelar;
-  const { mostrar } = useToast();
-  const [fallo, setFallo] = useState(null);
-  return (
-    <ConfirmDialog
-      titulo={`${tipo === 'retirar' ? 'Entregar' : 'Cancelar'} la reserva ${reserva.numero}`}
-      descripcion={
-        tipo === 'retirar'
-          ? `Se entrega ${reserva.codigo_ejemplar} y empieza el préstamo.`
-          : 'Si ya tenía un ejemplar asignado, pasa al siguiente de la cola.'
-      }
-      textoConfirmar={tipo === 'retirar' ? 'Entregar' : 'Cancelar reserva'}
-      peligro={tipo !== 'retirar'}
-      procesando={mutacion.isPending}
-      onConfirmar={() =>
-        mutacion.mutate(reserva.id, {
-          onSuccess: () => {
-            mostrar(tipo === 'retirar' ? 'Reserva entregada' : 'Reserva cancelada');
-            onCerrar();
-          },
-          onError: setFallo,
-        })
-      }
-      onCancelar={onCerrar}
-    >
-      {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
-    </ConfirmDialog>
-  );
-}
-
-/** Reservas: el socio ve las propias con su lugar en la cola; el personal, todas. */
+/**
+ * Reservas: el socio ve las propias con su lugar en la cola; el personal, todas, filtradas por
+ * sede de retiro (el bibliotecario ve por defecto las de su sede, las que entrega).
+ */
 export default function ReservasPage() {
   const { usuario, tienePermiso } = useSesion();
   const esPersonal = tienePermiso(PERMISOS.RESERVA_LEER);
@@ -67,16 +36,29 @@ export default function ReservasPage() {
   const { filtros, cambiar, limpiar, hayFiltros } = useFiltrosUrl();
   const page = Number(filtros.page) || 1;
   const size = Number(filtros.size) || 20;
+  const sedeId = esPersonal
+    ? (filtros.sede_retiro_id ?? (usuario.sede_id ? String(usuario.sede_id) : 'todas'))
+    : 'todas';
+  const sedes = useSedes({ estado: 'TODAS', orden: 'nombre', size: 100 }, { enabled: esPersonal });
   const { data, isPending, error, refetch } = useReservas({
     estado: filtros.estado,
     libro_id: filtros.libro_id,
+    sede_retiro_id: sedeId === 'todas' ? undefined : sedeId,
     page,
     size,
   });
   const [dialogo, setDialogo] = useState(null);
 
   const columnas = [
-    { clave: 'numero', titulo: 'Número', render: (r) => <span className="mono">{r.numero}</span> },
+    {
+      clave: 'numero',
+      titulo: 'Número',
+      render: (r) => (
+        <Link to={`/reservas/${r.id}`} className="mono">
+          {r.numero}
+        </Link>
+      ),
+    },
     {
       clave: 'libro',
       titulo: 'Libro',
@@ -107,14 +89,12 @@ export default function ReservasPage() {
       titulo: 'Acciones',
       render: (r) => (
         <div className={estilos.acciones}>
-          {r.estado === 'DISPONIBLE_PARA_RETIRO' &&
-            tienePermiso(PERMISOS.RESERVA_REGISTRAR) &&
-            usuario.sede_id === r.sede_retiro_id && (
-              <Button tamano="sm" onClick={() => setDialogo({ reserva: r, tipo: 'retirar' })}>
-                Entregar
-              </Button>
-            )}
-          {['PENDIENTE', 'DISPONIBLE_PARA_RETIRO'].includes(r.estado) && (
+          {puedeEntregar(r, usuario, tienePermiso) && (
+            <Button tamano="sm" onClick={() => setDialogo({ reserva: r, tipo: 'retirar' })}>
+              Entregar
+            </Button>
+          )}
+          {puedeCancelar(r, usuario, tienePermiso) && (
             <Button
               tamano="sm"
               variante="secondary"
@@ -136,6 +116,20 @@ export default function ReservasPage() {
         descripcion="Para reservar, abra un libro sin ejemplares disponibles en el catálogo."
       />
       <FilterBar etiqueta="Filtros de reservas" onLimpiar={limpiar} hayFiltros={hayFiltros}>
+        {esPersonal && (
+          <FiltroSelect
+            etiqueta="Sede de retiro"
+            valor={sedeId}
+            onCambiar={(valor) => cambiar({ sede_retiro_id: valor || 'todas' })}
+          >
+            <option value="todas">Toda la red</option>
+            {(sedes.data?.items ?? []).map((sede) => (
+              <option key={sede.id} value={sede.id}>
+                {sede.nombre}
+              </option>
+            ))}
+          </FiltroSelect>
+        )}
         <FiltroSelect
           etiqueta="Estado"
           valor={filtros.estado ?? ''}
@@ -164,7 +158,7 @@ export default function ReservasPage() {
           />
         </>
       )}
-      {dialogo && <Accion {...dialogo} onCerrar={() => setDialogo(null)} />}
+      {dialogo && <AccionReserva {...dialogo} onCerrar={() => setDialogo(null)} />}
     </>
   );
 }

@@ -8,7 +8,7 @@ from app.models.incidencia import Incidencia
 from app.models.parametros import Parametros
 from app.models.prestamo import MovimientoPrestamo, Prestamo, TipoPrestamo
 from app.models.remito import MotivoRemito, MovimientoRemito, Remito
-from app.models.reserva import Reserva
+from app.models.reserva import MovimientoReserva, Reserva
 from app.models.states.prestamo import EstadoPrestamoEnum
 from app.models.states.remito import EstadoRemitoEnum
 from app.models.states.reserva import EstadoReservaEnum
@@ -138,6 +138,10 @@ class IncidenciaRepository(Protocol):
         """
         ...
 
+    def hay_extravio_pendiente_de_libro(self, libro_id: int) -> bool:
+        """Si algún ejemplar del libro tiene un extravío sin resolver (puede aparecer)."""
+        ...
+
     def guardar(self, incidencia: Incidencia) -> None:
         """Guarda la resolución de una incidencia existente."""
         ...
@@ -149,6 +153,8 @@ class FiltroReservas:
     libro_id: int | None = None
     sede_id: int | None = None  # sede de retiro
     estado: EstadoReservaEnum | None = None
+    # Orden de la cola (FIFO, la más antigua primero); si no, las más recientes primero.
+    orden_cola: bool = False
 
 
 class ReservaRepository(Protocol):
@@ -180,6 +186,10 @@ class ReservaRepository(Protocol):
 
     def vencidas(self, hoy: date) -> list[Reserva]:
         """Disponibles para retiro cuya vigencia ya pasó, bloqueadas."""
+        ...
+
+    def historial(self, reserva_id: int) -> list[MovimientoReserva]:
+        """Movimientos de la reserva en orden cronológico (RF-RES-16)."""
         ...
 
     def hay_pendientes(self, libro_id: int) -> bool: ...

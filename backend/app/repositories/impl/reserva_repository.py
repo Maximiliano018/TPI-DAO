@@ -7,19 +7,25 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import LibroORM, ReservaORM
+from app.db.models import LibroORM, MovimientoReservaORM, ReservaORM
 from app.db.models.prestamo import SECUENCIA_RESERVA
 from app.exceptions import ReservaDuplicada
 from app.models.prestamo import formatear_numero
-from app.models.reserva import Reserva
+from app.models.reserva import MovimientoReserva, Reserva
 from app.models.states.reserva import ACTIVAS, EstadoReservaEnum, estado_reserva
+from app.models.usuario import UsuarioRef
+from app.repositories.impl.consultas import nombres_de_usuarios
 from app.repositories.interfaces.prestamo_repository import FiltroReservas
 
 _ACTIVAS = [e.value for e in ACTIVAS]
 _PENDIENTE = EstadoReservaEnum.PENDIENTE.value
 
 
-def _a_dominio(orm: ReservaORM, titulos: dict[int, str]) -> Reserva:
+def _ref(nombres: dict[int, str], usuario_id: int | None) -> UsuarioRef | None:
+    return UsuarioRef(usuario_id, nombres.get(usuario_id, "")) if usuario_id else None
+
+
+def _a_dominio(orm: ReservaORM, titulos: dict[int, str], nombres: dict[int, str]) -> Reserva:
     return Reserva(
         id=orm.id,
         numero=orm.numero,
@@ -32,6 +38,7 @@ def _a_dominio(orm: ReservaORM, titulos: dict[int, str]) -> Reserva:
         vencimiento_retiro=orm.vencimiento_retiro,
         prestamo_id=orm.prestamo_id,
         fecha_cierre=orm.fecha_cierre,
+        registrada_por=_ref(nombres, orm.registrada_por_id),
         socio_nombre=f"{orm.socio.nombre} {orm.socio.apellido}",
         numero_socio=orm.socio.numero_socio,
         libro_titulo=titulos.get(orm.libro_id),
@@ -90,6 +97,26 @@ class SqlAlchemyReservaRepository:
             .with_for_update(of=ReservaORM)
         )
 
+    def historial(self, reserva_id: int) -> list[MovimientoReserva]:
+        filas = list(
+            self._sesion.scalars(
+                select(MovimientoReservaORM)
+                .where(MovimientoReservaORM.reserva_id == reserva_id)
+                .order_by(MovimientoReservaORM.fecha_hora, MovimientoReservaORM.id)
+            )
+        )
+        nombres = nombres_de_usuarios(self._sesion, (f.usuario_id for f in filas if f.usuario_id))
+        return [
+            MovimientoReserva(
+                EstadoReservaEnum(f.estado_anterior) if f.estado_anterior else None,
+                EstadoReservaEnum(f.estado_nuevo),
+                f.fecha_hora,
+                _ref(nombres, f.usuario_id),
+                f.observacion,
+            )
+            for f in filas
+        ]
+
     def hay_pendientes(self, libro_id: int) -> bool:
         cantidad = self._sesion.scalar(
             select(func.count(ReservaORM.id)).where(
@@ -109,10 +136,15 @@ class SqlAlchemyReservaRepository:
         if filtro.estado is not None:
             condiciones.append(ReservaORM.estado == filtro.estado.value)
         total = self._sesion.scalar(select(func.count(ReservaORM.id)).where(*condiciones))
+        orden = (
+            (ReservaORM.fecha_reserva, ReservaORM.id)
+            if filtro.orden_cola
+            else (ReservaORM.fecha_reserva.desc(), ReservaORM.id.desc())
+        )
         filas = self._varios(
             select(ReservaORM)
             .where(*condiciones)
-            .order_by(ReservaORM.fecha_reserva.desc(), ReservaORM.id.desc())
+            .order_by(*orden)
             .offset((page - 1) * size)
             .limit(size)
         )
@@ -135,6 +167,7 @@ class SqlAlchemyReservaRepository:
             libro_id=reserva.libro_id,
             sede_retiro_id=reserva.sede_retiro_id,
             fecha_reserva=reserva.fecha_reserva,
+            registrada_por_id=reserva.registrada_por.id if reserva.registrada_por else None,
         )
         self._copiar(reserva, orm)
         try:
@@ -150,6 +183,7 @@ class SqlAlchemyReservaRepository:
                 [{"campo": "libro_id", "problema": "reserva_duplicada"}],
             ) from error
         reserva.id = orm.id
+        self._movimientos(reserva)
 
     def guardar(self, reserva: Reserva) -> None:
         assert reserva.id is not None
@@ -157,6 +191,7 @@ class SqlAlchemyReservaRepository:
         assert orm is not None
         self._copiar(reserva, orm)
         self._sesion.flush()
+        self._movimientos(reserva)
 
     # --- internos -------------------------------------------------------------------------
 
@@ -167,6 +202,22 @@ class SqlAlchemyReservaRepository:
         orm.prestamo_id = reserva.prestamo_id
         orm.vencimiento_retiro = reserva.vencimiento_retiro
         orm.fecha_cierre = reserva.fecha_cierre
+
+    def _movimientos(self, reserva: Reserva) -> None:
+        assert reserva.id is not None
+        for mov in reserva.movimientos_pendientes:
+            self._sesion.add(
+                MovimientoReservaORM(
+                    reserva_id=reserva.id,
+                    estado_anterior=mov.estado_anterior.value if mov.estado_anterior else None,
+                    estado_nuevo=mov.estado_nuevo.value,
+                    fecha_hora=mov.fecha_hora,
+                    usuario_id=mov.usuario.id if mov.usuario else None,
+                    observacion=mov.observacion,
+                )
+            )
+        reserva.movimientos_pendientes.clear()
+        self._sesion.flush()
 
     def _uno(self, consulta: Any) -> Reserva | None:
         filas = self._varios(consulta)
@@ -183,7 +234,10 @@ class SqlAlchemyReservaRepository:
                 )
             ).all()
         )
-        reservas = [_a_dominio(f, titulos) for f in filas]
+        nombres = nombres_de_usuarios(
+            self._sesion, (f.registrada_por_id for f in filas if f.registrada_por_id)
+        )
+        reservas = [_a_dominio(f, titulos, nombres) for f in filas]
         for reserva in reservas:
             if reserva.estado_nombre == EstadoReservaEnum.PENDIENTE:
                 reserva.posicion_en_cola = self._posicion(reserva)

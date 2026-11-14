@@ -10,6 +10,7 @@ from app.models.parametros import Parametros
 from app.models.prestamo import Prestamo
 from app.models.remito import Remito
 from app.models.reserva import Reserva
+from app.models.states.reserva import EstadoReservaEnum
 
 
 class ParametroRepositorioEnMemoria:
@@ -53,13 +54,23 @@ class ReservaRepositorioEnMemoria:
     def activas_de_socio(self, socio_id: int) -> list[Reserva]:
         return [r for r in self.reservas.values() if r.esta_activa and r.socio_id == socio_id]
 
+    def cola_del_libro(self, libro_id: int) -> list[Reserva]:
+        pendientes = [
+            r
+            for r in self.reservas.values()
+            if r.libro_id == libro_id and r.estado_nombre == EstadoReservaEnum.PENDIENTE
+        ]
+        return sorted(pendientes, key=lambda r: (r.fecha_reserva, r.id or 0))
+
     def guardar(self, reserva: Reserva) -> None:
         assert reserva.id in self.reservas
+        reserva.movimientos_pendientes.clear()
 
 
 class IncidenciaRepositorioEnMemoria:
     def __init__(self) -> None:
         self.incidencias: list[Incidencia] = []
+        self.libros_con_extravio: set[int] = set()
 
     def agregar(self, incidencia: Incidencia) -> None:
         incidencia.id = len(self.incidencias) + 1
@@ -70,6 +81,10 @@ class IncidenciaRepositorioEnMemoria:
 
     def de_remito(self, remito_id: int) -> list[Incidencia]:
         return [i for i in self.incidencias if i.remito_id == remito_id]
+
+    def hay_extravio_pendiente_de_libro(self, libro_id: int) -> bool:
+        """Las incidencias en memoria no conocen el libro: las pruebas lo indican aquí."""
+        return libro_id in self.libros_con_extravio
 
     def extravio_pendiente(self, ejemplar_id: int, *, bloquear: bool = False) -> Incidencia | None:
         pendientes = [

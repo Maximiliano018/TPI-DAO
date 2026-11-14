@@ -235,7 +235,7 @@ Detalles de implementación:
 | Préstamos: registrar, detalle con historial y remito, entregar, renovar, cancelar | consulta | ✔ | los propios |
 | Devolución: registro con estado físico y resultado (multa, retorno) | consulta | ✔ | |
 | Remitos: listado, generar, empaquetar, despachar, recibir, anular | consulta | ✔ | estado del propio |
-| Reservas: reservar, cola, cancelar, retirar | consulta | ✔ | ✔ |
+| Reservas: reservar, cola por libro, ficha con historial, cancelar, retirar | consulta | ✔ (cancela y entrega las de su sede) | ✔ (las propias) |
 | Multas: listado y saldar | ✔ | ✔ | las propias |
 | Reportes R1 a R6 | ✔ | R1, R4, R5, R6 | R5 |
 | Usuarios y parámetros | ✔ | | |
@@ -247,6 +247,7 @@ Detalles de implementación:
 3. **Recepción de remito.** Lista de ejemplares con estado físico por línea y observación obligatoria si hay daño.
 4. **Devolución.** Resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio.
 5. **Baja de sede.** Si el backend responde `SEDE_CON_ACTIVIDAD_PENDIENTE`, muestra la lista de elementos que lo impiden con enlace a cada uno.
+6. **Reservas.** La ficha del libro ofrece «Reservar» solo si no hay ejemplares disponibles en la red (si hay, corresponde pedir un préstamo) y muestra al personal la **cola de reservas** en orden de llegada. El listado filtra por sede de retiro (el bibliotecario ve por defecto la suya) y cada reserva tiene su ficha (`/reservas/:id`) con el historial: autor y motivo de cada cambio («Sistema» para lo automático). «Cancelar» (con motivo opcional) aparece para el socio en las propias y para el bibliotecario de la sede de retiro; el administrador solo consulta.
 
 ## Estados de carga, vacío y error
 

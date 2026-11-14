@@ -198,6 +198,8 @@ class CatalogoService:
                     [{"campo": "codigo_inventario", "problema": "duplicado"}],
                 )
             self._uow.ejemplares.agregar(ejemplar)
+            # Un ejemplar nuevo atiende primero a quienes esperan el libro (RF-RES-13).
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
         assert ejemplar.id is not None
         # Se relee para devolverlo con el título del libro y los nombres de las sedes.
         return self._uow.ejemplares.obtener(ejemplar.id) or ejemplar
@@ -241,6 +243,8 @@ class CatalogoService:
             ejemplar.validar_version(version)
             ejemplar.dar_de_baja(motivo, _ref(actor), self._reloj.ahora())
             self._uow.ejemplares.guardar(ejemplar)
+            # Si era el último ejemplar del libro, sus reservas ya no pueden cumplirse.
+            ColaDeReservas(self._uow, self._reloj).revisar_libro(ejemplar.libro_id)
         return ejemplar
 
     def reparar_ejemplar(self, actor: Usuario, ejemplar_id: int, version: int) -> Ejemplar:
@@ -251,7 +255,7 @@ class CatalogoService:
             ejemplar.validar_version(version)
             ejemplar.reparar(_ref(actor), self._reloj.ahora())
             self._uow.ejemplares.guardar(ejemplar)
-            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, _ref(actor))
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
         return ejemplar
 
     def recuperar_ejemplar(
@@ -290,7 +294,7 @@ class CatalogoService:
             extravio.resolver(f"Recuperado: {observacion.strip()}", _ref(actor), ahora)
             self._uow.incidencias.guardar(extravio)
             self._uow.ejemplares.guardar(ejemplar)
-            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, _ref(actor))
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
         return self._uow.ejemplares.obtener(ejemplar_id) or ejemplar
 
     def detalle_ejemplar(self, actor: Usuario, ejemplar_id: int) -> DetalleEjemplar:

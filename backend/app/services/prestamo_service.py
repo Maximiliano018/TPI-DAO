@@ -456,7 +456,7 @@ class PrestamoService:
             ejemplar.liberar(yo, ahora, f"Préstamo {prestamo.numero} cancelado")
             self._uow.ejemplares.guardar(ejemplar)
             self._uow.prestamos.guardar(prestamo)
-            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, yo)
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
         self._uow.prestamos.guardar(prestamo)
 
     def _propio_para_cancelar(self, actor: Usuario, prestamo_id: int) -> Prestamo:

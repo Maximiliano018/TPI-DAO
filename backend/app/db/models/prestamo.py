@@ -253,6 +253,19 @@ class IncidenciaORM(ConAuditoriaDeTiempo, Base):
 SECUENCIA_RESERVA = Sequence("reserva_numero_seq", metadata=Base.metadata)
 
 
+RESERVA_DATOS_SEGUN_ESTADO = (
+    "(estado = 'PENDIENTE' AND ejemplar_id IS NULL AND vencimiento_retiro IS NULL "
+    "AND prestamo_id IS NULL AND fecha_cierre IS NULL) "
+    "OR (estado = 'DISPONIBLE_PARA_RETIRO' AND ejemplar_id IS NOT NULL "
+    "AND vencimiento_retiro IS NOT NULL AND prestamo_id IS NULL AND fecha_cierre IS NULL) "
+    "OR (estado = 'CUMPLIDA' AND ejemplar_id IS NOT NULL AND prestamo_id IS NOT NULL "
+    "AND fecha_cierre IS NOT NULL) "
+    "OR (estado = 'VENCIDA' AND ejemplar_id IS NOT NULL AND vencimiento_retiro IS NOT NULL "
+    "AND prestamo_id IS NULL AND fecha_cierre IS NOT NULL) "
+    "OR (estado = 'CANCELADA' AND prestamo_id IS NULL AND fecha_cierre IS NOT NULL)"
+)
+
+
 class ReservaORM(ConAuditoriaDeTiempo, Base):
     """Reserva de un libro (cola FIFO por ``fecha_reserva``)."""
 
@@ -262,11 +275,8 @@ class ReservaORM(ConAuditoriaDeTiempo, Base):
             "estado IN ('PENDIENTE','DISPONIBLE_PARA_RETIRO','CUMPLIDA','CANCELADA','VENCIDA')",
             name="estado_valido",
         ),
-        CheckConstraint(
-            "estado <> 'DISPONIBLE_PARA_RETIRO' OR "
-            "(ejemplar_id IS NOT NULL AND vencimiento_retiro IS NOT NULL)",
-            name="disponible_con_ejemplar",
-        ),
+        # Datos que corresponden a cada estado (RF-RES-07, 09, 11).
+        CheckConstraint(RESERVA_DATOS_SEGUN_ESTADO, name="datos_segun_estado"),
         Index(
             "uq_reserva_activa",
             "socio_id",
@@ -292,3 +302,16 @@ class ReservaORM(ConAuditoriaDeTiempo, Base):
     socio: Mapped["SocioORM"] = relationship(lazy="joined")
     sede_retiro: Mapped["SedeORM"] = relationship(lazy="joined")
     ejemplar: Mapped["EjemplarORM | None"] = relationship(lazy="joined")
+
+
+class MovimientoReservaORM(_Movimiento, Base):
+    """Historial de la reserva. Los estados son más largos que los de préstamo y remito."""
+
+    __tablename__ = "movimiento_reserva"
+    __table_args__ = (
+        Index("ix_movimiento_reserva_reserva_id_fecha_hora", "reserva_id", "fecha_hora"),
+    )
+
+    estado_anterior: Mapped[str | None] = mapped_column(String(25))
+    estado_nuevo: Mapped[str] = mapped_column(String(25), nullable=False)
+    reserva_id: Mapped[int] = mapped_column(ForeignKey("reserva.id"), nullable=False)

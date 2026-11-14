@@ -1,19 +1,23 @@
 """Endpoints de reservas."""
 
-from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, Query, Response, status
-from pydantic import BaseModel, ConfigDict
+from fastapi import APIRouter, Body, Depends, Query, Response, status
 
 from app.controllers.dependencies import get_reserva_service, requiere, usuario_actual
+from app.dtos.request.reserva_request import CancelarReservaRequest, ReservaRequest
 from app.dtos.response.prestamo_response import (
     PrestamoResponse,
     TareaResponse,
     prestamo_a_response,
 )
-from app.models.paginacion import Pagina
-from app.models.reserva import Reserva
+from app.dtos.response.reserva_response import (
+    PaginaReservasResponse,
+    ReservaDetalleResponse,
+    ReservaResponse,
+    detalle_a_response,
+    reserva_a_response,
+)
 from app.models.states.reserva import EstadoReservaEnum
 from app.models.usuario import Permiso, Usuario
 from app.services.reserva_service import ReservaService
@@ -28,75 +32,6 @@ _403 = {"description": "Sin permiso (`FORBIDDEN`)"}
 _404 = {"description": "No existe o no es visible (`RESERVA_NO_ENCONTRADA`)"}
 
 
-class ReservaRequest(BaseModel):
-    """El socio omite ``socio_id`` (se toma de su sesión); el bibliotecario lo indica."""
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"libro_id": 12, "sede_retiro_id": 2, "socio_id": 45}}
-    )
-
-    libro_id: int
-    sede_retiro_id: int
-    socio_id: int | None = None
-
-
-class ReservaResponse(BaseModel):
-    id: int
-    numero: str
-    estado: str
-    socio_id: int
-    socio: str | None
-    numero_socio: str | None
-    libro_id: int
-    libro: str | None
-    sede_retiro_id: int
-    sede_retiro: str | None
-    fecha_reserva: datetime
-    posicion_en_cola: int | None
-    ejemplar_id: int | None
-    codigo_ejemplar: str | None
-    vencimiento_retiro: date | None
-    prestamo_id: int | None
-
-    @classmethod
-    def desde(cls, r: Reserva) -> "ReservaResponse":
-        assert r.id is not None
-        return cls(
-            id=r.id,
-            numero=r.numero,
-            estado=r.estado_nombre.value,
-            socio_id=r.socio_id,
-            socio=r.socio_nombre,
-            numero_socio=r.numero_socio,
-            libro_id=r.libro_id,
-            libro=r.libro_titulo,
-            sede_retiro_id=r.sede_retiro_id,
-            sede_retiro=r.sede_retiro_nombre,
-            fecha_reserva=r.fecha_reserva,
-            posicion_en_cola=r.posicion_en_cola,
-            ejemplar_id=r.ejemplar_id,
-            codigo_ejemplar=r.codigo_ejemplar,
-            vencimiento_retiro=r.vencimiento_retiro,
-            prestamo_id=r.prestamo_id,
-        )
-
-
-class PaginaReservasResponse(BaseModel):
-    items: list[ReservaResponse]
-    total: int
-    page: int
-    size: int
-
-    @classmethod
-    def desde(cls, pagina: Pagina[Reserva]) -> "PaginaReservasResponse":
-        return cls(
-            items=[ReservaResponse.desde(r) for r in pagina.items],
-            total=pagina.total,
-            page=pagina.page,
-            size=pagina.size,
-        )
-
-
 @router.post(
     "/reservas",
     response_model=ReservaResponse,
@@ -104,10 +39,11 @@ class PaginaReservasResponse(BaseModel):
     summary="Reservar un libro",
     responses={
         401: _401,
-        403: _403,
+        403: {"description": "Sin permiso, o un socio que indica otro `socio_id` (`FORBIDDEN`)"},
         404: {"description": "Socio, libro o sede inexistentes"},
         409: {
-            "description": "`HAY_EJEMPLARES_DISPONIBLES`, `SOCIO_INHABILITADO`, `SEDE_EN_BAJA`, "
+            "description": "`HAY_EJEMPLARES_DISPONIBLES` (en la sede de retiro, o en otra sede: "
+            "corresponde un préstamo entre sedes), `SOCIO_INHABILITADO`, `SEDE_EN_BAJA`, "
             "`RESERVA_DUPLICADA`, `LIMITE_RESERVAS` o `LIBRO_SIN_EJEMPLARES`"
         },
     },
@@ -118,7 +54,7 @@ def reservar(
     """Entra a la cola del libro (FIFO) para retirarlo en la sede elegida."""
     reserva = servicio.reservar(actor, datos.libro_id, datos.sede_retiro_id, datos.socio_id)
     response.headers["Location"] = f"/api/v1/reservas/{reserva.id}"
-    return ReservaResponse.desde(reserva)
+    return reserva_a_response(reserva, actor)
 
 
 @router.get(
@@ -132,35 +68,64 @@ def listar_reservas(
     actor: Autenticado,
     socio_id: int | None = None,
     libro_id: int | None = None,
+    sede_retiro_id: int | None = None,
     estado: EstadoReservaEnum | None = None,
+    orden: Literal["recientes", "cola"] = "recientes",
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaReservasResponse:
-    """El socio ve las propias con su posición en la cola; el personal, todas."""
-    return PaginaReservasResponse.desde(
-        servicio.listar(actor, socio_id, libro_id, estado, page, size)
+    """El socio ve las propias con su posición en la cola; el personal, todas.
+
+    ``orden=cola`` ordena por fecha de reserva (FIFO): con ``libro_id`` y ``estado=PENDIENTE``
+    es la cola de espera del libro.
+    """
+    pagina = servicio.listar(
+        actor,
+        socio_id,
+        libro_id,
+        estado,
+        page,
+        size,
+        sede_retiro_id=sede_retiro_id,
+        orden_cola=orden == "cola",
     )
+    return PaginaReservasResponse.desde(pagina, actor)
 
 
 @router.get(
     "/reservas/{reserva_id}",
-    response_model=ReservaResponse,
-    summary="Detalle y posición en la cola",
+    response_model=ReservaDetalleResponse,
+    summary="Detalle, posición en la cola e historial",
     responses={401: _401, 404: _404},
 )
-def obtener_reserva(reserva_id: int, servicio: Servicio, actor: Autenticado) -> ReservaResponse:
-    return ReservaResponse.desde(servicio.detalle(actor, reserva_id))
+def obtener_reserva(
+    reserva_id: int, servicio: Servicio, actor: Autenticado
+) -> ReservaDetalleResponse:
+    """Cada cambio de estado con fecha, autor y observación. Lo automático figura como Sistema."""
+    return detalle_a_response(servicio.detalle(actor, reserva_id), actor)
 
 
 @router.post(
     "/reservas/{reserva_id}/cancelar",
     response_model=ReservaResponse,
     summary="Cancelar una reserva",
-    responses={401: _401, 404: _404, 409: {"description": "`TRANSICION_INVALIDA`"}},
+    responses={
+        401: _401,
+        403: {"description": "El personal no opera en la sede de retiro (`FORBIDDEN`)"},
+        404: _404,
+        409: {"description": "`TRANSICION_INVALIDA`"},
+    },
 )
-def cancelar_reserva(reserva_id: int, servicio: Servicio, actor: Autenticado) -> ReservaResponse:
-    """Si tenía un ejemplar asignado, se ofrece a la siguiente reserva de la cola."""
-    return ReservaResponse.desde(servicio.cancelar(actor, reserva_id))
+def cancelar_reserva(
+    reserva_id: int,
+    servicio: Servicio,
+    actor: Autenticado,
+    datos: Annotated[CancelarReservaRequest | None, Body()] = None,
+) -> ReservaResponse:
+    """La cancela el socio (la propia) o el bibliotecario de la sede de retiro. Si tenía un
+    ejemplar asignado, se ofrece a la siguiente reserva de la cola."""
+    motivo = datos.motivo if datos else None
+    return reserva_a_response(servicio.cancelar(actor, reserva_id, motivo), actor)
 
 
 @router.post(

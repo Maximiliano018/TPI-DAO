@@ -1,8 +1,9 @@
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
+  ADMIN,
   BIBLIOTECARIO,
   SOCIO,
   libro,
@@ -88,6 +89,7 @@ describe('Reservas', () => {
 
   it('CA-RES-12: el bibliotecario entrega una reserva lista para retirar en su sede', async () => {
     sesionDe(BIBLIOTECARIO);
+    responder('get', '/sedes', pagina([sedePublica()]));
     responder(
       'get',
       '/reservas',
@@ -112,5 +114,94 @@ describe('Reservas', () => {
 
     expect(await screen.findByText('Reserva entregada')).toBeVisible();
     expect(llamadas).toHaveLength(1);
+  });
+
+  it('CA-RES-22: el bibliotecario ve por defecto las reservas que se retiran en su sede', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/sedes', pagina([sedePublica()]));
+    const llamadas = registrar(
+      'get',
+      '/reservas',
+      pagina([reserva(), reserva({ id: 10, numero: 'RS-2026-000010', sede_retiro_id: 2 })]),
+    );
+    const user = userEvent.setup();
+    renderizarApp('/reservas', { conSesion: true });
+
+    const tabla = await screen.findByRole('table', { name: 'Reservas' });
+    expect(llamadas[0].url.searchParams.get('sede_retiro_id')).toBe('1');
+    // Solo cancela las de su sede (CA-RES-17).
+    expect(
+      within(tabla).getByRole('button', { name: 'Cancelar la reserva RS-2026-000009' }),
+    ).toBeVisible();
+    expect(
+      within(tabla).queryByRole('button', { name: 'Cancelar la reserva RS-2026-000010' }),
+    ).not.toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Sede de retiro'), 'todas');
+    await vi.waitFor(() =>
+      expect(llamadas.at(-1).url.searchParams.has('sede_retiro_id')).toBe(false),
+    );
+  });
+
+  it('CA-RES-17: el administrador consulta todas las reservas sin cancelarlas', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/sedes', pagina([sedePublica()]));
+    responder('get', '/reservas', pagina([reserva()]));
+    renderizarApp('/reservas', { conSesion: true });
+
+    const tabla = await screen.findByRole('table', { name: 'Reservas' });
+    expect(within(tabla).getByRole('link', { name: 'RS-2026-000009' })).toBeVisible();
+    expect(within(tabla).queryByRole('button', { name: /Cancelar/ })).not.toBeInTheDocument();
+  });
+
+  it('CA-RES-22: el personal ve la cola del libro en su ficha, en orden de llegada', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/libros/12', libro({ disponibles: 0 }));
+    responder('get', '/libros/12/disponibilidad', DISPONIBILIDAD_VACIA);
+    responder('get', '/ejemplares', pagina([]));
+    const llamadas = registrar(
+      'get',
+      '/reservas',
+      pagina([
+        reserva({ posicion_en_cola: 1 }),
+        reserva({ id: 10, numero: 'RS-2026-000010', socio: 'Otro Socio', posicion_en_cola: 2 }),
+      ]),
+    );
+    renderizarApp('/catalogo/12', { conSesion: true });
+
+    const cola = await screen.findByRole('table', { name: 'Cola de reservas' });
+    const filas = within(cola).getAllByRole('row').slice(1);
+    expect(filas.map((f) => within(f).getAllByRole('cell')[0].textContent)).toEqual(['1', '2']);
+    expect(Object.fromEntries(llamadas[0].url.searchParams)).toMatchObject({
+      libro_id: '12',
+      estado: 'PENDIENTE',
+      orden: 'cola',
+    });
+  });
+
+  it('CA-RES-14: con ejemplares disponibles en la red no se ofrece reservar', async () => {
+    sesionDe(SOCIO);
+    responder('get', '/libros/12', libro());
+    responder('get', '/libros/12/disponibilidad', {
+      ...DISPONIBILIDAD_VACIA,
+      total_red: { totales: 2, disponibles: 1 },
+      por_sede: [
+        {
+          sede_id: 2,
+          sede: 'Sede Norte',
+          totales: 2,
+          disponibles: 1,
+          prestados: 1,
+          reservados: 0,
+          en_transito: 0,
+          otros: 0,
+        },
+      ],
+    });
+    renderizarApp('/catalogo/12', { conSesion: true });
+
+    expect(await screen.findByRole('button', { name: 'Pedir préstamo' })).toBeVisible();
+    expect(await screen.findByText(/1 de 2 ejemplares disponibles/)).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reservar' })).not.toBeInTheDocument();
   });
 });

@@ -231,7 +231,7 @@ class DevolucionService:
             return remito, None
         ejemplar.liberar(actor, ahora, texto)
         self._uow.ejemplares.guardar(ejemplar)
-        return None, ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, actor)
+        return None, ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar)
 
     def _incidencia(
         self,

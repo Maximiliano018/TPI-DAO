@@ -194,10 +194,10 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /reservas` | B, S | Reservar un libro | RF-RES-01 a 05 |
-| `GET /reservas` | A, B, S | Listado; `?libro_id=`, `?estado=` | RF-RES-12 |
-| `GET /reservas/{id}` | A, B, S | Detalle y posición en la cola | RF-RES-12 |
-| `POST /reservas/{id}/cancelar` | B, S | | RF-RES-10 |
+| `POST /reservas` | B, S | Reservar un libro (el socio, solo para sí) | RF-RES-01 a 05, 15 |
+| `GET /reservas` | A, B, S | Listado; `?libro_id=`, `?estado=`, `?sede_retiro_id=`, `?orden=cola` (FIFO) | RF-RES-12 |
+| `GET /reservas/{id}` | A, B, S | Detalle, posición en la cola e historial | RF-RES-12, 16 |
+| `POST /reservas/{id}/cancelar` | B (sede de retiro), S (propia) | Motivo opcional | RF-RES-10, 15 |
 | `POST /reservas/{id}/retirar` | B (sede de retiro) | Entrega y crea el préstamo activo | RF-RES-11 |
 | `POST /admin/tareas/vencer-reservas` | A | Vence las reservas no retiradas (también corre sola cada día) | RF-RES-09 |
 
@@ -806,13 +806,19 @@ Response `200`:
 
 ### `POST /reservas`
 
-Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omite `socio_id`; se toma de su sesión).
+Request: `{ "libro_id": 12, "sede_retiro_id": 2, "socio_id": 45 }` (el socio omite `socio_id`; se toma de su sesión, y otro `socio_id` responde `403 FORBIDDEN`).
 
-Response `201`: `{ "id": 9, "numero": "RS-2026-000009", "estado": "PENDIENTE", "posicion_en_cola": 3 }`
+Response `201`: `{ "id": 9, "numero": "RS-2026-000009", "estado": "PENDIENTE", "posicion_en_cola": 3, ... }`. Como préstamos, el esquema depende del rol: el personal recibe además `registrada_por` (`{ id, nombre }`).
 
-Errores: `409 HAY_EJEMPLARES_DISPONIBLES` (hay disponibles en la sede de retiro), `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`, `409 LIBRO_SIN_EJEMPLARES` (no hay ejemplares activos en la red).
+Errores: `409 HAY_EJEMPLARES_DISPONIBLES` (hay disponibles en la sede de retiro; o en otra sede activa, con `detalles[0].problema = "disponibles_en_otra_sede"` y `sedes`: corresponde un préstamo entre sedes), `409 SOCIO_INHABILITADO`, `409 SEDE_EN_BAJA`, `409 RESERVA_DUPLICADA`, `409 LIMITE_RESERVAS`, `409 LIBRO_SIN_EJEMPLARES` (no hay ejemplares activos en la red).
 
-**Asignación automática.** Cuando un ejemplar vuelve a quedar disponible (devolución, anulación de un envío, cancelación de un préstamo, reparación, retorno recibido o reserva vencida), el mismo caso de uso se lo ofrece a la primera reserva pendiente del libro (FIFO) de un socio habilitado. Si el ejemplar está en la sede de retiro, la reserva pasa a `DISPONIBLE_PARA_RETIRO` por 3 días y el ejemplar a `RESERVADO`; si está en otra sede, se crea el préstamo interbibliotecario hacia la sede de retiro y la reserva queda `CUMPLIDA` con su `prestamo_id`. La reserva de un socio inhabilitado se saltea y sigue esperando; la de una sede de retiro dada de baja se cancela.
+### `GET /reservas/{id}` y `POST /reservas/{id}/cancelar`
+
+El detalle agrega `historial`: `[{ estado_anterior, estado_nuevo, fecha_hora, autor, usuario, observacion }]`. `autor` es el nombre para mostrar: el personal ve el nombre (y `usuario`); el socio ve «Vos», «Personal de la biblioteca» o «Sistema», con `usuario` nulo. Lo automático (asignación, préstamo entre sedes, vencimiento, cancelación por sede en baja o libro sin ejemplares) figura como «Sistema».
+
+Cancelar recibe `{ "motivo": "..." }` opcional (hasta 300 caracteres), que queda en el historial. La cancela el socio (la propia; la de otro responde `404 RESERVA_NO_ENCONTRADA`) o el bibliotecario de la sede de retiro; un bibliotecario de otra sede o el administrador reciben `403 FORBIDDEN`.
+
+**Asignación automática.** Cuando un ejemplar queda disponible (alta, devolución, anulación de un envío, cancelación de un préstamo, reparación, recuperación, retorno recibido o reserva vencida o cancelada), el mismo caso de uso se lo ofrece a la primera reserva pendiente del libro (FIFO) de un socio habilitado que puede recibir otro préstamo. Si el ejemplar está en la sede de retiro, la reserva pasa a `DISPONIBLE_PARA_RETIRO` por 3 días y el ejemplar a `RESERVADO`; si está en otra sede, se crea el préstamo interbibliotecario hacia la sede de retiro (sin `registrado_por`: lo genera el sistema) y la reserva queda `CUMPLIDA` con su `prestamo_id`. La reserva de un socio inhabilitado, o que ya tiene el máximo de préstamos o el mismo libro en curso, se saltea y sigue esperando; la de una sede de retiro dada de baja se cancela. Si se da de baja (o se recibe destruido) el último ejemplar activo del libro y no hay un extravío sin resolver, sus reservas pendientes se cancelan.
 
 ### `GET /reportes/movimiento-entre-sedes` (R1)
 

@@ -37,7 +37,7 @@ La sesión dura 60 minutos. Si el usuario se da de baja, cambia de sede o de rol
 | Ejemplares | A | A (de su sede) | V (disponibilidad) |
 | Préstamos | V (todos) | R (en nombre del socio, en su sede) | R (para sí, por libro), V (los propios) |
 | Remitos | V (todos) | R (su sede) | V (los de sus préstamos) |
-| Reservas | V (todas) | R (en nombre del socio), V (su sede) | R (propias) |
+| Reservas | V (todas) | R (en nombre del socio), V (toda la red; por defecto su sede), cancela y entrega las de su sede | R (propias), cancela las propias |
 | Devoluciones | V | R (su sede) | - |
 | Reportes | todos | los operativos de su sede | - |
 

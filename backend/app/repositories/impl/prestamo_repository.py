@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import (
     DetalleRemitoORM,
+    EjemplarORM,
     IncidenciaORM,
     MovimientoPrestamoORM,
     MovimientoRemitoORM,
@@ -543,6 +544,18 @@ class SqlAlchemyIncidenciaRepository:
             consulta = consulta.with_for_update(of=IncidenciaORM)
         filas = self._varias(consulta)
         return filas[0] if filas else None
+
+    def hay_extravio_pendiente_de_libro(self, libro_id: int) -> bool:
+        cantidad = self._sesion.scalar(
+            select(func.count(IncidenciaORM.id))
+            .join(EjemplarORM, EjemplarORM.id == IncidenciaORM.ejemplar_id)
+            .where(
+                EjemplarORM.libro_id == libro_id,
+                IncidenciaORM.tipo == TipoIncidencia.EXTRAVIO.value,
+                IncidenciaORM.resuelta_en.is_(None),
+            )
+        )
+        return bool(cantidad)
 
     def _varias(self, consulta: Any) -> list[Incidencia]:
         filas = list(self._sesion.scalars(consulta))

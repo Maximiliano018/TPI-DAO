@@ -62,7 +62,7 @@ Un ejemplar está disponible solo si su estado es `Disponible`. La disponibilida
 ## Casos de uso y flujos
 
 1. Alta de libro (con validación de ISBN).
-2. Alta de ejemplar asociado a un libro y a una sede.
+2. Alta de ejemplar asociado a un libro y a una sede. Si hay socios esperando el libro, el ejemplar nuevo se asigna a la primera reserva de la cola (ver [Reservas](06-reservas.md)).
 3. Modificación de datos y estado físico.
 4. Baja de ejemplar.
 5. Consulta de disponibilidad por libro y por sede.
