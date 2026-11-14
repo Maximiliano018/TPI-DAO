@@ -67,6 +67,8 @@ function Formulario({ libro, categorias }) {
       anio_edicion: datos.anio_edicion === '' ? null : datos.anio_edicion,
       categoria_id: datos.categoria_id,
       tipo_material: datos.tipo_material,
+      // La versión evita pisar los cambios de otra persona (CONFLICTO_DE_VERSION).
+      ...(editando ? { version: libro.version } : {}),
     };
     mutacion.mutate(cuerpo, {
       onSuccess: (guardado) => {

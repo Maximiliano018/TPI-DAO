@@ -208,10 +208,17 @@ class RemitoService:
         * recibido en un **envío**: queda ``Apartado`` en destino hasta que el socio lo retira;
         * recibido en un **retorno**: ``Disponible`` en su sede;
         * recibido en un **traslado**: cambia de sede propietaria y queda ``Disponible``;
-        * **dañado**: ``En revisión`` con incidencia; **destruido**: ``Baja`` con incidencia.
-          En ambos casos el préstamo del envío se cancela.
+        * **dañado en un envío**: incidencia, el préstamo se cancela y el ejemplar queda
+          ``Apartado`` con un remito de retorno a su sede, que es la que lo revisa (igual que
+          una devolución dañada de un préstamo interbibliotecario);
+        * **dañado en un retorno o un traslado**: ``En revisión`` con incidencia, ya en la sede
+          propietaria (en el traslado, la nueva);
+        * **destruido**: ``Baja`` con incidencia (y en un envío el préstamo se cancela);
         * **retorno de un ejemplar devuelto dañado**: pasa a ``En revisión`` en su sede sin otra
           incidencia (ya se registró en la devolución).
+
+        Cada llegada queda en el historial del ejemplar: la sede donde está, el estado físico
+        verificado y, en un traslado, la nueva sede propietaria.
         """
         with self._transaccion():
             remito = self._de_mi_sede(actor, remito_id, origen=False)
@@ -220,16 +227,26 @@ class RemitoService:
             remito.recibir(recepcion, yo, ahora)
             for linea in remito.lineas:
                 ejemplar = self._ejemplar(linea.ejemplar_id)
-                ejemplar.llegar_a(remito.sede_destino_id)
                 assert linea.estado_fisico_llegada is not None
-                ejemplar.estado_fisico = linea.estado_fisico_llegada
                 texto = f"Recibido en {remito.numero}"
+                # Un traslado cambia la sede propietaria aunque llegue dañado: la nueva dueña
+                # decide su reparación. Si llega destruido, la baja queda en la sede origen.
+                trasladar = (
+                    remito.motivo == MotivoRemito.TRASLADO
+                    and linea.resultado != ResultadoLinea.DESTRUIDO
+                )
+                ejemplar.recibir_en(
+                    remito.sede_destino_id,
+                    linea.estado_fisico_llegada,
+                    trasladar=trasladar,
+                    actor=yo,
+                    ahora=ahora,
+                    observacion=texto,
+                )
                 if linea.resultado == ResultadoLinea.RECIBIDO:
                     if remito.motivo == MotivoRemito.ENVIO:
                         ejemplar.apartar(yo, ahora, f"{texto}: espera el retiro del socio")
                     else:
-                        if remito.motivo == MotivoRemito.TRASLADO:
-                            ejemplar.trasladar_a(remito.sede_destino_id)
                         ejemplar.liberar(yo, ahora, texto)
                 elif _danio_ya_informado(remito, linea):
                     ejemplar.enviar_a_revision(yo, ahora, f"{texto}: dañado en la devolución")
@@ -418,9 +435,12 @@ class RemitoService:
             )
         return prestamo
 
-    def _cancelar_prestamo(self, linea: LineaRemito, actor: UsuarioRef, motivo: str) -> None:
+    def _cancelar_prestamo(
+        self, linea: LineaRemito, actor: UsuarioRef, motivo: str
+    ) -> Prestamo | None:
+        """Cancela el préstamo del envío si todavía no se entregó; lo devuelve si lo había."""
         if linea.prestamo_id is None:
-            return
+            return None
         prestamo = self._uow.prestamos.obtener_para_modificar(linea.prestamo_id)
         if prestamo is not None and prestamo.estado_nombre in (
             EstadoPrestamoEnum.SOLICITADO,
@@ -428,6 +448,7 @@ class RemitoService:
         ):
             prestamo.cancelar(motivo, actor, self._reloj.ahora())
             self._uow.prestamos.guardar(prestamo)
+        return prestamo
 
     def _socio_de(self, prestamo_id: int | None) -> int | None:
         if prestamo_id is None:
@@ -440,9 +461,17 @@ class RemitoService:
     ) -> None:
         ahora = self._reloj.ahora()
         descripcion = linea.observacion or "Sin observación"
+        envio = remito.motivo == MotivoRemito.ENVIO
         if linea.resultado == ResultadoLinea.DESTRUIDO:
             tipo = TipoIncidencia.DESTRUCCION
             ejemplar.registrar_baja(f"Destruido en el remito {remito.numero}", actor, ahora)
+        elif envio:
+            # La sede destino no es la dueña y no puede repararlo: vuelve a su sede, que lo
+            # revisa al recibir el retorno (tecnica/03, «Envío o devolución dañados»).
+            tipo = TipoIncidencia.DANIO
+            ejemplar.apartar(
+                actor, ahora, f"Dañado en el remito {remito.numero}: vuelve a su sede a revisión"
+            )
         else:
             tipo = TipoIncidencia.DANIO
             ejemplar.enviar_a_revision(actor, ahora, f"Dañado en el remito {remito.numero}")
@@ -459,8 +488,12 @@ class RemitoService:
                 remito_id=remito.id,
             )
         )
-        if remito.motivo == MotivoRemito.ENVIO:
-            self._cancelar_prestamo(linea, actor, f"Ejemplar {tipo.value.lower()} en el envío")
+        if envio:
+            prestamo = self._cancelar_prestamo(
+                linea, actor, f"Ejemplar {tipo.value.lower()} en el envío"
+            )
+            if tipo == TipoIncidencia.DANIO and prestamo is not None:
+                self.generar_retorno(prestamo, ejemplar, actor)
 
     def _releer(self, remito: Remito) -> Remito:
         assert remito.id is not None

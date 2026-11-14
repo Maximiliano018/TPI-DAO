@@ -1,8 +1,10 @@
 """Repositorios del catálogo sobre SQLAlchemy."""
 
+import re
 from typing import Any
 
 from sqlalchemy import ColumnElement, case, func, or_, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -16,7 +18,13 @@ from app.db.models import (
     SedeORM,
 )
 from app.exceptions import EjemplarCodigoDuplicado, LibroDuplicado
-from app.models.ejemplar import Ejemplar, EstadoFisico, MovimientoEjemplar
+from app.models.ejemplar import (
+    CAMPO_SEDE_ACTUAL,
+    CAMPO_SEDE_PROPIETARIA,
+    Ejemplar,
+    EstadoFisico,
+    MovimientoEjemplar,
+)
 from app.models.libro import (
     CategoriaRef,
     DatosLibro,
@@ -26,6 +34,7 @@ from app.models.libro import (
     Libro,
     TipoMaterial,
 )
+from app.models.sede import Cambio
 from app.models.states.ejemplar import EstadoEjemplarEnum, estado_ejemplar
 from app.models.usuario import UsuarioRef
 from app.repositories.impl.consultas import nombres_de_usuarios, sin_tildes
@@ -33,6 +42,10 @@ from app.repositories.interfaces.catalogo_repository import FiltroEjemplares, Fi
 from app.utils.texto import normalizar
 
 _BAJA = EstadoEjemplarEnum.BAJA.value
+_CAMPOS_SEDE = (CAMPO_SEDE_ACTUAL, CAMPO_SEDE_PROPIETARIA)
+# Una búsqueda se compara con el ISBN solo si parece una parte de uno (6 o más dígitos): así
+# «1984» o «07» buscan en el título y no traen cualquier libro cuyo ISBN los contenga.
+_PARTE_DE_ISBN = re.compile(r"^\d{6,12}[\dX]?$")
 
 
 def _restriccion(error: IntegrityError) -> str | None:
@@ -59,8 +72,10 @@ class SqlAlchemyCategoriaRepository:
 
 
 def _libro_a_dominio(
-    orm: LibroORM, nombres: dict[int, str], conteos: tuple[int, int] = (0, 0)
+    orm: LibroORM, nombres: dict[int, str], conteos: tuple[int, int, int] = (0, 0, 0)
 ) -> Libro:
+    """``conteos``: (registrados, vigentes, disponibles en sedes activas)."""
+
     def ref(usuario_id: int | None) -> UsuarioRef | None:
         if usuario_id is None:
             return None
@@ -82,8 +97,10 @@ def _libro_a_dominio(
         creado_por=ref(orm.creado_por_id),
         actualizado_en=orm.actualizado_en,
         actualizado_por=ref(orm.actualizado_por_id),
-        cantidad_ejemplares=conteos[0],
-        disponibles=conteos[1],
+        ejemplares_registrados=conteos[0],
+        cantidad_ejemplares=conteos[1],
+        disponibles=conteos[2],
+        version=orm.version,
     )
 
 
@@ -182,16 +199,20 @@ class SqlAlchemyLibroRepository:
         orm = LibroORM(creado_por_id=libro.creado_por.id if libro.creado_por else None)
         if libro.creado_en is not None:
             orm.creado_en = libro.creado_en
-        self._copiar(libro, orm)
-        self._persistir(lambda: self._sesion.add(orm))
+
+        def preparar() -> None:
+            self._copiar(libro, orm)
+            self._sesion.add(orm)
+
+        self._persistir(preparar)
         libro.id = orm.id
 
     def guardar(self, libro: Libro) -> None:
         assert libro.id is not None
         orm = self._sesion.get(LibroORM, libro.id)
         assert orm is not None
-        self._copiar(libro, orm)
-        self._persistir(lambda: None)
+        # Todo dentro del savepoint: el flush de los autores también puede chocar con el ISBN.
+        self._persistir(lambda: self._copiar(libro, orm))
 
     def eliminar(self, libro_id: int) -> None:
         orm = self._sesion.get(LibroORM, libro_id)
@@ -211,6 +232,7 @@ class SqlAlchemyLibroRepository:
         orm.categoria_id = datos.categoria.id
         orm.tipo_material = datos.tipo_material.value
         orm.clave_natural = datos.clave_natural
+        orm.version = libro.version
         if libro.actualizado_en is not None:
             orm.actualizado_en = libro.actualizado_en
         orm.actualizado_por_id = libro.actualizado_por.id if libro.actualizado_por else None
@@ -224,11 +246,16 @@ class SqlAlchemyLibroRepository:
             )
 
     def _autor(self, nombre: str) -> AutorORM:
+        """Autor existente o nuevo. ``ON CONFLICT DO NOTHING`` evita que dos altas simultáneas
+        del mismo autor terminen en un error de unicidad."""
         clave = normalizar(nombre)
+        self._sesion.execute(
+            insert(AutorORM)
+            .values(nombre=nombre, nombre_normalizado=clave)
+            .on_conflict_do_nothing(index_elements=[AutorORM.nombre_normalizado])
+        )
         autor = self._sesion.scalar(select(AutorORM).where(AutorORM.nombre_normalizado == clave))
-        if autor is None:
-            autor = AutorORM(nombre=nombre, nombre_normalizado=clave)
-            self._sesion.add(autor)
+        assert autor is not None
         return autor
 
     def _persistir(self, preparar: Any) -> None:
@@ -255,31 +282,25 @@ class SqlAlchemyLibroRepository:
         for fila in filas:
             ids.update(i for i in (fila.creado_por_id, fila.actualizado_por_id) if i is not None)
         nombres = nombres_de_usuarios(self._sesion, ids)
+        vigente = EjemplarORM.estado != _BAJA
+        disponible = (EjemplarORM.estado == EstadoEjemplarEnum.DISPONIBLE.value) & (
+            SedeORM.estado == "ACTIVA"
+        )
         conteos = {
-            libro_id: (totales, disponibles)
-            for libro_id, totales, disponibles in self._sesion.execute(
+            libro_id: (registrados, vigentes, disponibles)
+            for libro_id, registrados, vigentes, disponibles in self._sesion.execute(
                 select(
                     EjemplarORM.libro_id,
                     func.count(EjemplarORM.id),
-                    func.count(
-                        case(
-                            (
-                                (EjemplarORM.estado == EstadoEjemplarEnum.DISPONIBLE.value)
-                                & (SedeORM.estado == "ACTIVA"),
-                                1,
-                            )
-                        )
-                    ),
+                    func.count(case((vigente, 1))),
+                    func.count(case((disponible, 1))),
                 )
                 .join(SedeORM, SedeORM.id == EjemplarORM.sede_propietaria_id)
-                .where(
-                    EjemplarORM.libro_id.in_([f.id for f in filas]),
-                    EjemplarORM.estado != _BAJA,
-                )
+                .where(EjemplarORM.libro_id.in_([f.id for f in filas]))
                 .group_by(EjemplarORM.libro_id)
             ).all()
         }
-        return [_libro_a_dominio(f, nombres, conteos.get(f.id, (0, 0))) for f in filas]
+        return [_libro_a_dominio(f, nombres, conteos.get(f.id, (0, 0, 0))) for f in filas]
 
     @staticmethod
     def _condiciones(filtro: FiltroLibros) -> list[ColumnElement[bool]]:
@@ -294,14 +315,14 @@ class SqlAlchemyLibroRepository:
                 .join(AutorORM, AutorORM.id == LibroAutorORM.autor_id)
                 .where(AutorORM.nombre_normalizado.contains(filtro.texto, autoescape=True))
             )
+            alternativas = [
+                LibroORM.titulo_normalizado.contains(filtro.texto, autoescape=True),
+                LibroORM.id.in_(por_autor),
+            ]
             digitos = filtro.texto.replace("-", "").replace(" ", "").upper()
-            condiciones.append(
-                or_(
-                    LibroORM.titulo_normalizado.contains(filtro.texto, autoescape=True),
-                    LibroORM.id.in_(por_autor),
-                    LibroORM.isbn.contains(digitos, autoescape=True),
-                )
-            )
+            if _PARTE_DE_ISBN.match(digitos):
+                alternativas.append(LibroORM.isbn.contains(digitos, autoescape=True))
+            condiciones.append(or_(*alternativas))
         return condiciones
 
 
@@ -325,6 +346,15 @@ def _ejemplar_a_dominio(orm: EjemplarORM) -> Ejemplar:
         sede_propietaria_nombre=orm.sede_propietaria.nombre if orm.sede_propietaria else None,
         sede_actual_nombre=orm.sede_actual.nombre if orm.sede_actual else None,
     )
+
+
+def _cambio_a_dominio(cambio: dict[str, Any], sedes: dict[int, str]) -> Cambio:
+    """Las sedes se guardan por id y se devuelven con su nombre."""
+    antes, despues = cambio.get("antes"), cambio.get("despues")
+    if cambio["campo"] in _CAMPOS_SEDE:
+        antes = sedes.get(antes, antes) if antes is not None else None
+        despues = sedes.get(despues, despues) if despues is not None else None
+    return Cambio(cambio["campo"], antes, despues)
 
 
 class SqlAlchemyEjemplarRepository:
@@ -382,6 +412,7 @@ class SqlAlchemyEjemplarRepository:
         nombres = nombres_de_usuarios(
             self._sesion, (f.usuario_id for f in filas if f.usuario_id is not None)
         )
+        sedes = self._nombres_de_sedes(filas)
         return [
             MovimientoEjemplar(
                 estado_anterior=(
@@ -395,9 +426,24 @@ class SqlAlchemyEjemplarRepository:
                     else None
                 ),
                 observacion=f.observacion,
+                cambios=tuple(_cambio_a_dominio(c, sedes) for c in f.cambios),
             )
             for f in filas
         ]
+
+    def _nombres_de_sedes(self, filas: list[MovimientoEjemplarORM]) -> dict[int, str]:
+        ids = {
+            valor
+            for f in filas
+            for c in f.cambios
+            if c["campo"] in _CAMPOS_SEDE
+            for valor in (c.get("antes"), c.get("despues"))
+            if valor is not None
+        }
+        if not ids:
+            return {}
+        consulta = select(SedeORM.id, SedeORM.nombre).where(SedeORM.id.in_(ids))
+        return {i: n for i, n in self._sesion.execute(consulta).all()}
 
     def disponibles_en_sede(self, libro_id: int, sede_id: int) -> int:
         consulta = select(func.count(EjemplarORM.id)).where(
@@ -499,6 +545,7 @@ class SqlAlchemyEjemplarRepository:
                     fecha_hora=mov.fecha_hora,
                     usuario_id=mov.usuario.id if mov.usuario else None,
                     observacion=mov.observacion,
+                    cambios=[c.como_dict() for c in mov.cambios],
                 )
             )
         ejemplar.movimientos_pendientes.clear()

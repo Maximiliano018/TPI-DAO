@@ -131,13 +131,67 @@ def test_los_autores_se_reutilizan_y_el_libro_se_modifica(
             "titulo": "Rayuela (edición crítica)",
             "autores": ["JULIO CORTAZAR"],
             "categoria_id": categoria_id,
+            "version": libro["version"],
         },
         headers=h_admin,
     )
 
     assert r.status_code == 200, r.json()
-    assert r.json()["titulo"] == "Rayuela (edición crítica)"
+    assert (r.json()["titulo"], r.json()["version"]) == ("Rayuela (edición crítica)", 2)
     assert sesion.scalar(text("SELECT count(*) FROM autor")) == 1
+
+
+@pytest.mark.ca("CA-CAT-19")
+def test_modificar_un_libro_con_version_vieja_responde_409(cliente, h_admin, categoria_id, libro):
+    datos = {
+        "titulo": "Rayuela",
+        "autores": ["Julio Cortázar"],
+        "isbn": libro["isbn"],
+        "categoria_id": categoria_id,
+        "version": libro["version"],
+    }
+    ruta = f"{API}/libros/{libro['id']}"
+    assert cliente.put(ruta, json={**datos, "editorial": "Alfaguara"}, headers=h_admin).is_success
+    _error(
+        cliente.put(ruta, json={**datos, "editorial": "Debolsillo"}, headers=h_admin),
+        409,
+        "CONFLICTO_DE_VERSION",
+    )
+
+
+@pytest.mark.ca("CA-CAT-17")
+def test_la_auditoria_del_libro_solo_la_ve_el_administrador(
+    cliente, h_admin, h_biblio_a, h_socio, libro
+):
+    ruta = f"{API}/libros/{libro['id']}"
+    admin = cliente.get(ruta, headers=h_admin).json()
+    assert admin["creado_por"]["nombre"] == "Ana Admin"
+    assert (admin["eliminable"], admin["version"]) == (True, 1)
+    for headers in (h_biblio_a, h_socio):
+        for datos in (
+            cliente.get(ruta, headers=headers).json(),
+            cliente.get(f"{API}/libros", headers=headers).json()["items"][0],
+        ):
+            assert datos["titulo"] == "Rayuela"
+            assert not {"creado_por", "actualizado_por", "creado_en", "eliminable"} & set(datos)
+
+
+@pytest.mark.ca("CA-CAT-16")
+def test_un_libro_con_ejemplares_solo_en_baja_no_es_eliminable(cliente, h_admin, h_biblio_a, libro):
+    ejemplar = _ejemplar(cliente, h_biblio_a, libro["id"], "A-0001").json()
+    cliente.post(
+        f"{API}/ejemplares/{ejemplar['id']}/baja",
+        json={"motivo": "Destruido por agua", "version": ejemplar["version"]},
+        headers=h_biblio_a,
+    )
+
+    datos = cliente.get(f"{API}/libros/{libro['id']}", headers=h_admin).json()
+    assert (datos["ejemplares"], datos["eliminable"]) == (0, False)
+    _error(
+        cliente.delete(f"{API}/libros/{libro['id']}", headers=h_admin),
+        409,
+        "LIBRO_CON_EJEMPLARES",
+    )
 
 
 @pytest.mark.parametrize(
@@ -177,6 +231,22 @@ def test_la_busqueda_encuentra_por_titulo_autor_e_isbn(
     assert titulos(q="BORGES") == ["Ficciones"]
     assert titulos(q="978-987-580") == ["Ficciones"]
     assert titulos(categoria_id=categoria_id) == ["Ficciones", "Rayuela"]
+
+
+@pytest.mark.ca("CA-CAT-18")
+def test_un_numero_corto_busca_en_el_titulo_y_no_en_el_isbn(
+    cliente, h_socio, h_admin, categoria_id, libro
+):
+    _libro(cliente, h_admin, categoria_id, isbn="9780451524935", titulo="1984", autores=["Orwell"])
+
+    def titulos(q):
+        r = cliente.get(f"{API}/libros", params={"q": q}, headers=h_socio)
+        return [lb["titulo"] for lb in r.json()["items"]]
+
+    # «07» está en el ISBN de Rayuela (9789500705783) pero es demasiado corto para un ISBN.
+    assert titulos("07") == []
+    assert titulos("1984") == ["1984"]
+    assert titulos("950070") == ["Rayuela"]
 
 
 @pytest.mark.ca("CA-CAT-09")
@@ -268,6 +338,7 @@ def test_un_bibliotecario_no_toca_ejemplares_de_otra_sede(
 
 
 @pytest.mark.ca("CA-CAT-06", "CA-CAT-08")
+@pytest.mark.ca("CA-CAT-13", "CA-CAT-15")
 def test_modificar_y_dar_de_baja_queda_en_el_historial(cliente, h_biblio_a, libro):
     ejemplar = _ejemplar(cliente, h_biblio_a, libro["id"], "A-0001").json()
     ruta = f"{API}/ejemplares/{ejemplar['id']}"
@@ -297,12 +368,28 @@ def test_modificar_y_dar_de_baja_queda_en_el_historial(cliente, h_biblio_a, libr
     assert baja.json()["estado"] == "BAJA"
 
     detalle = cliente.get(ruta, headers=h_biblio_a).json()
-    assert [(m["estado_anterior"], m["estado_nuevo"]) for m in detalle["historial"]] == [
-        (None, "DISPONIBLE"),
-        ("DISPONIBLE", "BAJA"),
+    assert [(m["tipo"], m["estado_anterior"], m["estado_nuevo"]) for m in detalle["historial"]] == [
+        ("ALTA", None, "DISPONIBLE"),
+        ("MODIFICACION", "DISPONIBLE", "DISPONIBLE"),
+        ("CAMBIO_DE_ESTADO", "DISPONIBLE", "BAJA"),
     ]
-    assert detalle["historial"][1]["usuario"]["nombre"] == "Bea"
-    assert detalle["historial"][1]["observacion"] == "Hojas arrancadas"
+    modificacion, baja_mov = detalle["historial"][1:]
+    assert modificacion["cambios"] == [
+        {"campo": "estado_fisico", "antes": "BUENO", "despues": "REGULAR"},
+        {"campo": "observaciones", "antes": None, "despues": "Lomo gastado"},
+    ]
+    assert baja_mov["usuario"]["nombre"] == "Bea"
+    assert baja_mov["observacion"] == "Hojas arrancadas"
+
+    _error(
+        cliente.put(
+            ruta,
+            json={"estado_fisico": "NUEVO", "observaciones": None, "version": detalle["version"]},
+            headers=h_biblio_a,
+        ),
+        409,
+        "TRANSICION_INVALIDA",
+    )
 
 
 @pytest.mark.ca("CA-CAT-07")

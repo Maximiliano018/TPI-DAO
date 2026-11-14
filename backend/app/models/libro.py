@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 
+from app.exceptions import ConflictoDeVersion
 from app.models.usuario import UsuarioRef
 from app.models.valores import error_de_campo
 from app.utils.texto import normalizar
@@ -138,7 +139,15 @@ class DatosLibro:
 
 @dataclass
 class Libro:
-    """Obra del catálogo común a toda la red."""
+    """Obra del catálogo común a toda la red.
+
+    Conteos (los completa el repositorio):
+
+    - ``cantidad_ejemplares``: ejemplares vigentes (sin los dados de baja).
+    - ``disponibles``: ejemplares ``Disponible`` en sedes activas.
+    - ``ejemplares_registrados``: todos, incluidos los dados de baja (son historial y por eso
+      impiden eliminar el libro, RF-CAT-08).
+    """
 
     id: int | None
     datos: DatosLibro
@@ -148,6 +157,8 @@ class Libro:
     actualizado_por: UsuarioRef | None = None
     cantidad_ejemplares: int = 0
     disponibles: int = 0
+    ejemplares_registrados: int = 0
+    version: int = 1
 
     @classmethod
     def crear(cls, datos: DatosLibro, *, actor: UsuarioRef, ahora: datetime) -> "Libro":
@@ -160,6 +171,14 @@ class Libro:
             actualizado_por=actor,
         )
 
+    def validar_version(self, version: int) -> None:
+        """Concurrencia optimista: rechaza si otra persona lo modificó antes."""
+        if version != self.version:
+            raise ConflictoDeVersion(
+                "Otra persona modificó el libro. Recargue para ver los cambios.",
+                [{"campo": "version", "problema": "desactualizada"}],
+            )
+
     def modificar(self, datos: DatosLibro, *, actor: UsuarioRef, ahora: datetime) -> bool:
         """Reemplaza los datos de la obra. Devuelve ``True`` si algo cambió."""
         if datos == self.datos:
@@ -167,11 +186,17 @@ class Libro:
         self.datos = datos
         self.actualizado_en = ahora
         self.actualizado_por = actor
+        self.version += 1
         return True
 
     @property
     def titulo(self) -> str:
         return self.datos.titulo
+
+    @property
+    def eliminable(self) -> bool:
+        """Solo se elimina un libro cargado por error, sin ningún ejemplar (RF-CAT-08)."""
+        return self.ejemplares_registrados == 0
 
 
 @dataclass(frozen=True)

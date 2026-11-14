@@ -62,9 +62,9 @@ stateDiagram-v2
     Reservado --> Prestado : retiro del socio
     Reservado --> EnTransito : remito despachado
     Reservado --> Disponible : reserva cancelada o vencida
-    EnTransito --> Apartado : préstamo recibido en destino (espera el retiro)
+    EnTransito --> Apartado : préstamo recibido en destino (espera el retiro)<br/>o envío recibido dañado (espera el retorno)
     EnTransito --> Disponible : retorno o traslado recibido
-    EnTransito --> EnRevision : recibido dañado
+    EnTransito --> EnRevision : retorno o traslado recibido dañado
     EnTransito --> Baja : extraviado o destruido
     Prestado --> Disponible : devolución local en buen estado
     Prestado --> Apartado : devolución interbibliotecaria (espera retorno)
@@ -78,7 +78,24 @@ stateDiagram-v2
 
 **Recepción de un préstamo interbibliotecario.** Al recibirse el remito de envío, el ejemplar queda `Apartado` en la sede destino hasta que el socio lo retira; recién con esa entrega pasa a `Prestado` y empieza el plazo. Así el traslado no consume el plazo del socio (RF-PRE-09) y, si el socio no lo retira, el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno (CU-PRE-02, A6).
 
-**Devolución dañada de un préstamo interbibliotecario.** El ejemplar no queda en revisión en la sede destino (no es suya y no puede repararlo): vuelve `Apartado` con el remito de retorno y, al recibirse dañado en su sede, pasa a `EnRevision` sin otra incidencia, porque el daño ya se registró en la devolución.
+**Envío o devolución dañados en un préstamo interbibliotecario.** La revisión y la reparación las hace siempre la **sede propietaria**: el ejemplar no queda en revisión en la sede destino (no es suya y no puede repararlo). Pasa en dos casos:
+
+- **El socio lo devuelve dañado en la sede destino:** queda `Apartado` y se genera el remito de retorno.
+- **Llega dañado con el remito de envío:** se registra la incidencia, el préstamo se cancela, el ejemplar queda `Apartado` en la sede destino y se genera el remito de retorno (CA-REM-20).
+
+En ambos casos, al recibirse dañado en su sede pasa a `EnRevision` sin otra incidencia, porque el daño ya se registró.
+
+**Traslado dañado.** Un traslado cambia la sede propietaria aunque el ejemplar llegue dañado: la nueva dueña lo revisa y decide su reparación o baja (CA-REM-21). Si llega destruido, la baja queda en la sede origen.
+
+**Edición de datos.** El estado físico y las observaciones se editan en cualquier estado salvo `Baja` (`EstadoEjemplar.validar_edicion`): un ejemplar dado de baja es historial y no cambia (CA-CAT-15).
+
+**Historial del ejemplar.** Cada transición registra un movimiento con estado anterior, nuevo, fecha, responsable y observación. El historial registra también los cambios que no son de disponibilidad (CA-CAT-13 y 14):
+
+- **Datos:** estado físico y observaciones.
+- **Ubicación:** la sede donde está, al recibir un remito.
+- **Traslado:** la sede propietaria.
+
+Esos movimientos repiten el estado (`estado_anterior = estado_nuevo`) y llevan la lista `cambios` (`[{campo, antes, despues}]`). El `tipo` del movimiento se deduce de su contenido: `ALTA`, `CAMBIO_DE_ESTADO`, `TRASLADO`, `CAMBIO_DE_UBICACION` o `MODIFICACION`. La implementación del patrón State está en [Patrones de diseño](05-patrones-de-diseno.md).
 
 Efecto al volver a `Disponible`: el sistema revisa la cola de reservas del libro y, si hay una elegible, pasa a `Reservado` (ver [Reservas](../funcional/06-reservas.md)).
 

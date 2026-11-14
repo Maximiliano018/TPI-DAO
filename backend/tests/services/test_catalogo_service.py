@@ -4,6 +4,7 @@ import pytest
 
 from app.exceptions import (
     CategoriaInvalida,
+    ConflictoDeVersion,
     EjemplarCodigoDuplicado,
     ErrorDeValidacion,
     LibroConEjemplares,
@@ -111,9 +112,21 @@ def test_modificar_un_libro_no_puede_chocar_con_otro(servicio, libro):
     otro = servicio.crear_libro(ADMIN, _libro(isbn="9789875801233", titulo="Ficciones"))
 
     with pytest.raises(LibroDuplicado):
-        servicio.modificar_libro(ADMIN, otro.id, _libro(titulo="Ficciones"))
-    modificado = servicio.modificar_libro(ADMIN, libro.id, _libro(editorial="Alfaguara"))
+        servicio.modificar_libro(ADMIN, otro.id, _libro(titulo="Ficciones"), otro.version)
+    modificado = servicio.modificar_libro(
+        ADMIN, libro.id, _libro(editorial="Alfaguara"), libro.version
+    )
     assert modificado.datos.editorial == "Alfaguara"
+
+
+@pytest.mark.ca("CA-CAT-19")
+def test_modificar_un_libro_con_version_desactualizada_se_rechaza(servicio, libro):
+    version = libro.version
+    servicio.modificar_libro(ADMIN, libro.id, _libro(editorial="Alfaguara"), version)
+
+    with pytest.raises(ConflictoDeVersion):
+        servicio.modificar_libro(ADMIN, libro.id, _libro(editorial="Debolsillo"), version)
+    assert servicio.obtener_libro(ADMIN, libro.id).datos.editorial == "Alfaguara"
 
 
 @pytest.mark.ca("CA-CAT-09")

@@ -1,13 +1,19 @@
-"""Respuestas de la API del catálogo."""
+"""Respuestas de la API del catálogo.
+
+El libro tiene un esquema por rol, como sedes y socios: la auditoría (quién lo cargó y lo
+modificó), la versión y si se puede eliminar solo existen en el esquema del administrador.
+"""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
-from app.dtos.response.sede_response import UsuarioRefResponse
+from app.dtos.response.sede_response import CambioResponse, UsuarioRefResponse
 from app.models.ejemplar import Ejemplar, MovimientoEjemplar
 from app.models.libro import CategoriaRef, DisponibilidadLibro, Libro
 from app.models.paginacion import Pagina
+from app.models.usuario import Permiso, Usuario
 from app.services.catalogo_service import DetalleEjemplar
 
 
@@ -20,8 +26,8 @@ class CategoriaResponse(BaseModel):
         return cls(id=categoria.id, nombre=categoria.nombre)
 
 
-class LibroResponse(BaseModel):
-    """Libro con su categoría, ejemplares (totales y disponibles en sedes activas) y auditoría."""
+class LibroPublicoResponse(BaseModel):
+    """Libro con su categoría y sus ejemplares (vigentes y disponibles en sedes activas)."""
 
     id: int
     isbn: str | None
@@ -33,33 +39,51 @@ class LibroResponse(BaseModel):
     tipo_material: str
     ejemplares: int
     disponibles: int
+
+
+class LibroAdminResponse(LibroPublicoResponse):
+    """Lo que ve el administrador: agrega la auditoría, la versión y si se puede eliminar."""
+
+    eliminable: bool
+    version: int
     creado_en: datetime | None
     creado_por: UsuarioRefResponse | None
     actualizado_en: datetime | None
     actualizado_por: UsuarioRefResponse | None
 
-    @classmethod
-    def desde(cls, libro: Libro) -> "LibroResponse":
-        assert libro.id is not None
-        datos = libro.datos
-        return cls(
-            id=libro.id,
-            isbn=datos.isbn.valor if datos.isbn else None,
-            titulo=datos.titulo,
-            autores=list(datos.autores),
-            editorial=datos.editorial,
-            anio_edicion=datos.anio_edicion,
-            categoria=CategoriaResponse.desde(datos.categoria),
-            tipo_material=datos.tipo_material.value,
-            ejemplares=libro.cantidad_ejemplares,
-            disponibles=libro.disponibles,
-            creado_en=libro.creado_en,
-            creado_por=UsuarioRefResponse.desde(libro.creado_por) if libro.creado_por else None,
-            actualizado_en=libro.actualizado_en,
-            actualizado_por=(
-                UsuarioRefResponse.desde(libro.actualizado_por) if libro.actualizado_por else None
-            ),
-        )
+
+LibroResponse = LibroAdminResponse | LibroPublicoResponse
+
+
+def libro_a_response(libro: Libro, usuario: Usuario) -> LibroResponse:
+    """Arma el esquema que corresponde al rol del usuario."""
+    assert libro.id is not None
+    datos = libro.datos
+    campos: dict[str, Any] = {
+        "id": libro.id,
+        "isbn": datos.isbn.valor if datos.isbn else None,
+        "titulo": datos.titulo,
+        "autores": list(datos.autores),
+        "editorial": datos.editorial,
+        "anio_edicion": datos.anio_edicion,
+        "categoria": CategoriaResponse.desde(datos.categoria),
+        "tipo_material": datos.tipo_material.value,
+        "ejemplares": libro.cantidad_ejemplares,
+        "disponibles": libro.disponibles,
+    }
+    if not usuario.puede(Permiso.CATALOGO_ADMINISTRAR):
+        return LibroPublicoResponse(**campos)
+    return LibroAdminResponse(
+        **campos,
+        eliminable=libro.eliminable,
+        version=libro.version,
+        creado_en=libro.creado_en,
+        creado_por=UsuarioRefResponse.desde(libro.creado_por) if libro.creado_por else None,
+        actualizado_en=libro.actualizado_en,
+        actualizado_por=(
+            UsuarioRefResponse.desde(libro.actualizado_por) if libro.actualizado_por else None
+        ),
+    )
 
 
 class PaginaLibrosResponse(BaseModel):
@@ -69,9 +93,9 @@ class PaginaLibrosResponse(BaseModel):
     size: int
 
     @classmethod
-    def desde(cls, pagina: Pagina[Libro]) -> "PaginaLibrosResponse":
+    def desde(cls, pagina: Pagina[Libro], usuario: Usuario) -> "PaginaLibrosResponse":
         return cls(
-            items=[LibroResponse.desde(libro) for libro in pagina.items],
+            items=[libro_a_response(libro, usuario) for libro in pagina.items],
             total=pagina.total,
             page=pagina.page,
             size=pagina.size,
@@ -162,25 +186,38 @@ class EjemplarResponse(BaseModel):
 
 
 class MovimientoResponse(BaseModel):
+    """Un movimiento del historial del ejemplar.
+
+    ``tipo``: ``ALTA``, ``CAMBIO_DE_ESTADO``, ``TRASLADO`` (cambia la sede propietaria),
+    ``CAMBIO_DE_UBICACION`` (cambia dónde está) o ``MODIFICACION`` (estado físico u
+    observaciones). ``cambios`` trae los campos que cambiaron; las sedes, por nombre.
+    """
+
+    tipo: str
     estado_anterior: str | None
     estado_nuevo: str
     fecha_hora: datetime
     usuario: UsuarioRefResponse | None
     observacion: str | None
+    cambios: list[CambioResponse]
 
     @classmethod
     def desde(cls, m: MovimientoEjemplar) -> "MovimientoResponse":
         return cls(
+            tipo=m.tipo.value,
             estado_anterior=m.estado_anterior.value if m.estado_anterior else None,
             estado_nuevo=m.estado_nuevo.value,
             fecha_hora=m.fecha_hora,
             usuario=UsuarioRefResponse.desde(m.usuario) if m.usuario else None,
             observacion=m.observacion,
+            cambios=[
+                CambioResponse(campo=c.campo, antes=c.antes, despues=c.despues) for c in m.cambios
+            ],
         )
 
 
 class EjemplarDetalleResponse(EjemplarResponse):
-    """Ejemplar con su historial de estados (trazabilidad, RF-CAT-06)."""
+    """Ejemplar con su historial: estados, estado físico y sedes (trazabilidad, RF-CAT-06)."""
 
     historial: list[MovimientoResponse]
 

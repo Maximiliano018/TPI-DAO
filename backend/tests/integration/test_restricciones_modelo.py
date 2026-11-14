@@ -295,7 +295,8 @@ def test_el_seed_carga_actividad_para_los_reportes(sesion: Session):
         "RECIBIDO": 5,
         "DANADO": 1,
         "EXTRAVIADO": 1,
-        "GENERADO": 1,
+        # el retorno pendiente del préstamo de Lucía y el del ejemplar que llegó dañado
+        "GENERADO": 2,
         "DESPACHADO": 1,
     }
     assert sesion.scalar(text("SELECT estado FROM reserva")) == "PENDIENTE"

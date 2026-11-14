@@ -57,6 +57,73 @@ describe('Catálogo', () => {
 
     await user.selectOptions(screen.getByLabelText('Categoría'), '2');
     await waitFor(() => expect(llamadas.at(-1).url.searchParams.get('categoria_id')).toBe('2'));
+    await user.selectOptions(screen.getByLabelText('Tipo de material'), 'REVISTA');
+    await waitFor(() =>
+      expect(llamadas.at(-1).url.searchParams.get('tipo_material')).toBe('REVISTA'),
+    );
+  });
+
+  it('CU-CAT-05 A3: sin disponibles en su sede, avisa que puede pedirse a otra sede', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/libros/12', libro());
+    responder('get', '/libros/12/disponibilidad', {
+      ...DISPONIBILIDAD,
+      total_red: { totales: 3, disponibles: 2 },
+      por_sede: [
+        { ...DISPONIBILIDAD.por_sede[0], disponibles: 0, prestados: 1, en_transito: 0, totales: 1 },
+        {
+          ...DISPONIBILIDAD.por_sede[0],
+          sede_id: 2,
+          sede: 'Sede Norte',
+          disponibles: 2,
+          prestados: 0,
+          en_transito: 0,
+          totales: 2,
+        },
+      ],
+    });
+    responder('get', '/ejemplares', pagina([]));
+    renderizarApp('/catalogo/12', { conSesion: true });
+
+    expect(
+      await screen.findByText(/se puede pedir como préstamo interbibliotecario/),
+    ).toBeVisible();
+  });
+
+  it('CA-CAT-16: «Eliminar» solo aparece si el libro no tiene ningún ejemplar', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/libros/12', libro({ ejemplares: 0, eliminable: false }));
+    responder('get', '/libros/13', libro({ id: 13, ejemplares: 0, eliminable: true }));
+    responder('get', '/libros/:id/disponibilidad', DISPONIBILIDAD);
+    responder('get', '/ejemplares', pagina([]));
+    const { unmount } = renderizarApp('/catalogo/12', { conSesion: true });
+
+    // Rayuela solo tiene ejemplares dados de baja: siguen siendo historial.
+    await screen.findByRole('link', { name: 'Editar' });
+    expect(screen.queryByRole('button', { name: 'Eliminar' })).not.toBeInTheDocument();
+    unmount();
+
+    renderizarApp('/catalogo/13', { conSesion: true });
+    expect(await screen.findByRole('button', { name: 'Eliminar' })).toBeVisible();
+  });
+
+  it('CA-CAT-19: al editar un libro se envía su versión', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/categorias', CATEGORIAS);
+    responder('get', '/libros/12', libro({ version: 4 }));
+    responder('get', '/libros/12/disponibilidad', DISPONIBILIDAD);
+    responder('get', '/ejemplares', pagina([]));
+    const llamadas = registrar('put', '/libros/12', libro({ version: 5 }));
+    const user = userEvent.setup();
+    renderizarApp('/catalogo/12/editar', { conSesion: true });
+
+    const editorial = await screen.findByLabelText(/Editorial/);
+    await user.clear(editorial);
+    await user.type(editorial, 'Alfaguara');
+    await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+    expect(await screen.findByText('Libro guardado')).toBeVisible();
+    expect(llamadas[0].cuerpo).toMatchObject({ editorial: 'Alfaguara', version: 4 });
   });
 
   it('CA-CAT-10: la ficha muestra la disponibilidad por sede y los ejemplares al personal', async () => {

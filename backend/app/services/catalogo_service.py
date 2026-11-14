@@ -84,12 +84,21 @@ class CatalogoService:
             self._uow.libros.agregar(libro)
         return libro
 
-    def modificar_libro(self, actor: Usuario, libro_id: int, datos: DatosLibroNuevo) -> Libro:
-        """Reemplaza los datos del libro (RF-CAT-01)."""
+    def modificar_libro(
+        self, actor: Usuario, libro_id: int, datos: DatosLibroNuevo, version: int
+    ) -> Libro:
+        """Reemplaza los datos del libro (RF-CAT-01).
+
+        Raises:
+            PermisoDenegado, ErrorDeValidacion, CategoriaInvalida, LibroNoEncontrado.
+            ConflictoDeVersion: Otra persona lo modificó antes.
+            LibroDuplicado: Los datos nuevos coinciden con otro libro.
+        """
         actor.exigir(Permiso.CATALOGO_ADMINISTRAR)
         validados = self._validar_libro(datos)
         with self._transaccion():
             libro = self._libro_para_modificar(libro_id)
+            libro.validar_version(version)
             self._rechazar_duplicado(validados, excluir_id=libro_id)
             if libro.modificar(validados, actor=_ref(actor), ahora=self._reloj.ahora()):
                 self._uow.libros.guardar(libro)
@@ -201,14 +210,22 @@ class CatalogoService:
     ) -> Ejemplar:
         """Cambia el estado físico y las observaciones; la disponibilidad no (CU-CAT-03).
 
+        El cambio queda en el historial del ejemplar (RF-CAT-06).
+
         Raises:
             EjemplarNoEncontrado, PermisoDenegado (otra sede, CA-CAT-05), ConflictoDeVersion.
+            TransicionInvalida: El ejemplar está dado de baja.
         """
         actor.exigir(Permiso.EJEMPLAR_ADMINISTRAR)
         with self._transaccion():
             ejemplar = self._ejemplar_para_modificar(actor, ejemplar_id)
             ejemplar.validar_version(version)
-            if ejemplar.modificar(estado_fisico=estado_fisico, observaciones=observaciones):
+            if ejemplar.modificar(
+                estado_fisico=estado_fisico,
+                observaciones=observaciones,
+                actor=_ref(actor),
+                ahora=self._reloj.ahora(),
+            ):
                 self._uow.ejemplares.guardar(ejemplar)
         return ejemplar
 
@@ -236,7 +253,7 @@ class CatalogoService:
         return ejemplar
 
     def detalle_ejemplar(self, actor: Usuario, ejemplar_id: int) -> DetalleEjemplar:
-        """Ejemplar con su historial de estados (solo el personal, CU-CAT-05 A4)."""
+        """Ejemplar con su historial: estados, estado físico y sedes (solo el personal)."""
         actor.exigir(Permiso.EJEMPLAR_LEER)
         ejemplar = self._uow.ejemplares.obtener(ejemplar_id)
         if ejemplar is None:

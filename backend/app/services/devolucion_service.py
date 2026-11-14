@@ -221,7 +221,7 @@ class DevolucionService:
                 ejemplar.enviar_a_revision(actor, ahora, f"{texto}: dañado")
                 self._uow.ejemplares.guardar(ejemplar)
                 return None, None
-        ejemplar.estado_fisico = EstadoFisico(estado.value)
+        ejemplar.registrar_estado_fisico(EstadoFisico(estado.value), actor, ahora, texto)
         if prestamo.es_interbibliotecario:
             ejemplar.apartar(actor, ahora, f"{texto}: espera el retorno a su sede")
             self._uow.ejemplares.guardar(ejemplar)

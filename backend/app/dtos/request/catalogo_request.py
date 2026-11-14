@@ -8,7 +8,7 @@ from app.services.catalogo_service import DatosEjemplarNuevo, DatosLibroNuevo
 
 
 class LibroRequest(BaseModel):
-    """Alta o modificación de un libro (la obra)."""
+    """Alta de un libro (la obra)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -42,6 +42,27 @@ class LibroRequest(BaseModel):
             categoria_id=self.categoria_id,
             tipo_material=self.tipo_material,
         )
+
+
+class LibroModificarRequest(LibroRequest):
+    """Modificación de un libro; ``version`` evita pisar cambios de otra persona."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "isbn": "9780132350884",
+                "titulo": "Clean Code",
+                "autores": ["Robert C. Martin"],
+                "editorial": "Prentice Hall",
+                "anio_edicion": 2008,
+                "categoria_id": 8,
+                "tipo_material": "LIBRO",
+                "version": 1,
+            }
+        }
+    )
+
+    version: int
 
 
 class EjemplarCrearRequest(BaseModel):

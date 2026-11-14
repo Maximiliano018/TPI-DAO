@@ -29,7 +29,7 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 | RF-REM-10 | El sistema debe rechazar remitos con una sede en `Baja` como origen o destino, ejemplares que no pertenezcan o no estén en la sede origen, o ejemplares ya incluidos en otro remito abierto. | Obligatorio |
 | RF-REM-11 | El sistema debe permitir anular un remito solo antes del despacho, liberando los ejemplares. | Obligatorio |
 | RF-REM-12 | El sistema debe permitir marcar `Extraviado` un remito despachado cuando venció el plazo máximo de tránsito (7 días). | Obligatorio |
-| RF-REM-13 | El sistema debe registrar la revisión de recepción: ejemplar dañado o destruido, con efecto sobre el ejemplar (revisión o baja). | Opcional |
+| RF-REM-13 | El sistema debe registrar la revisión de recepción: ejemplar dañado o destruido, con efecto sobre el ejemplar (revisión o baja). La revisión la hace siempre la sede propietaria: un envío dañado vuelve a su sede con un remito de retorno, y un traslado dañado queda en revisión en la nueva sede propietaria. | Opcional |
 | RF-REM-14 | El sistema debe permitir consultar un remito y su historial completo de movimientos, con la visibilidad que corresponda a cada rol. | Obligatorio |
 
 ## Casos de uso
@@ -83,7 +83,11 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 ### CU-REM-05. Registrar una incidencia de recepción
 
 - **Actor:** Bibliotecario de la sede destino.
-- **Flujo normal:** al verificar, marca el remito como `Dañado` o `Destruido` con observaciones; el ejemplar queda en revisión (dañado) o `Baja` (destruido) y el préstamo asociado pasa a `Cancelado`.
+- **Flujo normal:** al verificar, marca la línea como dañada o destruida con observaciones; el remito queda `Dañado` o `Destruido` y se registra la incidencia. En un envío, el préstamo asociado pasa a `Cancelado`. El ejemplar:
+  - **destruido:** pasa a `Baja`;
+  - **dañado en un envío:** queda `Apartado` en la sede destino y el sistema genera un remito de retorno a la sede propietaria, que lo revisa al recibirlo (pasa a `En revisión` sin otra incidencia). La sede destino no es la dueña y no lo repara;
+  - **dañado en un retorno:** pasa a `En revisión` en su sede;
+  - **dañado en un traslado:** cambia igual de sede propietaria y queda `En revisión` en la nueva, que decide su reparación o baja.
 - **Flujos alternativos:**
   - **A1:** daño parcial en un remito de varios ejemplares; se registra por línea y se informa en el remito.
   - **A2:** remito sin observaciones; rechaza (la incidencia exige descripción).
@@ -125,3 +129,5 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Anulado`.
 | CA-REM-17 | RF-REM-12 | **Dado** un remito despachado hace 8 días, **cuando** se marca `Extraviado`, **entonces** los ejemplares pasan a `Baja` con incidencia. |
 | CA-REM-18 | RF-REM-13 | **Dado** un ejemplar recibido destruido, **cuando** se registra, **entonces** el ejemplar queda en `Baja` y el préstamo `Cancelado`. |
 | CA-REM-19 | RF-REM-09 | **Dado** un traslado recibido, **cuando** se cierra, **entonces** el ejemplar cambia de sede propietaria. |
+| CA-REM-20 | RF-REM-13 | **Dado** un ejemplar que llega dañado en un envío, **cuando** se registra la recepción, **entonces** el préstamo se cancela, el ejemplar queda `Apartado` con un remito de retorno a su sede y, al recibirse allí, pasa a `En revisión` sin una nueva incidencia y su sede lo puede reparar. |
+| CA-REM-21 | RF-REM-13 | **Dado** un ejemplar que llega dañado en un traslado, **cuando** se registra la recepción, **entonces** cambia de sede propietaria y queda `En revisión` en la nueva. |

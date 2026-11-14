@@ -250,7 +250,10 @@ export function socio(over = {}) {
   };
 }
 
-/** Libro con el formato de la API; `over` pisa cualquier campo. */
+/**
+ * Libro con el formato que ve el administrador (con auditoría, versión y si se puede eliminar);
+ * `over` pisa cualquier campo.
+ */
 export function libro(over = {}) {
   return {
     id: 12,
@@ -263,6 +266,8 @@ export function libro(over = {}) {
     tipo_material: 'LIBRO',
     ejemplares: 3,
     disponibles: 1,
+    eliminable: false,
+    version: 1,
     creado_en: '2026-10-14T15:30:00Z',
     creado_por: { id: 1, nombre: 'Ana Admin' },
     actualizado_en: '2026-10-14T15:30:00Z',
@@ -295,11 +300,13 @@ export function ejemplar(over = {}) {
     version: 1,
     historial: [
       {
+        tipo: 'ALTA',
         estado_anterior: null,
         estado_nuevo: 'DISPONIBLE',
         fecha_hora: '2026-10-14T15:30:00Z',
         usuario: { id: 2, nombre: 'Lucía Gómez' },
         observacion: 'Alta',
+        cambios: [],
       },
     ],
     ...over,

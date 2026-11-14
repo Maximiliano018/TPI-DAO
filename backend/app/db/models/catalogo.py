@@ -1,7 +1,7 @@
 """Tablas del catálogo: categorías, autores, libros y ejemplares con su historial."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     BigInteger,
@@ -14,7 +14,9 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, ConAuditoriaDeTiempo
@@ -79,6 +81,9 @@ class LibroORM(ConAuditoriaDeTiempo, Base):
     clave_natural: Mapped[str | None] = mapped_column(String(420), unique=True)
     creado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
     actualizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    version: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default=text("1")
+    )
 
     categoria: Mapped[CategoriaORM] = relationship(lazy="joined")
     autores: Mapped[list[LibroAutorORM]] = relationship(
@@ -123,7 +128,10 @@ class EjemplarORM(ConAuditoriaDeTiempo, Base):
 
 
 class MovimientoEjemplarORM(Base):
-    """Historial de estados del ejemplar, de solo inserción (un disparador lo protege)."""
+    """Historial del ejemplar, de solo inserción (un disparador lo protege).
+
+    ``cambios`` guarda los cambios de estado físico, observaciones y sede del movimiento.
+    """
 
     __tablename__ = "movimiento_ejemplar"
     __table_args__ = (
@@ -139,6 +147,9 @@ class MovimientoEjemplarORM(Base):
     )
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
     observacion: Mapped[str | None] = mapped_column(Text)
+    cambios: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
 
 
 __all__ = [

@@ -1,9 +1,13 @@
 """Entidad de dominio ``Ejemplar``: la copia física de un libro, con sede y estados.
 
-El estado de disponibilidad sigue el patrón State (``models/states/ejemplar.py``): la entidad
-delega cada operación en su estado actual y registra un movimiento en su historial
-(RF-CAT-06). El estado no se edita directamente: lo cambian los procesos de préstamo, envío,
-reserva y devolución (CU-CAT-03, A1).
+El estado de disponibilidad sigue el patrón State (``models/states/ejemplar.py``): ``Ejemplar``
+es el **contexto**, que delega cada operación en su estado actual, reemplaza el estado por el
+que este devuelve y registra un movimiento en su historial (RF-CAT-06). El estado no se edita
+directamente: lo cambian los procesos de préstamo, envío, reserva y devolución (CU-CAT-03, A1).
+
+El historial registra también los cambios que no son de disponibilidad: estado físico,
+observaciones y sede (donde está y a cuál pertenece). Cada movimiento guarda esos cambios como
+``Cambio(campo, antes, despues)``.
 """
 
 import re
@@ -13,6 +17,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from app.exceptions import ConflictoDeVersion, EjemplarNoDisponible
+from app.models.sede import Cambio
 from app.models.states.ejemplar import (
     TEXTO_ESTADO,
     Disponible,
@@ -51,15 +56,50 @@ def _observaciones(texto: str | None) -> str | None:
     return valor
 
 
+CAMPO_ESTADO_FISICO = "estado_fisico"
+CAMPO_OBSERVACIONES = "observaciones"
+CAMPO_SEDE_ACTUAL = "sede_actual"
+CAMPO_SEDE_PROPIETARIA = "sede_propietaria"
+
+
+class TipoMovimiento(StrEnum):
+    """Qué registra un movimiento (se deduce de su contenido, no se guarda)."""
+
+    ALTA = "ALTA"
+    CAMBIO_DE_ESTADO = "CAMBIO_DE_ESTADO"
+    TRASLADO = "TRASLADO"
+    CAMBIO_DE_UBICACION = "CAMBIO_DE_UBICACION"
+    MODIFICACION = "MODIFICACION"
+
+
 @dataclass(frozen=True)
 class MovimientoEjemplar:
-    """Un cambio de estado del ejemplar (fuente de su trazabilidad)."""
+    """Un cambio del ejemplar (fuente de su trazabilidad).
+
+    ``estado_anterior`` y ``estado_nuevo`` son iguales cuando el movimiento no cambia la
+    disponibilidad (por ejemplo, un cambio de estado físico). En ``cambios`` las sedes van por
+    id; el repositorio las devuelve con su nombre al leer el historial.
+    """
 
     estado_anterior: EstadoEjemplarEnum | None
     estado_nuevo: EstadoEjemplarEnum
     fecha_hora: datetime
     usuario: UsuarioRef | None
     observacion: str | None = None
+    cambios: tuple[Cambio, ...] = ()
+
+    @property
+    def tipo(self) -> TipoMovimiento:
+        campos = {c.campo for c in self.cambios}
+        if self.estado_anterior is None:
+            return TipoMovimiento.ALTA
+        if self.estado_anterior != self.estado_nuevo:
+            return TipoMovimiento.CAMBIO_DE_ESTADO
+        if CAMPO_SEDE_PROPIETARIA in campos:
+            return TipoMovimiento.TRASLADO
+        if CAMPO_SEDE_ACTUAL in campos:
+            return TipoMovimiento.CAMBIO_DE_UBICACION
+        return TipoMovimiento.MODIFICACION
 
 
 @dataclass
@@ -134,14 +174,77 @@ class Ejemplar:
 
     # --- datos ----------------------------------------------------------------------------
 
-    def modificar(self, *, estado_fisico: EstadoFisico, observaciones: str | None) -> bool:
-        """Cambia el estado físico y las observaciones (no la disponibilidad)."""
+    def modificar(
+        self,
+        *,
+        estado_fisico: EstadoFisico,
+        observaciones: str | None,
+        actor: UsuarioRef,
+        ahora: datetime,
+    ) -> bool:
+        """Cambia el estado físico y las observaciones (no la disponibilidad).
+
+        El cambio queda en el historial. Un ejemplar dado de baja no se edita.
+
+        Raises:
+            TransicionInvalida: El ejemplar está dado de baja.
+            ErrorDeValidacion: Observaciones demasiado largas.
+        """
+        self.estado.validar_edicion()
         obs = _observaciones(observaciones)
-        if (estado_fisico, obs) == (self.estado_fisico, self.observaciones):
+        cambios = [
+            Cambio(CAMPO_ESTADO_FISICO, self.estado_fisico.value, estado_fisico.value)
+            if estado_fisico != self.estado_fisico
+            else None,
+            Cambio(CAMPO_OBSERVACIONES, self.observaciones, obs)
+            if obs != self.observaciones
+            else None,
+        ]
+        if not any(cambios):
             return False
         self.estado_fisico, self.observaciones = estado_fisico, obs
-        self.version += 1
+        self._registrar(actor, ahora, "Datos modificados", [c for c in cambios if c])
         return True
+
+    def registrar_estado_fisico(
+        self, estado_fisico: EstadoFisico, actor: UsuarioRef | None, ahora: datetime, motivo: str
+    ) -> None:
+        """Estado físico verificado en una devolución o una recepción (queda en el historial)."""
+        if estado_fisico == self.estado_fisico:
+            return
+        cambio = Cambio(CAMPO_ESTADO_FISICO, self.estado_fisico.value, estado_fisico.value)
+        self.estado_fisico = estado_fisico
+        self._registrar(actor, ahora, motivo, [cambio])
+
+    def recibir_en(
+        self,
+        sede_id: int,
+        estado_fisico: EstadoFisico,
+        *,
+        trasladar: bool,
+        actor: UsuarioRef | None,
+        ahora: datetime,
+        observacion: str,
+    ) -> None:
+        """Llega a una sede con un remito: cambia dónde está y su estado físico.
+
+        Con ``trasladar`` (traslado definitivo) también cambia la sede propietaria. Todo queda
+        en un único movimiento; el cambio de disponibilidad lo registra la transición que sigue.
+        """
+        cambios = []
+        if sede_id != self.sede_actual_id:
+            cambios.append(Cambio(CAMPO_SEDE_ACTUAL, self.sede_actual_id, sede_id))
+            self.sede_actual_id = sede_id
+        if trasladar and sede_id != self.sede_propietaria_id:
+            cambios.append(Cambio(CAMPO_SEDE_PROPIETARIA, self.sede_propietaria_id, sede_id))
+            self.sede_propietaria_id = sede_id
+        if estado_fisico != self.estado_fisico:
+            cambios.append(
+                Cambio(CAMPO_ESTADO_FISICO, self.estado_fisico.value, estado_fisico.value)
+            )
+            self.estado_fisico = estado_fisico
+        if cambios:
+            self._registrar(actor, ahora, observacion, cambios)
 
     # --- transiciones (State) -------------------------------------------------------------
 
@@ -165,22 +268,14 @@ class Ejemplar:
     def enviar_a_revision(
         self, actor: UsuarioRef | None, ahora: datetime, observacion: str
     ) -> None:
-        self.estado_fisico = EstadoFisico.DANADO
-        self._transicion(self.estado.enviar_a_revision, actor, ahora, observacion)
+        """Queda en revisión con estado físico ``Dañado``."""
+        self._transicion(
+            self.estado.enviar_a_revision, actor, ahora, observacion, EstadoFisico.DANADO
+        )
 
     def reparar(self, actor: UsuarioRef, ahora: datetime) -> None:
         """Sale de revisión: vuelve a ``Disponible`` con estado físico ``Regular``."""
-        self._transicion(self.estado.reparar, actor, ahora, "Reparado")
-        self.estado_fisico = EstadoFisico.REGULAR
-
-    def llegar_a(self, sede_id: int) -> None:
-        """Cambia la sede donde está físicamente (al recibir un remito)."""
-        self.sede_actual_id = sede_id
-
-    def trasladar_a(self, sede_id: int) -> None:
-        """Traslado definitivo: cambia la sede propietaria (y la actual)."""
-        self.sede_propietaria_id = sede_id
-        self.sede_actual_id = sede_id
+        self._transicion(self.estado.reparar, actor, ahora, "Reparado", EstadoFisico.REGULAR)
 
     def dar_de_baja(self, motivo: str, actor: UsuarioRef, ahora: datetime) -> None:
         """Baja manual: solo de un ejemplar ``Disponible`` o ``En revisión`` (RF-CAT-07).
@@ -214,10 +309,39 @@ class Ejemplar:
         actor: UsuarioRef | None,
         ahora: datetime,
         observacion: str,
+        estado_fisico: EstadoFisico | None = None,
     ) -> None:
+        """Delega la operación en el estado actual (State) y registra el movimiento.
+
+        Si el estado rechaza la operación (``TransicionInvalida``), el ejemplar no cambia.
+        ``estado_fisico`` se aplica recién cuando la transición fue aceptada.
+        """
         anterior = self.estado_nombre
         self.estado = operacion()
+        cambios = []
+        if estado_fisico is not None and estado_fisico != self.estado_fisico:
+            cambios.append(
+                Cambio(CAMPO_ESTADO_FISICO, self.estado_fisico.value, estado_fisico.value)
+            )
+            self.estado_fisico = estado_fisico
+        self._registrar(actor, ahora, observacion, cambios, anterior)
+
+    def _registrar(
+        self,
+        actor: UsuarioRef | None,
+        ahora: datetime,
+        observacion: str,
+        cambios: list[Cambio],
+        estado_anterior: EstadoEjemplarEnum | None = None,
+    ) -> None:
         self.version += 1
         self.movimientos_pendientes.append(
-            MovimientoEjemplar(anterior, self.estado_nombre, ahora, actor, observacion)
+            MovimientoEjemplar(
+                estado_anterior or self.estado_nombre,
+                self.estado_nombre,
+                ahora,
+                actor,
+                observacion,
+                tuple(cambios),
+            )
         )

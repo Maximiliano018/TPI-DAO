@@ -15,6 +15,7 @@ import {
 } from '../../../components/index.js';
 import { useFiltrosUrl } from '../../../hooks/useFiltrosUrl.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
+import { TIPOS_DE_MATERIAL } from '../../../utils/estados.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import { useCategorias, useLibros } from '../hooks/useCatalogo.js';
 
@@ -29,6 +30,7 @@ export default function CatalogoPage() {
   const { data, isPending, error, refetch } = useLibros({
     q: filtros.q,
     categoria_id: filtros.categoria_id,
+    tipo_material: filtros.tipo_material,
     page,
     size,
   });
@@ -79,6 +81,18 @@ export default function CatalogoPage() {
           {(categorias.data ?? []).map((c) => (
             <option key={c.id} value={c.id}>
               {c.nombre}
+            </option>
+          ))}
+        </FiltroSelect>
+        <FiltroSelect
+          etiqueta="Tipo de material"
+          valor={filtros.tipo_material ?? ''}
+          onCambiar={(tipo) => cambiar({ tipo_material: tipo })}
+        >
+          <option value="">Todos</option>
+          {Object.entries(TIPOS_DE_MATERIAL).map(([valor, texto]) => (
+            <option key={valor} value={valor}>
+              {texto}
             </option>
           ))}
         </FiltroSelect>
