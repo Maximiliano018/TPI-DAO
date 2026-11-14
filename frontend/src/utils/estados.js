@@ -39,6 +39,7 @@ export const ESTADOS = {
     EXTRAVIADO: { tono: 'danger', texto: 'Extraviado' },
     DANADO: { tono: 'danger', texto: 'Recibido con daño' },
     DESTRUIDO: { tono: 'danger', texto: 'Recibido destruido' },
+    INCOMPLETO: { tono: 'danger', texto: 'Recibido con faltantes' },
     ANULADO: { tono: 'neutral', texto: 'Anulado' },
   },
   reserva: {

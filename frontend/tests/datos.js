@@ -299,6 +299,7 @@ export function ejemplar(over = {}) {
     fecha_baja: null,
     motivo_baja: null,
     version: 1,
+    recuperable: false,
     historial: [
       {
         tipo: 'ALTA',
@@ -371,6 +372,8 @@ export function remito(over = {}) {
     fecha_despacho: null,
     fecha_recepcion: null,
     observaciones: null,
+    despachar_hasta: '2026-11-13',
+    atrasado: false,
     lineas: [
       {
         ejemplar_id: 301,

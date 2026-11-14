@@ -385,8 +385,12 @@ class PrestamoService:
         numero: str | None,
         page: int,
         size: int,
+        sede_origen_id: int | None = None,
     ) -> Pagina[Prestamo]:
-        """El administrador ve todos; el bibliotecario, los de su sede; el socio, los suyos."""
+        """El administrador ve todos; el bibliotecario, los de su sede; el socio, los suyos.
+
+        ``sede_origen_id`` acota a los que salen de esa sede (los envíos que tiene que armar).
+        """
         sede_id = None
         if actor.puede(Permiso.PRESTAMO_LEER):
             if actor.rol == Rol.BIBLIOTECARIO:
@@ -395,7 +399,7 @@ class PrestamoService:
             socio_id = actor.socio_id
         else:
             raise PermisoDenegado("No tiene permiso para consultar préstamos.")
-        filtro = FiltroPrestamos(estado, tipo, socio_id, sede_id, numero)
+        filtro = FiltroPrestamos(estado, tipo, socio_id, sede_id, numero, sede_origen_id)
         prestamos, total = self._uow.prestamos.listar(filtro, page, size)
         return Pagina(prestamos, total, page, size)
 

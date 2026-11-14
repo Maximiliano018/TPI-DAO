@@ -149,6 +149,7 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | `PUT /ejemplares/{id}` | A, B | Modificar estado físico u observaciones (con `version`); queda en el historial; un ejemplar en `BAJA` no se edita (`409 TRANSICION_INVALIDA`) | RF-CAT-04, 06 |
 | `POST /ejemplares/{id}/baja` | A, B | Baja lógica con motivo (con `version`); solo `DISPONIBLE` o `EN_REVISION` | RF-CAT-07 |
 | `POST /ejemplares/{id}/reparado` | A, B | Sale de revisión y queda disponible (con `version`) | RF-DEV-10 |
+| `POST /ejemplares/{id}/recuperar` | A, B (sede propietaria) | Recupera un ejemplar dado de baja por extravío que apareció: `{estado_fisico, observacion, version}`; queda disponible (o en revisión si llegó dañado) y la incidencia resuelta (`409 EJEMPLAR_NO_RECUPERABLE` si la baja no fue por extravío). El detalle del ejemplar trae `recuperable` | RF-CAT-13 |
 
 El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propietaria es la suya (`403 FORBIDDEN`). La disponibilidad cuenta los ejemplares por **sede propietaria activa**, sin los dados de baja; `otros` agrupa los apartados y en revisión.
 
@@ -180,12 +181,12 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
 | `POST /remitos` | B (sede origen) | Generar remito | RF-REM-01 a 04, 10 |
-| `GET /remitos` | A, B, S | Listado; `?estado=`, `?sede_id=` | RF-REM-14 |
+| `GET /remitos` | A, B | Listado; `?estado=`, `?sede_id=`, `?abiertos=`, `?atrasados=` (sin despachar fuera de plazo). Cada remito trae `despachar_hasta` y `atrasado` | RF-REM-14, 15 |
 | `GET /remitos/{id}` | A, B, S | Detalle y movimientos | RF-REM-14 |
 | `POST /remitos/{id}/empaquetar` | B (sede origen) | | RF-REM-05, 07 |
 | `POST /remitos/{id}/despachar` | B (sede origen) | | RF-REM-08 |
 | `POST /remitos/{id}/en-transito` | B (sede origen) | Marca el envío en viaje (si no, la recepción completa ese paso) | RF-REM-05 |
-| `POST /remitos/{id}/recibir` | B (sede destino) | Recepción con estado por línea | RF-REM-09, 13 |
+| `POST /remitos/{id}/recibir` | B (sede destino) | Recepción con estado por línea; una línea puede ir `faltante` (sin estado físico) | RF-REM-09, 13, 16 |
 | `POST /remitos/{id}/anular` | B (sede origen) | Antes del despacho | RF-REM-11 |
 | `POST /remitos/{id}/extraviado` | A, B | Si venció el plazo de tránsito | RF-REM-12 |
 
@@ -778,6 +779,11 @@ Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` 
 | Destruido | `BAJA` | `BAJA` | `BAJA` (la sede propietaria no cambia) |
 
 Cada llegada queda en el historial del ejemplar como un movimiento con la sede donde está, el estado físico verificado y, en un traslado, la nueva sede propietaria.
+
+**Faltantes.** Una línea con `"faltante": true` (y `estado_fisico` nulo) es un ejemplar que no llegó: exige observación, el ejemplar pasa a `BAJA` por extravío con incidencia y, si era un envío, su préstamo se cancela. El remito queda `INCOMPLETO`. Si todas las líneas son faltantes, responde `422 REMITO_INVALIDO` y el remito no cambia.
+
+**Incidencias.** Cada incidencia del detalle trae `origen`, `sede_responsable` (`{id, nombre}`, la sede origen del remito), `despachado_por` (quién lo despachó, del historial), `usuario` (quién la registró) y, si un extravío se resolvió, `resuelta_en` y `resolucion`. Las incidencias de un remito no tienen socio.
+
 
 ### `GET /remitos/{id}` — con trazabilidad
 

@@ -44,6 +44,7 @@ class ConteoDeEnvios:
     extraviados: int
     danados: int
     destruidos: int
+    incompletos: int  # recibidos con ejemplares faltantes
 
     @property
     def tasa_exito(self) -> float | None:

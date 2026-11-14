@@ -8,6 +8,7 @@ from app.exceptions import (
     CategoriaInvalida,
     EjemplarCodigoDuplicado,
     EjemplarNoEncontrado,
+    EjemplarNoRecuperable,
     ErrorDeValidacion,
     LibroConEjemplares,
     LibroDuplicado,
@@ -58,6 +59,7 @@ class DatosEjemplarNuevo:
 class DetalleEjemplar:
     ejemplar: Ejemplar
     historial: list[MovimientoEjemplar]
+    recuperable: bool = False  # dado de baja por un extravío sin resolver
 
 
 class CatalogoService:
@@ -252,13 +254,58 @@ class CatalogoService:
             ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, _ref(actor))
         return ejemplar
 
+    def recuperar_ejemplar(
+        self,
+        actor: Usuario,
+        ejemplar_id: int,
+        version: int,
+        estado_fisico: EstadoFisico,
+        observacion: str,
+    ) -> Ejemplar:
+        """Un ejemplar dado de baja por extravío apareció: vuelve a su sede (RF-CAT-13).
+
+        Solo lo hace la sede propietaria (o el administrador). Queda ``Disponible`` (o en
+        revisión si llegó dañado), la incidencia de extravío queda resuelta y, si está
+        disponible, se ofrece a la cola de reservas. Los préstamos que se cancelaron por el
+        extravío no se reabren.
+
+        Raises:
+            EjemplarNoEncontrado, PermisoDenegado, ConflictoDeVersion, ErrorDeValidacion.
+            EjemplarNoRecuperable: No está dado de baja por un extravío sin resolver (una baja
+                por destrucción o daño es definitiva).
+        """
+        actor.exigir(Permiso.EJEMPLAR_ADMINISTRAR)
+        with self._transaccion():
+            ejemplar = self._ejemplar_para_modificar(actor, ejemplar_id)
+            ejemplar.validar_version(version)
+            extravio = self._uow.incidencias.extravio_pendiente(ejemplar_id)
+            if ejemplar.estado_nombre != EstadoEjemplarEnum.BAJA or extravio is None:
+                raise EjemplarNoRecuperable(
+                    f"El ejemplar {ejemplar.codigo_inventario} no se puede recuperar: solo se "
+                    "recupera uno dado de baja por un extravío.",
+                    [{"campo": "estado", "problema": "no_extraviado"}],
+                )
+            ahora = self._reloj.ahora()
+            ejemplar.recuperar(estado_fisico, observacion, _ref(actor), ahora)
+            extravio.resolver(f"Recuperado: {observacion.strip()}", _ref(actor), ahora)
+            self._uow.incidencias.guardar(extravio)
+            self._uow.ejemplares.guardar(ejemplar)
+            ColaDeReservas(self._uow, self._reloj).ofrecer(ejemplar, _ref(actor))
+        return self._uow.ejemplares.obtener(ejemplar_id) or ejemplar
+
     def detalle_ejemplar(self, actor: Usuario, ejemplar_id: int) -> DetalleEjemplar:
         """Ejemplar con su historial: estados, estado físico y sedes (solo el personal)."""
         actor.exigir(Permiso.EJEMPLAR_LEER)
         ejemplar = self._uow.ejemplares.obtener(ejemplar_id)
         if ejemplar is None:
             raise EjemplarNoEncontrado("El ejemplar solicitado no existe.")
-        return DetalleEjemplar(ejemplar, self._uow.ejemplares.historial(ejemplar_id))
+        recuperable = (
+            ejemplar.estado_nombre == EstadoEjemplarEnum.BAJA
+            and self._uow.incidencias.extravio_pendiente(ejemplar_id) is not None
+        )
+        return DetalleEjemplar(
+            ejemplar, self._uow.ejemplares.historial(ejemplar_id), recuperable=recuperable
+        )
 
     def listar_ejemplares(
         self,

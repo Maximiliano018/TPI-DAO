@@ -188,6 +188,12 @@ class EjemplarNoDisponible(ReglaDeNegocioViolada):
     codigo = "EJEMPLAR_NO_DISPONIBLE"
 
 
+class EjemplarNoRecuperable(ReglaDeNegocioViolada):
+    """Solo se recupera un ejemplar dado de baja por un extravío todavía sin resolver."""
+
+    codigo = "EJEMPLAR_NO_RECUPERABLE"
+
+
 # --- préstamos y remitos ---------------------------------------------------------------------
 
 

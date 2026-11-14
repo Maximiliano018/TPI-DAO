@@ -217,15 +217,20 @@ class MovimientoResponse(BaseModel):
 
 
 class EjemplarDetalleResponse(EjemplarResponse):
-    """Ejemplar con su historial: estados, estado físico y sedes (trazabilidad, RF-CAT-06)."""
+    """Ejemplar con su historial: estados, estado físico y sedes (trazabilidad, RF-CAT-06).
+
+    ``recuperable``: está dado de baja por un extravío sin resolver y se puede recuperar.
+    """
 
     historial: list[MovimientoResponse]
+    recuperable: bool
 
     @classmethod
     def desde_detalle(cls, d: DetalleEjemplar) -> "EjemplarDetalleResponse":
         return cls(
             **EjemplarResponse.desde(d.ejemplar).model_dump(),
             historial=[MovimientoResponse.desde(m) for m in d.historial],
+            recuperable=d.recuperable,
         )
 
 

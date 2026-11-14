@@ -9,7 +9,7 @@ El remito decide **su** estado; los efectos sobre ejemplares y préstamos los or
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta, tzinfo
 from enum import StrEnum
 
 from app.exceptions import PlazoDeTransitoVigente, RemitoInvalido
@@ -38,6 +38,7 @@ class ResultadoLinea(StrEnum):
     RECIBIDO = "RECIBIDO"
     DANADO = "DANADO"
     DESTRUIDO = "DESTRUIDO"
+    FALTANTE = "FALTANTE"  # no llegó: se da de baja por extravío
 
 
 @dataclass
@@ -56,15 +57,21 @@ class LineaRemito:
 
 @dataclass(frozen=True)
 class RecepcionLinea:
-    """Lo que verifica la sede destino en cada línea."""
+    """Lo que verifica la sede destino en cada línea.
+
+    Un ejemplar que no llegó se marca ``faltante`` y no lleva estado físico.
+    """
 
     ejemplar_id: int
-    estado_fisico: EstadoFisico
+    estado_fisico: EstadoFisico | None
     destruido: bool = False
     observacion: str | None = None
+    faltante: bool = False
 
     @property
     def resultado(self) -> ResultadoLinea:
+        if self.faltante:
+            return ResultadoLinea.FALTANTE
         if self.destruido:
             return ResultadoLinea.DESTRUIDO
         if self.estado_fisico == EstadoFisico.DANADO:
@@ -98,6 +105,9 @@ class Remito:
     movimientos_pendientes: list[MovimientoRemito] = field(default_factory=list)
     sede_origen_nombre: str | None = None
     sede_destino_nombre: str | None = None
+    # Plazo de despacho (lo completa el servicio con el parámetro y el reloj).
+    despachar_hasta: date | None = None
+    atrasado: bool = False
 
     @classmethod
     def generar(
@@ -170,6 +180,16 @@ class Remito:
     def esta_abierto(self) -> bool:
         return self.estado_nombre in ABIERTOS
 
+    @property
+    def sin_despachar(self) -> bool:
+        return self.estado_nombre in (EstadoRemitoEnum.GENERADO, EstadoRemitoEnum.EMPAQUETADO)
+
+    def limite_de_despacho(self, plazo_dias: int, zona: tzinfo) -> date | None:
+        """Último día para despacharlo (RF-REM-15); ``None`` si ya salió o se cerró."""
+        if not self.sin_despachar or self.fecha_generacion is None:
+            return None
+        return self.fecha_generacion.astimezone(zona).date() + timedelta(days=plazo_dias)
+
     def linea_de(self, ejemplar_id: int) -> LineaRemito:
         return next(linea for linea in self.lineas if linea.ejemplar_id == ejemplar_id)
 
@@ -189,15 +209,17 @@ class Remito:
     def recibir(
         self, recepcion: Sequence[RecepcionLinea], actor: UsuarioRef, ahora: datetime
     ) -> None:
-        """La sede destino verifica cada línea (RF-REM-09, 13).
+        """La sede destino verifica cada línea (RF-REM-09, 13 y 16).
 
-        El estado final sigue la peor condición: alguna línea destruida → ``Destruido``; alguna
-        dañada → ``Dañado``; si no, ``Recibido``. Desde ``Despachado`` primero completa el paso
-        por ``En tránsito`` (CU-REM-04, A3).
+        El estado final sigue la peor condición: algún ejemplar faltante → ``Incompleto``;
+        alguno destruido → ``Destruido``; alguno dañado → ``Dañado``; si no, ``Recibido``. Desde
+        ``Despachado`` primero completa el paso por ``En tránsito`` (CU-REM-04, A3).
 
         Raises:
             TransicionInvalida: El remito no está despachado ni en tránsito.
-            RemitoInvalido: Faltan o sobran líneas, o una incidencia no tiene observación.
+            RemitoInvalido: Faltan o sobran líneas, una incidencia no tiene observación, un
+                ejemplar recibido no tiene estado físico o no llegó ninguno (en ese caso sigue
+                en tránsito hasta que se pueda marcar extraviado).
         """
         if self.estado_nombre == EstadoRemitoEnum.DESPACHADO:
             self.pasar_a_transito(actor, ahora)
@@ -208,6 +230,12 @@ class Remito:
             raise RemitoInvalido(
                 "Hay que verificar cada ejemplar del remito, sin agregar otros.",
                 [{"campo": "lineas", "problema": "no_coinciden"}],
+            )
+        if all(r.faltante for r in recepcion):
+            raise RemitoInvalido(
+                "Si no llegó ningún ejemplar, el remito sigue en tránsito: márquelo extraviado "
+                "cuando venza el plazo de tránsito.",
+                [{"campo": "lineas", "problema": "todos_faltantes"}],
             )
         for linea in self.lineas:
             r = por_ejemplar[linea.ejemplar_id]
@@ -223,11 +251,29 @@ class Remito:
                         }
                     ],
                 )
-            linea.estado_fisico_llegada = r.estado_fisico
+            if r.resultado != ResultadoLinea.FALTANTE and r.estado_fisico is None:
+                raise RemitoInvalido(
+                    "Indique el estado físico de cada ejemplar que llegó.",
+                    [
+                        {
+                            "campo": "estado_fisico",
+                            "problema": "obligatorio",
+                            "ejemplar_id": r.ejemplar_id,
+                        }
+                    ],
+                )
+            linea.estado_fisico_llegada = (
+                None if r.resultado == ResultadoLinea.FALTANTE else r.estado_fisico
+            )
             linea.resultado = r.resultado
             linea.observacion = observacion
         resultados = {linea.resultado for linea in self.lineas}
-        if ResultadoLinea.DESTRUIDO in resultados:
+        if ResultadoLinea.FALTANTE in resultados:
+            operacion, texto = (
+                self.estado.recibir_con_faltantes,
+                "Recibido con ejemplares faltantes",
+            )
+        elif ResultadoLinea.DESTRUIDO in resultados:
             operacion, texto = self.estado.recibir_destruido, "Recibido con ejemplares destruidos"
         elif ResultadoLinea.DANADO in resultados:
             operacion, texto = self.estado.recibir_con_dano, "Recibido con ejemplares dañados"

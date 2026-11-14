@@ -117,3 +117,21 @@ class VersionRequest(BaseModel):
     model_config = ConfigDict(json_schema_extra={"example": {"version": 4}})
 
     version: int
+
+
+class RecuperarEjemplarRequest(BaseModel):
+    """Un ejemplar extraviado apareció: cómo llegó y dónde se encontró."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "estado_fisico": "BUENO",
+                "observacion": "Apareció en el depósito de la sede destino",
+                "version": 4,
+            }
+        }
+    )
+
+    estado_fisico: EstadoFisico
+    observacion: str = Field(max_length=500)
+    version: int

@@ -1,7 +1,7 @@
 """Puertos de préstamos, remitos, incidencias y parámetros de negocio."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 
 from app.models.incidencia import Incidencia
@@ -21,6 +21,7 @@ class FiltroPrestamos:
     socio_id: int | None = None
     sede_id: int | None = None  # origen o destino
     numero: str | None = None
+    sede_origen_id: int | None = None  # p. ej., los que esta sede tiene que enviar
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,8 @@ class FiltroRemitos:
     sede_id: int | None = None  # origen o destino
     numero: str | None = None
     solo_abiertos: bool = False
+    # Atrasados: sin despachar y generados antes de este momento (plazo de despacho vencido).
+    generado_antes_de: datetime | None = None
 
 
 @dataclass(frozen=True)
@@ -127,6 +130,14 @@ class IncidenciaRepository(Protocol):
     def agregar(self, incidencia: Incidencia) -> None: ...
 
     def de_remito(self, remito_id: int) -> list[Incidencia]: ...
+
+    def extravio_pendiente(self, ejemplar_id: int) -> Incidencia | None:
+        """El último extravío del ejemplar todavía sin resolver (para recuperarlo)."""
+        ...
+
+    def guardar(self, incidencia: Incidencia) -> None:
+        """Guarda la resolución de una incidencia existente."""
+        ...
 
 
 @dataclass(frozen=True)

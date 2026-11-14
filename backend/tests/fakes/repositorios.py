@@ -11,6 +11,7 @@ from tests.fakes.catalogo import (
     LibroRepositorioEnMemoria,
 )
 from tests.fakes.prestamos import (
+    IncidenciaRepositorioEnMemoria,
     ParametroRepositorioEnMemoria,
     PrestamoRepositorioEnMemoria,
     RemitoRepositorioEnMemoria,
@@ -92,6 +93,7 @@ class UnitOfWorkEnMemoria:
         self.parametros = ParametroRepositorioEnMemoria()
         self.prestamos = PrestamoRepositorioEnMemoria()
         self.remitos = RemitoRepositorioEnMemoria()
+        self.incidencias = IncidenciaRepositorioEnMemoria()
         self.reservas = ReservaRepositorioEnMemoria()
         self.confirmaciones = 0
         self.reversiones = 0

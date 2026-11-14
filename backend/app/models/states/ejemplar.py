@@ -29,7 +29,8 @@ ejemplar (estado físico y observaciones): todos los estados lo admiten salvo ``
 | Prestado      | liberar (devuelto en su sede), apartar (devuelto en otra sede),            |
 |               | enviar_a_revision (devuelto dañado), dar_de_baja (extraviado)              |
 | EnRevision    | reparar, dar_de_baja (irreparable)                                         |
-| Baja          | ninguna                                                                    |
+| Baja          | recuperar (solo un extraviado que apareció: vuelve a Disponible, o a       |
+|               | En revisión si llegó dañado). Lo controla el servicio con la incidencia.   |
 """
 
 from enum import StrEnum
@@ -87,6 +88,9 @@ class EstadoEjemplar:
 
     def dar_de_baja(self) -> "EstadoEjemplar":
         raise self._invalida("dar de baja")
+
+    def recuperar(self, *, danado: bool) -> "EstadoEjemplar":
+        raise self._invalida("recuperar")
 
     def validar_edicion(self) -> None:
         """Editar el estado físico o las observaciones no cambia la disponibilidad."""
@@ -197,9 +201,16 @@ class EnRevision(EstadoEjemplar):
 
 
 class Baja(EstadoEjemplar):
-    """Estado final: no admite transiciones ni edición (se conserva como historial)."""
+    """No admite edición y su única salida es recuperar un ejemplar extraviado que apareció.
+
+    Que la baja fue por extravío (y que la incidencia sigue abierta) lo controla el servicio:
+    una baja por destrucción o daño irreparable es definitiva.
+    """
 
     nombre = EstadoEjemplarEnum.BAJA
+
+    def recuperar(self, *, danado: bool) -> EstadoEjemplar:
+        return EnRevision() if danado else Disponible()
 
     def validar_edicion(self) -> None:
         raise self._invalida("editar")

@@ -108,8 +108,17 @@ class RemitoORM(ConAuditoriaDeTiempo, Base):
         CheckConstraint("motivo IN ('ENVIO','RETORNO','TRASLADO')", name="motivo_valido"),
         CheckConstraint(
             "estado IN ('GENERADO','EMPAQUETADO','DESPACHADO','EN_TRANSITO','RECIBIDO',"
-            "'EXTRAVIADO','DANADO','DESTRUIDO','ANULADO')",
+            "'EXTRAVIADO','DANADO','DESTRUIDO','INCOMPLETO','ANULADO')",
             name="estado_valido",
+        ),
+        CheckConstraint(
+            "(estado IN ('GENERADO','EMPAQUETADO','ANULADO')) = (fecha_despacho IS NULL)",
+            name="despacho_segun_estado",
+        ),
+        CheckConstraint(
+            "(estado IN ('RECIBIDO','DANADO','DESTRUIDO','INCOMPLETO')) "
+            "= (fecha_recepcion IS NOT NULL)",
+            name="recepcion_segun_estado",
         ),
         Index(
             "ix_remito_estado_sede_origen_id_sede_destino_id",
@@ -139,7 +148,28 @@ class RemitoORM(ConAuditoriaDeTiempo, Base):
 
 class DetalleRemitoORM(Base):
     __tablename__ = "detalle_remito"
-    __table_args__ = (UniqueConstraint("remito_id", "ejemplar_id"),)
+    __table_args__ = (
+        UniqueConstraint("remito_id", "ejemplar_id"),
+        CheckConstraint(
+            "estado_fisico_salida IN ('NUEVO','BUENO','REGULAR','DANADO')",
+            name="estado_fisico_salida_valido",
+        ),
+        CheckConstraint(
+            "estado_fisico_llegada IS NULL "
+            "OR estado_fisico_llegada IN ('NUEVO','BUENO','REGULAR','DANADO')",
+            name="estado_fisico_llegada_valido",
+        ),
+        CheckConstraint(
+            "resultado IS NULL OR resultado IN ('RECIBIDO','DANADO','DESTRUIDO','FALTANTE')",
+            name="resultado_valido",
+        ),
+        # Lo que llegó tiene estado físico; lo que falta o todavía no se verificó, no.
+        CheckConstraint(
+            "(estado_fisico_llegada IS NOT NULL) "
+            "= (resultado IS NOT NULL AND resultado <> 'FALTANTE')",
+            name="llegada_segun_resultado",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     remito_id: Mapped[int] = mapped_column(ForeignKey("remito.id"), nullable=False)
@@ -190,6 +220,19 @@ class IncidenciaORM(ConAuditoriaDeTiempo, Base):
     __table_args__ = (
         CheckConstraint("tipo IN ('EXTRAVIO','DANIO','DESTRUCCION')", name="tipo_valido"),
         CheckConstraint("origen IN ('DEVOLUCION','REMITO')", name="origen_valido"),
+        # Responsable: en un envío, la sede origen; en una devolución, el socio.
+        CheckConstraint(
+            "(origen = 'REMITO' AND remito_id IS NOT NULL AND socio_id IS NULL "
+            "AND sede_responsable_id IS NOT NULL) "
+            "OR (origen = 'DEVOLUCION' AND prestamo_id IS NOT NULL AND socio_id IS NOT NULL "
+            "AND sede_responsable_id IS NULL)",
+            name="responsable_segun_origen",
+        ),
+        CheckConstraint(
+            "(resuelta_en IS NULL) = (resolucion IS NULL) "
+            "AND (resuelta_en IS NULL OR tipo = 'EXTRAVIO')",
+            name="resolucion_coherente",
+        ),
     )
 
     tipo: Mapped[str] = mapped_column(String(15), nullable=False)
@@ -201,6 +244,10 @@ class IncidenciaORM(ConAuditoriaDeTiempo, Base):
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     usuario_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    sede_responsable_id: Mapped[int | None] = mapped_column(ForeignKey("sede.id"))
+    resuelta_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resuelta_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    resolucion: Mapped[str | None] = mapped_column(Text)
 
 
 SECUENCIA_RESERVA = Sequence("reserva_numero_seq", metadata=Base.metadata)

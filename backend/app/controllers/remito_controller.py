@@ -72,12 +72,18 @@ def listar_remitos(
     sede_id: int | None = None,
     numero: Annotated[str | None, Query(max_length=20)] = None,
     abiertos: bool = False,
+    atrasados: Annotated[
+        bool, Query(description="Solo los que pasaron el plazo de despacho sin salir")
+    ] = False,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaRemitosResponse:
-    """El bibliotecario ve los de su sede (como origen o destino)."""
+    """El bibliotecario ve los de su sede (como origen o destino).
+
+    Cada remito trae `despachar_hasta` y `atrasado` (plazo de despacho, parámetro
+    `despacho_maximo_dias`)."""
     return PaginaRemitosResponse.desde(
-        servicio.listar(actor, estado, motivo, sede_id, numero, abiertos, page, size)
+        servicio.listar(actor, estado, motivo, sede_id, numero, abiertos, page, size, atrasados)
     )
 
 

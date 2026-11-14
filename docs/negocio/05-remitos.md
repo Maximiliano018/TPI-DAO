@@ -16,7 +16,7 @@ Un **remito** es el comprobante de un envío de ejemplares entre dos sedes. Acom
 | Motivo | `Envío por préstamo` / `Retorno por devolución` / `Traslado` |
 | Estado actual | Ver ciclo de vida |
 | Fechas | Generación, despacho y recepción |
-| Responsables | Quien empaqueta, despacha y recibe |
+| Responsables | Quien empaqueta, despacha y recibe (salen del historial de estados: cada movimiento guarda su responsable) |
 | Observaciones | Texto libre |
 
 **Detalle del remito:** una línea por ejemplar enviado, con su préstamo asociado, el estado físico al salir y el estado físico al llegar.
@@ -43,7 +43,7 @@ Cada línea del detalle se asocia a un préstamo, excepto los remitos de **trasl
 Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ──▶ Recibido
    │              │              │               │
    │              │              │               ├──▶ Extraviado
-   └──▶ Anulado   └──▶ Anulado   │               └──▶ Recibido con incidencia (Dañado / Destruido)
+   └──▶ Anulado   └──▶ Anulado   │               └──▶ Recibido con incidencia (Dañado / Destruido / Incompleto)
                                  └──▶ Extraviado
 ```
 
@@ -57,19 +57,33 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 | `Extraviado` | No llegó en un plazo máximo; se da por perdido | Se evalúa baja del ejemplar |
 | `Dañado` | Llegó con daño reparable | Ejemplar a revisión en su sede propietaria: si era un envío, vuelve con un remito de retorno; si era un traslado, la revisa la nueva propietaria |
 | `Destruido` | Llegó inutilizable | Baja del ejemplar |
+| `Incompleto` | Llegó, pero faltaba al menos un ejemplar | Los que llegaron se reciben normalmente; cada faltante se da de baja por extravío |
 | `Anulado` | Cancelado antes de salir | El ejemplar vuelve a `Disponible` |
 
 **La revisión y la reparación las hace la sede dueña del ejemplar.** Si un envío por préstamo llega dañado, la sede destino no lo repara: el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno, igual que cuando el socio lo devuelve dañado en otra sede.
 
+## ¿Quién es responsable de una incidencia?
+
+- **En un envío, la sede origen**: empaqueta, despacha y custodia el material hasta que la sede destino lo recibe. En un retorno, la sede origen es la que recibió la devolución y lo manda de vuelta. La persona que lo despachó queda en el historial del remito, y quien registró la incidencia, en la incidencia.
+- **El socio nunca es responsable de lo que pasa en un envío**: no tenía el ejemplar. Las incidencias de devolución (el socio devuelve dañado o lo perdió) sí quedan a su nombre.
+
+## ¿Y si falta un ejemplar al recibir?
+
+Al verificar, la sede destino marca la línea como **«No llegó»**, con una observación. Ese ejemplar se da de baja por extravío con incidencia a cargo de la sede origen y, si era un envío, su préstamo se cancela. El resto del remito se recibe normalmente y el remito queda `Incompleto`. Si no llegó ninguno, el remito no se recibe: sigue en tránsito hasta que pueda marcarse `Extraviado`.
+
+## ¿Y si un extraviado aparece después?
+
+La sede propietaria lo **recupera**: vuelve a `Disponible` en su sede (o a `En revisión` si llegó dañado), queda en su historial y la incidencia de extravío queda **resuelta** (no se borra). Los préstamos que se cancelaron no se reabren.
+
 `Dañado` y `Destruido` se registran en la **revisión de recepción** (proceso opcional del enunciado); se incluyen porque el ciclo se evalúa críticamente y es más sencillo diseñarlos desde el inicio.
 
-*Nota de diseño:* `Despachado` y `En tránsito` pueden fusionarse si el equipo concluye que no aportan información distinta. Se mantienen separados porque permiten medir el tiempo entre «sale de la sede» y «está viajando», pero es una decisión a confirmar.
+*Nota de diseño:* `Despachado` y `En tránsito` se mantienen separados: permiten medir el tiempo entre «sale de la sede» y «está viajando». El paso a `En tránsito` lo marca la sede origen; si no lo hizo, el sistema lo completa al recibir y lo deja registrado.
 
 ### Reglas del ciclo
 
 - Las transiciones válidas son solo las del diagrama: **sin saltos ni retrocesos**.
 - Cada transición registra un `MovimientoRemito` (fecha y hora, responsable).
-- Estados **finales**: `Recibido`, `Extraviado`, `Dañado`, `Destruido` y `Anulado`.
+- Estados **finales**: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` y `Anulado`.
 - Un remito `Despachado` ya no se puede anular.
 - La anulación solo es posible antes del despacho.
 
@@ -79,7 +93,7 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 |--------|-------|
 | Generar y empaquetar | Bibliotecario de la **sede origen** |
 | Despachar | Bibliotecario de la sede origen |
-| Marcar en tránsito | Bibliotecario de la sede origen (o automático al despachar) |
+| Marcar en tránsito | Bibliotecario de la sede origen (si no lo hace, el sistema lo completa al recibir) |
 | Recibir y verificar | Bibliotecario de la **sede destino** |
 | Registrar incidencia | Bibliotecario de la sede destino |
 | Anular | Bibliotecario de la sede origen, antes del despacho |
@@ -91,7 +105,8 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 2. **Empaquetar y despachar.**
 3. **Seguimiento** del estado y del historial.
 4. **Recepción:** el destino verifica contenido y estado físico, y confirma por línea.
-5. **Incidencia:** extravío (vencido el plazo máximo de tránsito), daño o destrucción.
+5. **Incidencia:** extravío (vencido el plazo máximo de tránsito, o un ejemplar que no llegó), daño o destrucción.
+8. **Recuperación** de un ejemplar extraviado que aparece después (ver [Catálogo](03-catalogo.md)).
 6. **Anulación** antes del despacho.
 7. **Remito de retorno** al registrar la devolución en una sede distinta de la propietaria.
 
@@ -104,8 +119,9 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 - Un ejemplar no puede estar en dos remitos abiertos a la vez.
 - No se puede recibir un remito en una sede distinta del destino.
 - Plazo máximo de tránsito (parámetro, valor 7 días): vencido, se puede marcar `Extraviado`.
+- Plazo de despacho (parámetro, valor 3 días desde la generación): vencido sin despachar, el remito figura **atrasado** para que la sede origen lo despache o lo anule.
 - Número de remito único.
 
 ## Parámetros a tener en cuenta
 
-Plazo máximo de tránsito antes de considerar extravío, y plazo de préstamo interbibliotecario (cuenta desde la entrega al socio).
+Plazo máximo de tránsito antes de considerar extravío, plazo de despacho antes de marcar el remito como atrasado, y plazo de préstamo interbibliotecario (cuenta desde la entrega al socio).

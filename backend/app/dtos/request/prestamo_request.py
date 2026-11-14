@@ -77,14 +77,17 @@ class RemitoCrearRequest(BaseModel):
 
 
 class LineaRecepcionRequest(BaseModel):
+    """Una línea verificada. ``faltante``: el ejemplar no llegó (no lleva estado físico)."""
+
     ejemplar_id: int
-    estado_fisico: EstadoFisico
+    estado_fisico: EstadoFisico | None = None
     destruido: bool = False
+    faltante: bool = False
     observacion: str | None = Field(default=None, max_length=600)
 
 
 class RecepcionRequest(BaseModel):
-    """Verificación de cada ejemplar al recibir (daño o destrucción con observación)."""
+    """Verificación de cada ejemplar al recibir (daño, destrucción o faltante con observación)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -102,7 +105,11 @@ class RecepcionRequest(BaseModel):
     def a_recepcion(self) -> list[RecepcionLinea]:
         return [
             RecepcionLinea(
-                linea.ejemplar_id, linea.estado_fisico, linea.destruido, linea.observacion
+                linea.ejemplar_id,
+                linea.estado_fisico,
+                linea.destruido,
+                linea.observacion,
+                faltante=linea.faltante,
             )
             for linea in self.lineas
         ]

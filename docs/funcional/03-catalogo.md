@@ -18,6 +18,7 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | RF-CAT-10 | La consulta de catálogo debe incluir las sedes activas de toda la red; los ejemplares de sedes en `Baja` no se ofrecen. | Obligatorio |
 | RF-CAT-11 | El sistema debe permitir trasladar un ejemplar a otra sede (cambio de sede propietaria) mediante remito de traslado. | Obligatorio |
 | RF-CAT-12 | Cada rol debe ver del catálogo solo lo que le corresponde: la auditoría del libro (quién lo cargó y lo modificó) solo el administrador; el estado físico, el historial y la gestión de ejemplares, solo el personal. | Obligatorio |
+| RF-CAT-13 | El sistema debe permitir a la sede propietaria recuperar un ejemplar dado de baja por extravío que apareció: vuelve a `Disponible` en su sede (o a `En revisión` si llegó dañado) y la incidencia queda resuelta. Una baja por destrucción o daño irreparable es definitiva. | Obligatorio |
 
 ## Casos de uso
 
@@ -84,6 +85,16 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
   - **A1:** ejemplar no `Disponible`; rechaza.
   - **A2:** sede destino en `Baja`; rechaza.
 
+### CU-CAT-07. Recuperar un ejemplar extraviado
+
+- **Actor:** Bibliotecario de la sede propietaria, Administrador.
+- **Precondición:** el ejemplar está en `Baja` por un extravío (remito extraviado, faltante o devolución extraviada) cuya incidencia no se resolvió.
+- **Flujo normal:** indica el estado físico y dónde apareció; el ejemplar vuelve a `Disponible` en su sede propietaria, queda en su historial, la incidencia se marca resuelta y se ofrece a la cola de reservas.
+- **Flujos alternativos:**
+  - **A1:** llegó dañado; queda `En revisión`.
+  - **A2:** la baja no fue por extravío (destrucción, daño irreparable, depuración); rechaza.
+  - **A3:** los préstamos cancelados por el extravío no se reabren.
+
 ## Criterios de aceptación
 
 | ID | RF | Criterio |
@@ -107,3 +118,5 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | CA-CAT-17 | RF-CAT-12 | **Dado** un libro, **cuando** lo consulta un bibliotecario o un socio, **entonces** la respuesta no incluye quién lo cargó ni quién lo modificó; el administrador sí lo ve. |
 | CA-CAT-18 | RF-CAT-09 | **Dado** un libro cuyo ISBN contiene «07», **cuando** se busca «07», **entonces** no aparece (el ISBN se compara con 6 dígitos o más). |
 | CA-CAT-19 | RF-CAT-01 | **Dado** un libro modificado por otra persona, **cuando** se guarda con una versión anterior, **entonces** se rechaza con conflicto de versión. |
+| CA-CAT-20 | RF-CAT-13 | **Dado** un ejemplar dado de baja por faltante en un remito, **cuando** la sede propietaria lo recupera, **entonces** queda `Disponible` en su sede, sin datos de baja, con el movimiento «Recuperado» y la incidencia resuelta; otra sede no puede hacerlo. |
+| CA-CAT-21 | RF-CAT-13 | **Dado** un ejemplar dado de baja por destrucción, **cuando** se intenta recuperar, **entonces** se rechaza. |

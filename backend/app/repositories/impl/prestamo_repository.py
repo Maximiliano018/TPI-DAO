@@ -15,6 +15,7 @@ from app.db.models import (
     ParametroORM,
     PrestamoORM,
     RemitoORM,
+    SedeORM,
 )
 from app.db.models.prestamo import SECUENCIA_PRESTAMO, SECUENCIA_REMITO
 from app.models.ejemplar import EstadoFisico
@@ -182,6 +183,8 @@ class SqlAlchemyPrestamoRepository:
             )
         if filtro.numero:
             condiciones.append(PrestamoORM.numero.contains(filtro.numero.upper(), autoescape=True))
+        if filtro.sede_origen_id is not None:
+            condiciones.append(PrestamoORM.sede_origen_id == filtro.sede_origen_id)
         total = self._sesion.scalar(select(func.count(PrestamoORM.id)).where(*condiciones))
         filas = self._varios(
             select(PrestamoORM)
@@ -358,6 +361,13 @@ class SqlAlchemyRemitoRepository:
             )
         if filtro.numero:
             condiciones.append(RemitoORM.numero.contains(filtro.numero.upper(), autoescape=True))
+        if filtro.generado_antes_de is not None:
+            condiciones.append(
+                RemitoORM.estado.in_(
+                    [EstadoRemitoEnum.GENERADO.value, EstadoRemitoEnum.EMPAQUETADO.value]
+                )
+            )
+            condiciones.append(RemitoORM.fecha_generacion < filtro.generado_antes_de)
         total = self._sesion.scalar(select(func.count(RemitoORM.id)).where(*condiciones))
         filas = self._sesion.scalars(
             select(RemitoORM)
@@ -486,30 +496,68 @@ class SqlAlchemyIncidenciaRepository:
         self._sesion = sesion
 
     def agregar(self, incidencia: Incidencia) -> None:
-        self._sesion.add(
-            IncidenciaORM(
-                tipo=incidencia.tipo.value,
-                origen=incidencia.origen.value,
-                ejemplar_id=incidencia.ejemplar_id,
-                socio_id=incidencia.socio_id,
-                prestamo_id=incidencia.prestamo_id,
-                remito_id=incidencia.remito_id,
-                descripcion=incidencia.descripcion,
-                fecha=incidencia.fecha,
-                usuario_id=incidencia.usuario.id if incidencia.usuario else None,
-            )
+        orm = IncidenciaORM(
+            tipo=incidencia.tipo.value,
+            origen=incidencia.origen.value,
+            ejemplar_id=incidencia.ejemplar_id,
+            socio_id=incidencia.socio_id,
+            prestamo_id=incidencia.prestamo_id,
+            remito_id=incidencia.remito_id,
+            sede_responsable_id=incidencia.sede_responsable_id,
+            descripcion=incidencia.descripcion,
+            fecha=incidencia.fecha,
+            usuario_id=incidencia.usuario.id if incidencia.usuario else None,
         )
+        self._sesion.add(orm)
+        self._sesion.flush()
+        incidencia.id = orm.id
+
+    def guardar(self, incidencia: Incidencia) -> None:
+        assert incidencia.id is not None
+        orm = self._sesion.get(IncidenciaORM, incidencia.id)
+        assert orm is not None
+        orm.resuelta_en = incidencia.resuelta_en
+        orm.resuelta_por_id = incidencia.resuelta_por.id if incidencia.resuelta_por else None
+        orm.resolucion = incidencia.resolucion
         self._sesion.flush()
 
     def de_remito(self, remito_id: int) -> list[Incidencia]:
-        filas = list(
-            self._sesion.scalars(
-                select(IncidenciaORM)
-                .where(IncidenciaORM.remito_id == remito_id)
-                .order_by(IncidenciaORM.id)
-            )
+        return self._varias(
+            select(IncidenciaORM)
+            .where(IncidenciaORM.remito_id == remito_id)
+            .order_by(IncidenciaORM.id)
         )
-        nombres = _refs(self._sesion, (f.usuario_id for f in filas))
+
+    def extravio_pendiente(self, ejemplar_id: int) -> Incidencia | None:
+        filas = self._varias(
+            select(IncidenciaORM)
+            .where(
+                IncidenciaORM.ejemplar_id == ejemplar_id,
+                IncidenciaORM.tipo == TipoIncidencia.EXTRAVIO.value,
+                IncidenciaORM.resuelta_en.is_(None),
+            )
+            .order_by(IncidenciaORM.fecha.desc(), IncidenciaORM.id.desc())
+            .limit(1)
+            .with_for_update(of=IncidenciaORM)
+        )
+        return filas[0] if filas else None
+
+    def _varias(self, consulta: Any) -> list[Incidencia]:
+        filas = list(self._sesion.scalars(consulta))
+        nombres = _refs(
+            self._sesion,
+            (u for f in filas for u in (f.usuario_id, f.resuelta_por_id)),
+        )
+        sedes_ids = {f.sede_responsable_id for f in filas if f.sede_responsable_id is not None}
+        sedes = (
+            dict(
+                self._sesion.execute(
+                    select(SedeORM.id, SedeORM.nombre).where(SedeORM.id.in_(sedes_ids))
+                ).all()
+            )
+            if sedes_ids
+            else {}
+        )
         return [
             Incidencia(
                 tipo=TipoIncidencia(f.tipo),
@@ -521,6 +569,14 @@ class SqlAlchemyIncidenciaRepository:
                 socio_id=f.socio_id,
                 prestamo_id=f.prestamo_id,
                 remito_id=f.remito_id,
+                sede_responsable_id=f.sede_responsable_id,
+                id=f.id,
+                resuelta_en=f.resuelta_en,
+                resuelta_por=_ref(nombres, f.resuelta_por_id),
+                resolucion=f.resolucion,
+                sede_responsable_nombre=(
+                    sedes.get(f.sede_responsable_id) if f.sede_responsable_id else None
+                ),
             )
             for f in filas
         ]

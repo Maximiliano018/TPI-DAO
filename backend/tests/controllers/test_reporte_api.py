@@ -39,11 +39,15 @@ def _con_transito(sesion, remito, dias):
 
 
 def _remito_sql(sesion, m, numero, estado, destino="b", despacho=True):
+    # La base exige fechas coherentes con el estado (ck_remito_*_segun_estado).
+    recibido = estado in ("RECIBIDO", "DANADO", "DESTRUIDO", "INCOMPLETO")
     sesion.execute(
         text(
             "INSERT INTO remito (numero, sede_origen_id, sede_destino_id, motivo, estado, "
-            "fecha_generacion, fecha_despacho, version) VALUES (:n, :o, :d, 'TRASLADO', :e, "
-            "now() - interval '3 days', CASE WHEN :desp THEN now() - interval '2 days' END, 1)"
+            "fecha_generacion, fecha_despacho, fecha_recepcion, version) "
+            "VALUES (:n, :o, :d, 'TRASLADO', :e, now() - interval '3 days', "
+            "CASE WHEN :desp THEN now() - interval '2 days' END, "
+            "CASE WHEN :recibido THEN now() - interval '1 day' END, 1)"
         ),
         {
             "n": numero,
@@ -51,6 +55,7 @@ def _remito_sql(sesion, m, numero, estado, destino="b", despacho=True):
             "d": m[destino]["id"],
             "e": estado,
             "desp": despacho,
+            "recibido": recibido,
         },
     )
 
@@ -147,15 +152,17 @@ def test_r2_calcula_la_tasa_de_exito_sin_anulados_ni_abiertos(cliente, mundo, se
         _remito_sql(sesion, mundo, f"T-{i}", "RECIBIDO", destino="b" if i < 5 else "c")
     _remito_sql(sesion, mundo, "T-EXT", "EXTRAVIADO")
     _remito_sql(sesion, mundo, "T-DAN", "DANADO")
+    _remito_sql(sesion, mundo, "T-INC", "INCOMPLETO")  # recibido con faltantes
     _remito_sql(sesion, mundo, "T-ANU", "ANULADO", despacho=False)
     _remito_sql(sesion, mundo, "T-ABI", "EN_TRANSITO")
     sesion.commit()
 
     r = cliente.get(f"{API}/envios-e-incidencias", headers=mundo["h_admin"]).json()
 
-    assert (r["total_envios"], r["recibidos"], r["extraviados"], r["danados"]) == (10, 8, 1, 1)
-    assert (r["tasa_exito"], r["tasa_incidencias"]) == (0.8, 0.2)
-    assert [(s["sede"], s["total_envios"]) for s in r["por_sede"]] == [("Sede SEDE_A", 10)]
+    assert (r["total_envios"], r["recibidos"], r["extraviados"], r["danados"]) == (11, 8, 1, 1)
+    assert r["incompletos"] == 1
+    assert (r["tasa_exito"], r["tasa_incidencias"]) == (0.7273, 0.2727)
+    assert [(s["sede"], s["total_envios"]) for s in r["por_sede"]] == [("Sede SEDE_A", 11)]
     de_c = cliente.get(
         f"{API}/envios-e-incidencias",
         params={"sede_id": mundo["c"]["id"]},

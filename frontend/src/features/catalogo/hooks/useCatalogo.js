@@ -12,6 +12,7 @@ import {
   obtenerDisponibilidad,
   obtenerEjemplar,
   obtenerLibro,
+  recuperarEjemplar,
   repararEjemplar,
 } from '../../../api/catalogo.js';
 
@@ -75,3 +76,5 @@ export const useBajaEjemplar = () =>
   useMutacionDelCatalogo(({ id, ...datos }) => darDeBajaEjemplar(id, datos));
 export const useRepararEjemplar = () =>
   useMutacionDelCatalogo(({ id, version }) => repararEjemplar(id, version));
+export const useRecuperarEjemplar = () =>
+  useMutacionDelCatalogo(({ id, ...datos }) => recuperarEjemplar(id, datos));

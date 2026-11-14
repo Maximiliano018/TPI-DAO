@@ -72,6 +72,8 @@ stateDiagram-v2
     Prestado --> Baja : extraviado
     EnRevision --> Disponible : reparado
     EnRevision --> Baja : irreparable
+    Baja --> Disponible : recuperado (extravío que apareció)
+    Baja --> EnRevision : recuperado dañado
 ```
 
 `EnTransito` aparece sin tilde en el diagrama por limitación de Mermaid; en el código es `EN_TRANSITO`.
@@ -86,6 +88,8 @@ stateDiagram-v2
 En ambos casos, al recibirse dañado en su sede pasa a `EnRevision` sin otra incidencia, porque el daño ya se registró.
 
 **Traslado dañado.** Un traslado cambia la sede propietaria aunque el ejemplar llegue dañado: la nueva dueña lo revisa y decide su reparación o baja (CA-REM-21). Si llega destruido, la baja queda en la sede origen.
+
+**Recuperación de un extraviado.** `Baja` es final, salvo un caso: un ejemplar dado de baja por extravío (remito extraviado, faltante o devolución extraviada) que aparece. La sede propietaria lo recupera: `Baja.recuperar` lo devuelve a `Disponible` (o a `EnRevision` si llegó dañado), en su sede, y la incidencia queda resuelta. Que la baja sea por un extravío sin resolver lo controla el servicio; una baja por destrucción o daño irreparable es definitiva.
 
 **Edición de datos.** El estado físico y las observaciones se editan en cualquier estado salvo `Baja` (`EstadoEjemplar.validar_edicion`): un ejemplar dado de baja es historial y no cambia (CA-CAT-15).
 
@@ -148,10 +152,12 @@ stateDiagram-v2
     EnTransito --> Extraviado : plazo máximo vencido
     EnTransito --> Danado : recibido con daño
     EnTransito --> Destruido : recibido inutilizable
+    EnTransito --> Incompleto : recibido con faltantes
     Recibido --> [*]
     Extraviado --> [*]
     Danado --> [*]
     Destruido --> [*]
+    Incompleto --> [*]
     Anulado --> [*]
 ```
 
@@ -161,18 +167,24 @@ stateDiagram-v2
 |------------|-------|-------------------------------|
 | `Generado` | Bibliotecario sede origen | Préstamos asociados pasan a `EnEnvio` |
 | `Despachado` | Sede origen | Ejemplares `EnTransito` |
-| `Recibido` | Sede destino | Ejemplares `Prestado` (entrega al socio, préstamo `Activo`) o `Disponible` (retorno o traslado); en traslado cambia la sede propietaria |
+| `Recibido` | Sede destino | Ejemplares `Apartado` hasta la entrega al socio (envío) o `Disponible` (retorno o traslado); en traslado cambia la sede propietaria |
 | `Anulado` | Sede origen, solo antes del despacho | Ejemplares `Disponible`, préstamos `Cancelado` |
 | `Extraviado` | Origen, destino o administrador, plazo vencido (7 días) | Ejemplares `Baja` con incidencia, préstamos `Cancelado` |
 | `Danado` | Sede destino | Ejemplar `EnRevision`, incidencia, préstamo `Cancelado` |
 | `Destruido` | Sede destino | Ejemplar `Baja`, incidencia, préstamo `Cancelado` |
+| `Incompleto` | Sede destino | Cada faltante en `Baja` por extravío con incidencia y su préstamo `Cancelado`; el resto se recibe normalmente |
+
+Todas las incidencias de un remito quedan a cargo de la **sede origen** (`incidencia.sede_responsable_id`), nunca del socio.
+
+**Plazo de despacho.** Un remito `Generado` o `Empaquetado` tiene hasta `despacho_maximo_dias` (3) desde su generación para salir. Vencido, figura **atrasado**: el estado no cambia, pero el listado lo marca y lo puede filtrar, y la sede origen decide si lo despacha o lo anula.
 
 La recepción desde `Despachado` se admite completando el estado `EnTransito` en el mismo acto, de modo que el historial muestre ambos movimientos.
 
 **Críticas al ciclo (la cátedra lo evaluará):**
 
-- `Despachado` y `EnTransito` se distinguen porque permiten medir el tiempo entre «sale de la sede» y «está viajando». Si no se necesitara esa granularidad, pueden fusionarse.
-- `Recibido`, `Danado` y `Destruido` son resultados de la revisión de recepción; el daño parcial (una línea sí, otra no) se registra por línea en `DetalleRemito` y el estado del remito sigue la peor condición.
+- `Despachado` y `EnTransito` se distinguen porque permiten medir el tiempo entre «sale de la sede» y «está viajando».
+- `Recibido`, `Danado`, `Destruido` e `Incompleto` son resultados de la revisión de recepción; el daño o la falta parcial (una línea sí, otra no) se registra por línea en `DetalleRemito` y el estado del remito sigue la peor condición (faltante, destruido, dañado). Si no llegó ningún ejemplar no se recibe: el remito sigue en tránsito hasta que pueda marcarse `Extraviado`.
+- `Despachado` y `EnTransito` se mantienen separados (decisión confirmada en la revisión del módulo).
 - No existe `Devuelto` ni retroceso: un remito extraviado que aparece después no se reabre, se corrige con un ajuste administrativo.
 
 ## Reserva

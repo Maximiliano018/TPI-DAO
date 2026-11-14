@@ -4,12 +4,14 @@ import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
   Breadcrumb,
+  BusquedaConEspera,
   Button,
   Card,
   Checkbox,
   EmptyState,
   ErrorState,
   PageHeader,
+  Pagination,
   Select,
   Skeleton,
   Textarea,
@@ -22,16 +24,22 @@ import { useEjemplares } from '../../catalogo/hooks/useCatalogo.js';
 import { useGenerarRemito, usePrestamos } from '../../prestamos/hooks/usePrestamos.js';
 import { useSedes } from '../../sedes/hooks/useSedes.js';
 
-/** Envío: préstamos entre sedes solicitados que salen de esta sede, agrupados por destino. */
+/**
+ * Envío: préstamos entre sedes solicitados que salen de esta sede, agrupados por destino. El
+ * filtro por sede origen lo hace el servidor, y se pagina: se ven todos aunque sean muchos.
+ */
 function LineasDeEnvio({ sedeId, destinoId, onDestino, elegidos, onElegidos }) {
+  const [page, setPage] = useState(1);
   const { data, isPending, error, refetch } = usePrestamos({
     estado: 'SOLICITADO',
     tipo: 'INTERBIBLIOTECARIO',
+    sede_origen_id: sedeId,
+    page,
     size: 100,
   });
   if (isPending) return <Skeleton alto={96} />;
   if (error) return <ErrorState error={error} onReintentar={refetch} />;
-  const pendientes = data.items.filter((p) => p.sede_origen_id === sedeId);
+  const pendientes = data.items;
   if (pendientes.length === 0) {
     return <EmptyState titulo="No hay préstamos esperando envío desde su sede" />;
   }
@@ -69,14 +77,23 @@ function LineasDeEnvio({ sedeId, destinoId, onDestino, elegidos, onElegidos }) {
           }
         />
       ))}
+      <Pagination page={data.page} size={data.size} total={data.total} onPage={setPage} />
     </>
   );
 }
 
-/** Traslado: ejemplares disponibles de esta sede hacia otra sede activa. */
+/** Traslado: ejemplares disponibles de esta sede (buscables por código) hacia otra sede activa. */
 function LineasDeTraslado({ sedeId, destinoId, onDestino, elegidos, onElegidos }) {
+  const [codigo, setCodigo] = useState('');
+  const [page, setPage] = useState(1);
   const sedes = useSedes({ estado: 'ACTIVA', orden: 'nombre', size: 100 });
-  const ejemplares = useEjemplares({ sede_id: sedeId, estado: 'DISPONIBLE', size: 100 });
+  const ejemplares = useEjemplares({
+    sede_id: sedeId,
+    estado: 'DISPONIBLE',
+    codigo: codigo || undefined,
+    page,
+    size: 50,
+  });
   if (sedes.isPending || ejemplares.isPending) return <Skeleton alto={96} />;
   if (sedes.error || ejemplares.error)
     return <ErrorState error={sedes.error ?? ejemplares.error} />;
@@ -100,6 +117,14 @@ function LineasDeTraslado({ sedeId, destinoId, onDestino, elegidos, onElegidos }
             </option>
           ))}
       </Select>
+      <BusquedaConEspera
+        etiqueta="Buscar ejemplar por código"
+        valor={codigo}
+        onBuscar={(texto) => {
+          setCodigo(texto);
+          setPage(1);
+        }}
+      />
       {propios.length === 0 && <p>No hay ejemplares disponibles en su sede.</p>}
       {propios.map((e) => (
         <Checkbox
@@ -115,6 +140,12 @@ function LineasDeTraslado({ sedeId, destinoId, onDestino, elegidos, onElegidos }
           }
         />
       ))}
+      <Pagination
+        page={ejemplares.data.page}
+        size={ejemplares.data.size}
+        total={ejemplares.data.total}
+        onPage={setPage}
+      />
     </>
   );
 }
