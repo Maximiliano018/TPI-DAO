@@ -57,6 +57,14 @@ class FichaSocio:
     situacion: SituacionSocio
 
 
+@dataclass(frozen=True)
+class BajaDeSocio:
+    """Resultado de la baja: el socio y cuántas reservas activas se le cancelaron."""
+
+    socio: Socio
+    reservas_canceladas: int
+
+
 class SocioService:
     """Casos de uso de socios; las reglas de estado viven en ``Socio``."""
 
@@ -123,6 +131,7 @@ class SocioService:
         personales = self._validar(datos)
         with self._transaccion():
             socio = self._para_modificar(socio_id)
+            socio.validar_editable()
             if personales.documento != socio.datos.documento:
                 self._rechazar_documento_repetido(personales.documento, excluir_id=socio_id)
             if socio.modificar(personales, actor=_ref(actor), ahora=self._reloj.ahora()):
@@ -155,8 +164,12 @@ class SocioService:
             self._uow.socios.guardar(socio)
         return socio
 
-    def dar_de_baja(self, actor: Usuario, socio_id: int, motivo: str) -> Socio:
-        """Baja lógica, solo sin préstamos en curso ni multas pendientes (RF-SOC-09)."""
+    def dar_de_baja(self, actor: Usuario, socio_id: int, motivo: str) -> BajaDeSocio:
+        """Baja lógica, solo sin préstamos en curso ni multas pendientes (RF-SOC-09).
+
+        Cancela las reservas activas del socio y devuelve cuántas, para informarlo
+        (CU-SOC-04, A2).
+        """
         actor.exigir(Permiso.SOCIO_ADMINISTRAR)
         with self._transaccion():
             socio = self._para_modificar(socio_id)
@@ -168,8 +181,10 @@ class SocioService:
             )
             self._uow.socios.guardar(socio)
             # Sus reservas activas se cancelan y los ejemplares pasan a la siguiente.
-            ReservaService(self._uow, self._reloj).cancelar_del_socio(socio_id, _ref(actor))
-        return socio
+            canceladas = ReservaService(self._uow, self._reloj).cancelar_del_socio(
+                socio_id, _ref(actor)
+            )
+        return BajaDeSocio(socio, canceladas)
 
     def reactivar(self, actor: Usuario, socio_id: int) -> Socio:
         """Reactiva a un socio dado de baja (en lugar de registrarlo de nuevo)."""

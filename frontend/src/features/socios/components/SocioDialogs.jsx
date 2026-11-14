@@ -75,21 +75,31 @@ export function InhabilitarSocioDialog({ socio, onCerrar }) {
   );
 }
 
+const reservas = (n) => (n === 1 ? '1 reserva activa' : `${n} reservas activas`);
+
 export function BajaSocioDialog({ socio, onCerrar }) {
   const baja = useBajaSocio();
   const { mostrar } = useToast();
+  const activas = socio.situacion?.reservas_activas ?? 0;
+  const aviso = activas
+    ? ` Tiene ${reservas(activas)}: se van a cancelar y los ejemplares pasan al siguiente en la cola.`
+    : '';
   return (
     <DialogoConMotivo
       titulo={`Dar de baja a ${nombreDe(socio)}`}
-      descripcion="Solo se puede si no tiene préstamos en curso ni multas pendientes. Se conserva su historial y puede reactivarse."
+      descripcion={`Solo se puede si no tiene préstamos en curso ni multas pendientes. Se conserva su historial y puede reactivarse.${aviso}`}
       textoConfirmar="Dar de baja"
       procesando={baja.isPending}
       enviar={(motivo, alFallar) =>
         baja.mutate(
           { id: socio.id, motivo },
           {
-            onSuccess: () => {
-              mostrar('Socio dado de baja');
+            onSuccess: ({ reservas_canceladas: canceladas }) => {
+              mostrar(
+                canceladas
+                  ? `Socio dado de baja. Se cancelaron ${canceladas === 1 ? '1 reserva' : `${canceladas} reservas`}.`
+                  : 'Socio dado de baja',
+              );
               onCerrar();
             },
             onError: alFallar,

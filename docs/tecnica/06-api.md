@@ -516,13 +516,13 @@ Errores, en este orden: `422 VALIDACION` (forma) → `409 DUPLICADO` (documento 
 
 ```json
 { "id": 45, "numero_socio": "00045", "estado": "INHABILITADO", "motivo_inhabilitacion": "PRESTAMO_VENCIDO",
-  "causas_inhabilitacion": ["PRESTAMO_VENCIDO"], "motivo_administrativo": null,
-  "situacion": { "prestamos_activos": 1, "prestamos_vencidos": 1, "multas_pendientes": 0, "reservas_activas": 0 } }
+  "causas_inhabilitacion": ["MULTA_IMPAGA", "PRESTAMO_VENCIDO"], "motivo_administrativo": null,
+  "situacion": { "prestamos_activos": 1, "prestamos_vencidos": 1, "multas_pendientes": 1, "reservas_activas": 0 } }
 ```
 
-Un socio que consulta la ficha de otro recibe `404 SOCIO_NO_ENCONTRADO` (no se revela si existe).
+`causas_inhabilitacion` lista todas las causas vigentes; `motivo_inhabilitacion` es la de mayor prioridad (administrativa, préstamo vencido, multa impaga). Un socio que consulta la ficha de otro recibe `404 SOCIO_NO_ENCONTRADO` (no se revela si existe).
 
-Estados: `POST /socios/{id}/inhabilitar` y `/baja` reciben `{ "motivo": "..." }` (5 a 300 caracteres). Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa).
+Estados: `POST /socios/{id}/inhabilitar` y `/baja` reciben `{ "motivo": "..." }` (5 a 300 caracteres). Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa). La baja cancela las reservas activas del socio y su respuesta agrega `reservas_canceladas` con la cantidad. Al modificar un socio en baja se responde `409 SOCIO_EN_BAJA` antes de revisar el documento.
 
 `POST /socios/{id}/cuenta` recibe `{ "username": "lucia.gomez", "password": "••••••••••" }` con las mismas reglas que el alta de personal. Errores: `409 SOCIO_CON_CUENTA`, `409 DUPLICADO` (usuario repetido), `409 SOCIO_EN_BAJA`.
 
