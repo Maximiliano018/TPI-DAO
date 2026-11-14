@@ -1,4 +1,4 @@
-"""Casos de uso de socios: alta, búsqueda, modificación, inhabilitación, baja y cuenta."""
+"""Casos de uso de socios: alta, búsqueda, estados, baja, reactivación, cuenta e historial."""
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -21,8 +21,10 @@ from app.models.socio import (
     DatosPersonales,
     Documento,
     EstadoSocio,
+    EventoSocio,
     SituacionSocio,
     Socio,
+    TipoBaja,
     TipoDocumento,
 )
 from app.models.usuario import Permiso, Rol, Usuario, UsuarioRef, validar_clave
@@ -33,6 +35,8 @@ from app.utils.reloj import Reloj
 from app.utils.texto import normalizar, quitar_tildes
 
 MENSAJE_NO_ENCONTRADO = "El socio solicitado no existe."
+ORIGEN_MOSTRADOR = "Reactivación en mostrador"
+ORIGEN_SOLICITUD = "Solicitud de reactivación aprobada"
 
 
 @dataclass(frozen=True)
@@ -164,21 +168,33 @@ class SocioService:
             self._uow.socios.guardar(socio)
         return socio
 
-    def dar_de_baja(self, actor: Usuario, socio_id: int, motivo: str) -> BajaDeSocio:
+    def dar_de_baja(
+        self, actor: Usuario, socio_id: int, tipo: TipoBaja, motivo: str
+    ) -> BajaDeSocio:
         """Baja lógica, solo sin préstamos en curso ni multas pendientes (RF-SOC-09).
 
-        Cancela las reservas activas del socio y devuelve cuántas, para informarlo
-        (CU-SOC-04, A2).
+        La baja a pedido del socio la registra el personal; la administrativa y la de
+        fallecimiento, solo el administrador. Cancela las reservas activas del socio y devuelve
+        cuántas (CU-SOC-04, A2). La baja por fallecimiento además desactiva su cuenta.
+
+        Raises:
+            PermisoDenegado, SocioNoEncontrado, SocioYaEnBaja, ErrorDeValidacion,
+            SocioConActividadPendiente.
         """
-        actor.exigir(Permiso.SOCIO_ADMINISTRAR)
+        actor.exigir(Permiso.SOCIO_REGISTRAR)
         with self._transaccion():
             socio = self._para_modificar(socio_id)
+            ahora = self._reloj.ahora()
             socio.dar_de_baja(
                 self._uow.socios.situacion(socio_id),
+                tipo,
                 motivo,
                 actor=_ref(actor),
-                ahora=self._reloj.ahora(),
+                es_administrador=actor.puede(Permiso.SOCIO_ADMINISTRAR),
+                ahora=ahora,
             )
+            if tipo == TipoBaja.FALLECIMIENTO:
+                self._desactivar_cuenta(socio, actor)
             self._uow.socios.guardar(socio)
             # Sus reservas activas se cancelan y los ejemplares pasan a la siguiente.
             canceladas = ReservaService(self._uow, self._reloj).cancelar_del_socio(
@@ -187,11 +203,77 @@ class SocioService:
         return BajaDeSocio(socio, canceladas)
 
     def reactivar(self, actor: Usuario, socio_id: int) -> Socio:
-        """Reactiva a un socio dado de baja (en lugar de registrarlo de nuevo)."""
-        actor.exigir(Permiso.SOCIO_ADMINISTRAR)
+        """Reactivación en mostrador: el socio la pide y el personal la registra.
+
+        La baja a pedido la reactiva el personal; la administrativa, solo el administrador; la
+        de fallecimiento no se reactiva. Si había una solicitud pendiente, queda resuelta.
+
+        Raises:
+            PermisoDenegado, SocioNoEncontrado, SocioYaActivo, SocioNoReactivable.
+        """
+        actor.exigir(Permiso.SOCIO_REGISTRAR)
         with self._transaccion():
             socio = self._para_modificar(socio_id)
-            socio.reactivar(actor=_ref(actor), ahora=self._reloj.ahora())
+            socio.reactivar(
+                actor=_ref(actor),
+                es_administrador=actor.puede(Permiso.SOCIO_ADMINISTRAR),
+                ahora=self._reloj.ahora(),
+                origen=ORIGEN_MOSTRADOR,
+            )
+            self._uow.socios.guardar(socio)
+        return socio
+
+    # --- solicitud de reactivación --------------------------------------------------------
+
+    def solicitar_reactivacion(self, actor: Usuario, socio_id: int, mensaje: str | None) -> Socio:
+        """El socio dado de baja pide volver desde su cuenta (solo para sí mismo).
+
+        Raises:
+            SocioNoEncontrado: No existe o no es la ficha del socio autenticado.
+            SocioYaActivo, SocioNoReactivable, SolicitudYaPendiente, ErrorDeValidacion.
+        """
+        if not (actor.puede(Permiso.SOCIO_VER_PROPIO) and actor.socio_id == socio_id):
+            raise SocioNoEncontrado(MENSAJE_NO_ENCONTRADO)
+        with self._transaccion():
+            socio = self._para_modificar(socio_id)
+            socio.solicitar_reactivacion(mensaje, actor=_ref(actor), ahora=self._reloj.ahora())
+            self._uow.socios.guardar(socio)
+        return socio
+
+    def aprobar_solicitud(self, actor: Usuario, socio_id: int) -> Socio:
+        """Aprueba la solicitud pendiente: el socio se reactiva.
+
+        Raises:
+            PermisoDenegado, SocioNoEncontrado, SinSolicitudPendiente.
+        """
+        actor.exigir(Permiso.SOCIO_REGISTRAR)
+        with self._transaccion():
+            socio = self._para_modificar(socio_id)
+            socio.exigir_solicitud_pendiente()
+            socio.reactivar(
+                actor=_ref(actor),
+                es_administrador=actor.puede(Permiso.SOCIO_ADMINISTRAR),
+                ahora=self._reloj.ahora(),
+                origen=ORIGEN_SOLICITUD,
+            )
+            self._uow.socios.guardar(socio)
+        return socio
+
+    def rechazar_solicitud(self, actor: Usuario, socio_id: int, motivo: str) -> Socio:
+        """Rechaza la solicitud pendiente con un motivo; el socio sigue en baja.
+
+        Raises:
+            PermisoDenegado, SocioNoEncontrado, SinSolicitudPendiente, ErrorDeValidacion.
+        """
+        actor.exigir(Permiso.SOCIO_REGISTRAR)
+        with self._transaccion():
+            socio = self._para_modificar(socio_id)
+            socio.rechazar_solicitud(
+                motivo,
+                actor=_ref(actor),
+                es_administrador=actor.puede(Permiso.SOCIO_ADMINISTRAR),
+                ahora=self._reloj.ahora(),
+            )
             self._uow.socios.guardar(socio)
         return socio
 
@@ -232,7 +314,12 @@ class SocioService:
                 )
             self._uow.usuarios.agregar(cuenta)
             assert cuenta.id is not None
-            socio.cuenta = CuentaSocio(cuenta.id, cuenta.username, cuenta.activo)
+            socio.registrar_cuenta(
+                CuentaSocio(cuenta.id, cuenta.username, cuenta.activo),
+                actor=_ref(actor),
+                ahora=self._reloj.ahora(),
+            )
+            self._uow.socios.guardar(socio)
         return socio
 
     # --- lectura --------------------------------------------------------------------------
@@ -252,6 +339,16 @@ class SocioService:
             raise SocioNoEncontrado(MENSAJE_NO_ENCONTRADO)
         return FichaSocio(socio, self._uow.socios.situacion(socio_id))
 
+    def historial(self, actor: Usuario, socio_id: int, page: int, size: int) -> Pagina[EventoSocio]:
+        """Historial del socio: el personal ve el de cualquiera; el socio, solo el propio.
+
+        Raises:
+            SocioNoEncontrado: No existe o no es visible para el usuario.
+        """
+        self.ficha(actor, socio_id)  # misma visibilidad que la ficha
+        eventos, total = self._uow.socios.historial(socio_id, page, size)
+        return Pagina(eventos, total, page, size)
+
     def listar(
         self,
         actor: Usuario,
@@ -260,13 +357,19 @@ class SocioService:
         estado: EstadoSocio | None,
         page: int,
         size: int,
+        solicitud_pendiente: bool = False,
     ) -> Pagina[Socio]:
-        """Búsqueda por número de socio, documento o nombre y apellido (RF-SOC-04)."""
+        """Búsqueda por número de socio, documento o nombre y apellido (RF-SOC-04).
+
+        ``solicitud_pendiente`` deja solo a los socios con una solicitud de reactivación sin
+        resolver.
+        """
         actor.exigir(Permiso.SOCIO_LEER)
         filtro = FiltroSocios(
             texto=normalizar(texto) if texto and texto.strip() else None,
             documento=_limpiar_documento(documento) if documento else None,
             estado=estado,
+            solicitud_pendiente=solicitud_pendiente,
         )
         socios, total = self._uow.socios.listar(filtro, page, size)
         return Pagina(socios, total, page, size)
@@ -370,6 +473,16 @@ class SocioService:
                     for socio in parecidos
                 ],
             )
+
+    def _desactivar_cuenta(self, socio: Socio, actor: Usuario) -> None:
+        """Baja por fallecimiento: nadie debería volver a ingresar con esa cuenta."""
+        if socio.cuenta is None or not socio.cuenta.activo:
+            return
+        usuario = self._uow.usuarios.obtener_para_modificar(socio.cuenta.usuario_id)
+        assert usuario is not None
+        usuario.dar_de_baja(actor=_ref(actor), ahora=self._reloj.ahora())
+        self._uow.usuarios.guardar(usuario)
+        socio.cuenta = CuentaSocio(socio.cuenta.usuario_id, socio.cuenta.username, False)
 
     def _para_modificar(self, socio_id: int) -> Socio:
         socio = self._uow.socios.obtener_para_modificar(socio_id)

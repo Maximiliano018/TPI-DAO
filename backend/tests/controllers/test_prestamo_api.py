@@ -575,7 +575,7 @@ def test_prestamos_y_remitos_abiertos_bloquean_bajas(cliente, mundo):
     )
     socio = cliente.post(
         f"{API}/socios/{mundo['lucia']['id']}/baja",
-        json={"motivo": "Se mudó"},
+        json={"tipo": "A_PEDIDO", "motivo": "Se mudó"},
         headers=mundo["h_admin"],
     )
 

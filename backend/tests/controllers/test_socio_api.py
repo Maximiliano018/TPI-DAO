@@ -66,7 +66,7 @@ def _alta_socio(cliente, headers, **over):
 
 @pytest.mark.ca("CA-SOC-01")
 def test_el_alta_responde_201_con_numero_de_socio_y_estado_habilitado(
-    cliente, h_biblio, sede, sesion
+    cliente, h_biblio, h_admin, sede, sesion
 ):
     r = _alta_socio(cliente, h_biblio)
 
@@ -84,7 +84,10 @@ def test_el_alta_responde_201_con_numero_de_socio_y_estado_habilitado(
         "lucia@example.com",
         "+543515000000",
     )
-    assert socio["creado_por"]["nombre"] == "Beto Biblio" and socio["cuenta"] is None
+    # El bibliotecario no ve la auditoría; el administrador sí (CA-SOC-20).
+    assert "creado_por" not in socio and socio["cuenta"] is None
+    para_admin = cliente.get(f"{SOCIOS}/{socio['id']}", headers=h_admin).json()
+    assert para_admin["creado_por"]["nombre"] == "Beto Biblio"
     otro = _alta_socio(cliente, h_biblio, nro_documento="40111222", nombre="Juan").json()
     assert int(otro["numero_socio"]) == int(socio["numero_socio"]) + 1
 
@@ -104,7 +107,9 @@ def test_el_documento_repetido_responde_409_con_el_socio_existente(cliente, h_bi
 def test_un_socio_dado_de_baja_se_reactiva_en_lugar_de_duplicarse(cliente, h_biblio, h_admin):
     existente = _alta_socio(cliente, h_biblio).json()
     baja = cliente.post(
-        f"{SOCIOS}/{existente['id']}/baja", json={"motivo": "Se mudó de ciudad"}, headers=h_admin
+        f"{SOCIOS}/{existente['id']}/baja",
+        json={"tipo": "A_PEDIDO", "motivo": "Se mudó de ciudad"},
+        headers=h_admin,
     )
     assert baja.json()["estado"] == "BAJA"
 
@@ -187,7 +192,11 @@ def test_la_busqueda_filtra_por_apellido_documento_numero_y_estado(cliente, h_bi
     juan = _alta_socio(
         cliente, h_biblio, nro_documento="40111222", nombre="Juan", apellido="Álvarez"
     ).json()
-    cliente.post(f"{SOCIOS}/{juan['id']}/baja", json={"motivo": "Se mudó"}, headers=h_admin)
+    cliente.post(
+        f"{SOCIOS}/{juan['id']}/baja",
+        json={"tipo": "A_PEDIDO", "motivo": "Se mudó"},
+        headers=h_admin,
+    )
 
     def apellidos(**params):
         return [
@@ -268,10 +277,20 @@ def test_baja_y_reactivacion_validan_el_estado(cliente, h_biblio, h_admin):
     ruta = f"{SOCIOS}/{socio['id']}"
 
     _error(cliente.post(f"{ruta}/reactivar", headers=h_admin), 409, "SOCIO_YA_ACTIVO")
-    _error(cliente.post(f"{ruta}/baja", json={"motivo": "x"}, headers=h_admin), 422, "VALIDACION")
-    cliente.post(f"{ruta}/baja", json={"motivo": "Se mudó de ciudad"}, headers=h_admin)
     _error(
-        cliente.post(f"{ruta}/baja", json={"motivo": "Se mudó de ciudad"}, headers=h_admin),
+        cliente.post(f"{ruta}/baja", json={"tipo": "A_PEDIDO", "motivo": "x"}, headers=h_admin),
+        422,
+        "VALIDACION",
+    )
+    cliente.post(
+        f"{ruta}/baja", json={"tipo": "A_PEDIDO", "motivo": "Se mudó de ciudad"}, headers=h_admin
+    )
+    _error(
+        cliente.post(
+            f"{ruta}/baja",
+            json={"tipo": "A_PEDIDO", "motivo": "Se mudó de ciudad"},
+            headers=h_admin,
+        ),
         409,
         "SOCIO_YA_EN_BAJA",
     )
@@ -342,15 +361,166 @@ def test_un_socio_no_registra_ni_modifica_socios_y_sin_token_es_401(
     _error(cliente.request(metodo, ruta, json={}), 401, "TOKEN_INVALIDO")
 
 
-@pytest.mark.parametrize("accion", ["inhabilitar", "baja", "reactivar"])
-def test_el_bibliotecario_no_inhabilita_ni_da_de_baja(cliente, h_biblio, accion):
+@pytest.mark.ca("CA-SOC-12")
+@pytest.mark.parametrize(
+    ("accion", "cuerpo"),
+    [
+        ("inhabilitar", {"motivo": "Motivo válido"}),
+        ("baja", {"tipo": "ADMINISTRATIVA", "motivo": "Motivo válido"}),
+        ("baja", {"tipo": "FALLECIMIENTO", "motivo": "Motivo válido"}),
+    ],
+)
+def test_el_bibliotecario_no_inhabilita_ni_da_bajas_administrativas(
+    cliente, h_biblio, accion, cuerpo
+):
     socio = _alta_socio(cliente, h_biblio).json()
 
-    r = cliente.post(
-        f"{SOCIOS}/{socio['id']}/{accion}", json={"motivo": "Motivo válido"}, headers=h_biblio
-    )
+    r = cliente.post(f"{SOCIOS}/{socio['id']}/{accion}", json=cuerpo, headers=h_biblio)
 
     _error(r, 403, "FORBIDDEN")
+
+
+# --- bajas, reactivación, esquemas por rol e historial ---------------------------------------
+
+
+def _socio_con_cuenta(cliente, h_biblio) -> tuple[dict, dict]:
+    """Socio con cuenta de acceso y los encabezados para entrar como él."""
+    socio = _alta_socio(cliente, h_biblio).json()
+    cliente.post(
+        f"{SOCIOS}/{socio['id']}/cuenta",
+        json={"username": "lucia.gomez", "password": "Clave-segura-123"},
+        headers=h_biblio,
+    )
+    return socio, _entrar(cliente)
+
+
+def _entrar(cliente):
+    login = cliente.post(
+        "/api/v1/auth/login", json={"username": "lucia.gomez", "password": "Clave-segura-123"}
+    )
+    if login.status_code != 200:
+        return None
+    return {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+
+def _baja(cliente, socio_id, headers, tipo="A_PEDIDO"):
+    return cliente.post(
+        f"{SOCIOS}/{socio_id}/baja",
+        json={"tipo": tipo, "motivo": "Se mudó de ciudad"},
+        headers=headers,
+    )
+
+
+@pytest.mark.ca("CA-SOC-20")
+def test_cada_rol_recibe_solo_los_datos_que_puede_ver(cliente, h_biblio, h_admin):
+    socio, h_socio = _socio_con_cuenta(cliente, h_biblio)
+    ruta = f"{SOCIOS}/{socio['id']}"
+
+    propio = cliente.get(ruta, headers=h_socio).json()
+    personal = cliente.get(ruta, headers=h_biblio).json()
+    admin = cliente.get(ruta, headers=h_admin).json()
+
+    for campo in ("creado_por", "actualizado_por", "sede_alta_id"):
+        assert campo not in propio
+    assert propio["cuenta"] == {"username": "lucia.gomez"}
+    assert propio["situacion"]["prestamos_activos"] == 0
+    assert "creado_por" not in personal and personal["sede_alta_id"] == socio["sede_alta_id"]
+    assert set(personal["cuenta"]) == {"usuario_id", "username", "activo"}
+    assert admin["creado_por"]["nombre"] == "Beto Biblio"
+
+
+@pytest.mark.ca("CA-SOC-15", "CA-SOC-17")
+def test_el_socio_en_baja_entra_pide_la_reactivacion_y_el_personal_la_aprueba(cliente, h_biblio):
+    socio, h_socio = _socio_con_cuenta(cliente, h_biblio)
+    ruta = f"{SOCIOS}/{socio['id']}"
+    baja = _baja(cliente, socio["id"], h_biblio)
+    assert (baja.status_code, baja.json()["tipo_baja"]) == (200, "A_PEDIDO")
+
+    ficha = cliente.get(ruta, headers=h_socio).json()  # la cuenta sigue activa
+    assert (ficha["estado"], ficha["reactivable"], ficha["solicitud"]) == ("BAJA", True, None)
+    pedido = cliente.post(
+        f"{ruta}/solicitud-reactivacion", json={"mensaje": "Volví a la ciudad"}, headers=h_socio
+    )
+    assert (
+        pedido.status_code == 201 and pedido.json()["solicitud"]["mensaje"] == "Volví a la ciudad"
+    )
+    _error(
+        cliente.post(f"{ruta}/solicitud-reactivacion", json={}, headers=h_socio),
+        409,
+        "SOLICITUD_YA_PENDIENTE",
+    )
+
+    pendientes = cliente.get(SOCIOS, params={"solicitud_pendiente": True}, headers=h_biblio)
+    assert [s["id"] for s in pendientes.json()["items"]] == [socio["id"]]
+    assert pendientes.json()["items"][0]["solicitud_pendiente"] is True
+    aprobado = cliente.post(f"{ruta}/solicitud-reactivacion/aprobar", headers=h_biblio)
+    assert (aprobado.json()["estado"], aprobado.json()["solicitud"]) == ("HABILITADO", None)
+
+
+@pytest.mark.ca("CA-SOC-16", "CA-SOC-19")
+def test_el_rechazo_queda_en_el_historial_y_el_socio_no_ve_quien_lo_rechazo(cliente, h_biblio):
+    socio, h_socio = _socio_con_cuenta(cliente, h_biblio)
+    ruta = f"{SOCIOS}/{socio['id']}"
+    _baja(cliente, socio["id"], h_biblio)
+    cliente.post(f"{ruta}/solicitud-reactivacion", json={}, headers=h_socio)
+
+    rechazo = cliente.post(
+        f"{ruta}/solicitud-reactivacion/rechazar",
+        json={"motivo": "Debe traer su documento"},
+        headers=h_biblio,
+    )
+
+    assert (rechazo.json()["estado"], rechazo.json()["solicitud"]) == ("BAJA", None)
+    del_socio = cliente.get(f"{ruta}/historial", headers=h_socio).json()["items"]
+    assert [e["tipo_evento"] for e in del_socio[:2]] == [
+        "SOLICITUD_RECHAZADA",
+        "SOLICITUD_REACTIVACION",
+    ]
+    assert (del_socio[0]["autor"], del_socio[0]["usuario"], del_socio[0]["motivo"]) == (
+        "Personal de la biblioteca",
+        None,
+        "Debe traer su documento",
+    )
+    assert del_socio[1]["autor"] == "Vos"
+    del_personal = cliente.get(f"{ruta}/historial", headers=h_biblio).json()["items"]
+    assert del_personal[0]["autor"] == "Beto Biblio" and del_personal[0]["usuario"] is not None
+    otro = _alta_socio(cliente, h_biblio, nro_documento="40111222", nombre="Juan").json()
+    _error(
+        cliente.get(f"{SOCIOS}/{otro['id']}/historial", headers=h_socio),
+        404,
+        "SOCIO_NO_ENCONTRADO",
+    )
+
+
+@pytest.mark.ca("CA-SOC-13")
+def test_la_baja_por_fallecimiento_cierra_la_cuenta_y_es_definitiva(cliente, h_biblio, h_admin):
+    socio, _ = _socio_con_cuenta(cliente, h_biblio)
+
+    baja = _baja(cliente, socio["id"], h_admin, tipo="FALLECIMIENTO")
+
+    assert baja.json()["cuenta"]["activo"] is False and baja.json()["reactivable"] is False
+    assert _entrar(cliente) is None
+    _error(
+        cliente.post(f"{SOCIOS}/{socio['id']}/reactivar", headers=h_admin),
+        409,
+        "SOCIO_NO_REACTIVABLE",
+    )
+
+
+@pytest.mark.ca("CA-SOC-14")
+def test_la_sancion_administrativa_sigue_despues_de_baja_y_reactivacion(cliente, h_biblio, h_admin):
+    socio = _alta_socio(cliente, h_biblio).json()
+    ruta = f"{SOCIOS}/{socio['id']}"
+    cliente.post(f"{ruta}/inhabilitar", json={"motivo": "Daño reiterado"}, headers=h_admin)
+    _baja(cliente, socio["id"], h_biblio)
+
+    reactivado = cliente.post(f"{ruta}/reactivar", headers=h_biblio).json()
+
+    assert (reactivado["estado"], reactivado["motivo_inhabilitacion"]) == (
+        "INHABILITADO",
+        "ADMINISTRATIVA",
+    )
+    assert reactivado["motivo_administrativo"] == "Daño reiterado"
 
 
 # --- base de datos ---------------------------------------------------------------------------

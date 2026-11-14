@@ -3,10 +3,12 @@ import { useSesion } from '../../../auth/SesionContext.jsx';
 import { Button } from '../../../components/index.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import {
+  AprobarSolicitudDialog,
   BajaSocioDialog,
   CrearCuentaDialog,
   InhabilitarSocioDialog,
   ReactivarSocioDialog,
+  RechazarSolicitudDialog,
   RehabilitarSocioDialog,
 } from './SocioDialogs.jsx';
 
@@ -24,6 +26,10 @@ export default function AccionesSocio({ socio }) {
   const administrativa = socio.motivo_inhabilitacion === 'ADMINISTRATIVA';
   const puedeRehabilitar =
     socio.estado === 'INHABILITADO' && (administra || (registra && !administrativa));
+  // La baja a pedido la resuelve el personal; la administrativa, solo el administrador; la de
+  // fallecimiento no se reactiva (`reactivable` falso).
+  const resuelveLaBaja =
+    enBaja && socio.reactivable && (administra || (registra && socio.tipo_baja === 'A_PEDIDO'));
 
   const boton = (clave, texto, variante = 'secondary') => (
     <Button variante={variante} onClick={() => setDialogo(clave)}>
@@ -41,13 +47,19 @@ export default function AccionesSocio({ socio }) {
       {registra && !enBaja && !socio.cuenta && boton('cuenta', 'Crear cuenta')}
       {puedeRehabilitar && boton('rehabilitar', 'Rehabilitar')}
       {administra && !enBaja && !administrativa && boton('inhabilitar', 'Inhabilitar', 'danger')}
-      {administra && !enBaja && boton('baja', 'Dar de baja', 'danger')}
-      {administra && enBaja && boton('reactivar', 'Reactivar')}
+      {registra && !enBaja && boton('baja', 'Dar de baja', 'danger')}
+      {resuelveLaBaja && socio.solicitud && boton('aprobar', 'Aprobar reactivación', 'primary')}
+      {resuelveLaBaja && socio.solicitud && boton('rechazar', 'Rechazar solicitud')}
+      {resuelveLaBaja && !socio.solicitud && boton('reactivar', 'Reactivar')}
 
       {dialogo === 'cuenta' && <CrearCuentaDialog socio={socio} onCerrar={cerrar} />}
       {dialogo === 'rehabilitar' && <RehabilitarSocioDialog socio={socio} onCerrar={cerrar} />}
       {dialogo === 'inhabilitar' && <InhabilitarSocioDialog socio={socio} onCerrar={cerrar} />}
-      {dialogo === 'baja' && <BajaSocioDialog socio={socio} onCerrar={cerrar} />}
+      {dialogo === 'baja' && (
+        <BajaSocioDialog socio={socio} onCerrar={cerrar} administra={administra} />
+      )}
+      {dialogo === 'aprobar' && <AprobarSolicitudDialog socio={socio} onCerrar={cerrar} />}
+      {dialogo === 'rechazar' && <RechazarSolicitudDialog socio={socio} onCerrar={cerrar} />}
       {dialogo === 'reactivar' && <ReactivarSocioDialog socio={socio} onCerrar={cerrar} />}
     </>
   );

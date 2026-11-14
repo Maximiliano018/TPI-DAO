@@ -72,3 +72,8 @@ export const esquemaCuenta = z
     path: ['confirmacion'],
     message: 'Las contraseñas no coinciden',
   });
+
+/** Mensaje opcional de la solicitud de reactivación. */
+export const esquemaSolicitud = z.object({
+  mensaje: z.string().trim().max(300, 'El mensaje no puede superar los 300 caracteres'),
+});

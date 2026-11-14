@@ -289,6 +289,7 @@ def _crear_socio(sesion: Session, datos: dict, clave: str, admin: UsuarioORM) ->
             motivo_inhabilitacion="ADMINISTRATIVA" if inhabilitado else None,
             inhabilitacion_administrativa=bool(inhabilitado),
             motivo_administrativo=inhabilitado,
+            tipo_baja="A_PEDIDO" if baja else None,
             fecha_baja=datetime.now(UTC) if baja else None,
             motivo_baja=baja,
             creado_por_id=admin.id,

@@ -108,7 +108,9 @@ class DevolucionService:
             self._uow.devoluciones.agregar(devolucion)
             if multa is not None:
                 self._uow.multas.agregar(multa)
-            socio = self._reevaluar_socio(prestamo.socio_id, yo, ahora)
+            socio = self._reevaluar_socio(
+                prestamo.socio_id, yo, ahora, f"Devolución del préstamo {prestamo.numero}"
+            )
             ejemplar = self._ejemplar(prestamo.ejemplar_id)
             remito, reserva = self._resolver_ejemplar(prestamo, ejemplar, devolucion, yo, ahora)
         return ResultadoDevolucion(
@@ -133,7 +135,12 @@ class DevolucionService:
             yo = _ref(actor)
             multa.saldar(yo, ahora)
             self._uow.multas.guardar(multa)
-            self._reevaluar_socio(multa.socio_id, yo, ahora)
+            self._reevaluar_socio(
+                multa.socio_id,
+                yo,
+                ahora,
+                f"Multa del préstamo {multa.numero_prestamo or multa.prestamo_id} saldada",
+            )
         return self._uow.multas.obtener(multa_id) or multa
 
     def listar_multas(
@@ -176,11 +183,14 @@ class DevolucionService:
             raise error_de_campo("fecha_hora", "La fecha de devolución no puede ser futura.")
         return fecha_hora
 
-    def _reevaluar_socio(self, socio_id: int, actor: UsuarioRef, ahora: datetime) -> Socio | None:
+    def _reevaluar_socio(
+        self, socio_id: int, actor: UsuarioRef, ahora: datetime, origen: str
+    ) -> Socio | None:
         socio = self._uow.socios.obtener_para_modificar(socio_id)
         if socio is None:
             return None
-        if socio.reevaluar(self._uow.socios.situacion(socio_id), actor=actor, ahora=ahora):
+        situacion = self._uow.socios.situacion(socio_id)
+        if socio.reevaluar(situacion, actor=actor, ahora=ahora, origen=origen):
             self._uow.socios.guardar(socio)
         return socio
 

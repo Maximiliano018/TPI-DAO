@@ -141,6 +141,20 @@ class SocioConCuenta(ReglaDeNegocioViolada):
     codigo = "SOCIO_CON_CUENTA"
 
 
+class SocioNoReactivable(ReglaDeNegocioViolada):
+    """La baja por fallecimiento es definitiva."""
+
+    codigo = "SOCIO_NO_REACTIVABLE"
+
+
+class SolicitudYaPendiente(ReglaDeNegocioViolada):
+    codigo = "SOLICITUD_YA_PENDIENTE"
+
+
+class SinSolicitudPendiente(ReglaDeNegocioViolada):
+    codigo = "SIN_SOLICITUD_PENDIENTE"
+
+
 # --- catálogo y estados ------------------------------------------------------------------------
 
 

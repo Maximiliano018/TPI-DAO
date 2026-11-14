@@ -1,14 +1,20 @@
-"""Entidad de dominio ``Socio``: datos, estados y causas de inhabilitación.
+"""Entidad de dominio ``Socio``: datos, estados, causas de inhabilitación, bajas e historial.
 
 Un socio pertenece a la red (no a una sede). Puede estar ``HABILITADO``, ``INHABILITADO`` o
 dado de ``BAJA`` (baja lógica). La inhabilitación tiene causas:
 
-* **Automáticas**: un préstamo vencido sin devolver o una multa impaga. No se guardan como
-  decisión: el servicio las calcula a partir de los préstamos y multas y llama a ``reevaluar``.
-* **Administrativa**: la decide el administrador con un motivo y solo él la levanta.
+* **Automáticas**: un préstamo vencido sin devolver o una multa impaga. No son una decisión: el
+  servicio las calcula a partir de los préstamos y multas y llama a ``reevaluar``.
+* **Administrativa**: la decide el administrador con un motivo y solo él la levanta. Sobrevive a
+  una baja: si el socio se reactiva, vuelve inhabilitado.
 
 Mientras haya al menos una causa vigente el socio queda ``INHABILITADO``; el motivo que se
 muestra es el de mayor prioridad (administrativa, préstamo vencido, multa impaga).
+
+La baja tiene un **tipo** (a pedido del socio, administrativa o por fallecimiento) que decide quién
+puede reactivarlo. El socio dado de baja conserva su cuenta (salvo por fallecimiento) y puede
+pedir la reactivación desde ella; el personal la aprueba o la rechaza, o lo reactiva en mostrador.
+Cada cambio queda en el historial (``eventos_pendientes`` hasta que el repositorio lo guarda).
 """
 
 import re
@@ -19,15 +25,19 @@ from typing import ClassVar
 
 from app.exceptions import (
     PermisoDenegado,
+    SinSolicitudPendiente,
     SocioConActividadPendiente,
     SocioConCausasVigentes,
     SocioEnBaja,
     SocioInhabilitado,
+    SocioNoReactivable,
     SocioYaActivo,
     SocioYaEnBaja,
     SocioYaHabilitado,
     SocioYaInhabilitado,
+    SolicitudYaPendiente,
 )
+from app.models.sede import Cambio
 from app.models.usuario import UsuarioRef
 from app.models.valores import Email, Telefono, error_de_campo, validar_motivo
 from app.utils.texto import normalizar
@@ -35,6 +45,7 @@ from app.utils.texto import normalizar
 NOMBRE_MAX = 100
 DOMICILIO_MAX = 200
 FECHA_NACIMIENTO_MINIMA = date(1900, 1, 1)
+MENSAJE_SOLICITUD_MAX = 300
 
 
 class TipoDocumento(StrEnum):
@@ -69,6 +80,41 @@ TEXTO_MOTIVO = {
 CAUSAS_AUTOMATICAS = frozenset(
     {MotivoInhabilitacion.PRESTAMO_VENCIDO, MotivoInhabilitacion.MULTA_IMPAGA}
 )
+
+
+class TipoBaja(StrEnum):
+    """Tipo de baja. El orden de la enumeración es la prioridad (la más grave primero)."""
+
+    FALLECIMIENTO = "FALLECIMIENTO"
+    ADMINISTRATIVA = "ADMINISTRATIVA"
+    A_PEDIDO = "A_PEDIDO"
+
+    @property
+    def requiere_administrador(self) -> bool:
+        """La baja a pedido la registra y la revierte el personal; las demás, el administrador."""
+        return self != TipoBaja.A_PEDIDO
+
+
+TEXTO_TIPO_BAJA = {
+    TipoBaja.FALLECIMIENTO: "por fallecimiento",
+    TipoBaja.ADMINISTRATIVA: "administrativa",
+    TipoBaja.A_PEDIDO: "a pedido del socio",
+}
+
+
+class TipoEventoSocio(StrEnum):
+    """Eventos del historial del socio."""
+
+    ALTA = "ALTA"
+    MODIFICACION = "MODIFICACION"
+    INHABILITACION = "INHABILITACION"
+    REHABILITACION = "REHABILITACION"
+    CAMBIO_AUTOMATICO = "CAMBIO_AUTOMATICO"
+    BAJA = "BAJA"
+    SOLICITUD_REACTIVACION = "SOLICITUD_REACTIVACION"
+    SOLICITUD_RECHAZADA = "SOLICITUD_RECHAZADA"
+    REACTIVACION = "REACTIVACION"
+    CUENTA_CREADA = "CUENTA_CREADA"
 
 
 @dataclass(frozen=True)
@@ -185,9 +231,40 @@ class CuentaSocio:
     activo: bool
 
 
+@dataclass(frozen=True)
+class SolicitudReactivacion:
+    """Pedido de reactivación que el socio dado de baja hace desde su cuenta."""
+
+    fecha: datetime
+    mensaje: str | None = None
+
+
+@dataclass
+class EventoSocio:
+    """Registro del historial del socio (solo inserción).
+
+    ``usuario`` es ``None`` cuando el cambio lo hizo el sistema (inhabilitación automática);
+    ``origen`` dice qué lo provocó (``Préstamo P-2026-0012 vencido``).
+    """
+
+    tipo: TipoEventoSocio
+    fecha_hora: datetime
+    usuario: UsuarioRef | None
+    estado_anterior: EstadoSocio | None = None
+    estado_nuevo: EstadoSocio | None = None
+    motivo: str | None = None
+    origen: str | None = None
+    cambios: list[Cambio] = field(default_factory=list)
+    id: int | None = None
+
+
 @dataclass
 class Socio:
-    """Socio de la red de bibliotecas."""
+    """Socio de la red de bibliotecas.
+
+    Los eventos que generan las operaciones quedan en ``eventos_pendientes`` hasta que el
+    repositorio los guarda en el historial.
+    """
 
     id: int | None
     numero_socio: str
@@ -197,13 +274,16 @@ class Socio:
     causas: set[MotivoInhabilitacion] = field(default_factory=set)
     motivo_administrativo: str | None = None
     fecha_alta: datetime | None = None
+    tipo_baja: TipoBaja | None = None
     fecha_baja: datetime | None = None
     motivo_baja: str | None = None
+    solicitud: SolicitudReactivacion | None = None
     creado_por: UsuarioRef | None = None
     actualizado_en: datetime | None = None
     actualizado_por: UsuarioRef | None = None
     sede_alta_nombre: str | None = None
     cuenta: CuentaSocio | None = None
+    eventos_pendientes: list[EventoSocio] = field(default_factory=list)
 
     # --- alta y datos ---------------------------------------------------------------------
 
@@ -218,7 +298,7 @@ class Socio:
         ahora: datetime,
     ) -> "Socio":
         """Alta de un socio: queda ``HABILITADO``, sin causas de inhabilitación."""
-        return cls(
+        socio = cls(
             id=None,
             numero_socio=numero_socio,
             datos=datos,
@@ -228,6 +308,14 @@ class Socio:
             actualizado_en=ahora,
             actualizado_por=actor,
         )
+        socio._registrar_evento(
+            TipoEventoSocio.ALTA,
+            actor,
+            ahora,
+            con_estado=True,
+            cambios=[Cambio(c, None, v) for c, v in _valores(datos).items() if v is not None],
+        )
+        return socio
 
     def modificar(self, datos: DatosPersonales, *, actor: UsuarioRef, ahora: datetime) -> bool:
         """Reemplaza los datos personales. Un socio dado de baja no se modifica.
@@ -241,8 +329,15 @@ class Socio:
         self.validar_editable()
         if datos == self.datos:
             return False
+        antes, despues = _valores(self.datos), _valores(datos)
         self.datos = datos
         self._registrar_cambio(actor, ahora)
+        self._registrar_evento(
+            TipoEventoSocio.MODIFICACION,
+            actor,
+            ahora,
+            cambios=[Cambio(c, antes[c], despues[c]) for c in despues if antes[c] != despues[c]],
+        )
         return True
 
     def validar_editable(self) -> None:
@@ -252,6 +347,16 @@ class Socio:
             SocioEnBaja: Si el socio está dado de baja (hay que reactivarlo antes).
         """
         self._exigir_no_baja()
+
+    def registrar_cuenta(self, cuenta: CuentaSocio, *, actor: UsuarioRef, ahora: datetime) -> None:
+        """Asocia la cuenta de acceso recién creada y lo deja en el historial."""
+        self.cuenta = cuenta
+        self._registrar_evento(
+            TipoEventoSocio.CUENTA_CREADA,
+            actor,
+            ahora,
+            cambios=[Cambio("cuenta", None, cuenta.username)],
+        )
 
     # --- inhabilitación -------------------------------------------------------------------
 
@@ -265,12 +370,20 @@ class Socio:
         return MotivoInhabilitacion.ADMINISTRATIVA in self.causas
 
     def reevaluar(
-        self, situacion: SituacionSocio, *, actor: UsuarioRef | None, ahora: datetime
+        self,
+        situacion: SituacionSocio,
+        *,
+        actor: UsuarioRef | None,
+        ahora: datetime,
+        origen: str | None = None,
     ) -> bool:
         """Recalcula el estado con las causas automáticas vigentes (RF-SOC-05).
 
         Se llama en cada evento relevante: préstamo que vence, devolución, multa generada o
         saldada. Conserva la causa administrativa, que solo levanta el administrador.
+
+        Args:
+            origen: Qué provocó la reevaluación, para el historial.
 
         Returns:
             ``True`` si el estado o las causas cambiaron.
@@ -280,7 +393,9 @@ class Socio:
         nuevas = set(situacion.causas_automaticas)
         if self.inhabilitado_administrativamente:
             nuevas.add(MotivoInhabilitacion.ADMINISTRATIVA)
-        return self._aplicar_causas(nuevas, actor, ahora)
+        return self._aplicar_causas(
+            nuevas, actor, ahora, evento=TipoEventoSocio.CAMBIO_AUTOMATICO, origen=origen
+        )
 
     def inhabilitar(self, motivo: str, *, actor: UsuarioRef, ahora: datetime) -> None:
         """Inhabilitación administrativa con motivo (solo el administrador, RF-SOC-06).
@@ -297,7 +412,13 @@ class Socio:
                 f"El socio {self.numero_socio} ya está inhabilitado por decisión administrativa."
             )
         self.motivo_administrativo = texto
-        self._aplicar_causas(self.causas | {MotivoInhabilitacion.ADMINISTRATIVA}, actor, ahora)
+        self._aplicar_causas(
+            self.causas | {MotivoInhabilitacion.ADMINISTRATIVA},
+            actor,
+            ahora,
+            evento=TipoEventoSocio.INHABILITACION,
+            motivo=texto,
+        )
 
     def rehabilitar(
         self,
@@ -328,7 +449,7 @@ class Socio:
                     "Solo un administrador puede levantar una inhabilitación administrativa."
                 )
             self.motivo_administrativo = None
-            self._aplicar_causas(automaticas, actor, ahora)
+            self._aplicar_causas(automaticas, actor, ahora, evento=TipoEventoSocio.REHABILITACION)
             return
         if automaticas:
             raise SocioConCausasVigentes(
@@ -339,25 +460,40 @@ class Socio:
             )
         if self.estado == EstadoSocio.HABILITADO:
             raise SocioYaHabilitado(f"El socio {self.numero_socio} ya está habilitado.")
-        self._aplicar_causas(set(), actor, ahora)
+        self._aplicar_causas(set(), actor, ahora, evento=TipoEventoSocio.REHABILITACION)
 
     # --- baja y reactivación --------------------------------------------------------------
 
     def dar_de_baja(
-        self, situacion: SituacionSocio, motivo: str, *, actor: UsuarioRef, ahora: datetime
+        self,
+        situacion: SituacionSocio,
+        tipo: TipoBaja,
+        motivo: str,
+        *,
+        actor: UsuarioRef,
+        es_administrador: bool,
+        ahora: datetime,
     ) -> None:
-        """Baja lógica: solo sin préstamos activos ni multas pendientes (RF-SOC-09).
+        """Baja lógica: solo sin préstamos en curso ni multas pendientes (RF-SOC-09).
 
-        Las reservas activas no la impiden: el servicio las cancela al dar la baja.
+        La baja a pedido del socio la registra el personal; la administrativa y la de
+        fallecimiento, solo el administrador. Una inhabilitación administrativa **se conserva**:
+        si el socio se reactiva, vuelve inhabilitado. Las reservas activas no impiden la baja: el
+        servicio las cancela.
 
         Raises:
             ErrorDeValidacion: Motivo inválido.
             SocioYaEnBaja: Ya estaba dado de baja.
+            PermisoDenegado: Un bibliotecario intenta una baja administrativa o por fallecimiento.
             SocioConActividadPendiente: Tiene préstamos en curso o multas pendientes.
         """
         texto = validar_motivo(motivo)
         if self.estado == EstadoSocio.BAJA:
             raise SocioYaEnBaja(f"El socio {self.numero_socio} ya está dado de baja.")
+        if tipo.requiere_administrador and not es_administrador:
+            raise PermisoDenegado(
+                f"Solo un administrador registra una baja {TEXTO_TIPO_BAJA[tipo]}."
+            )
         pendientes = []
         if situacion.prestamos_activos or situacion.prestamos_vencidos:
             cantidad = situacion.prestamos_activos + situacion.prestamos_vencidos
@@ -371,25 +507,108 @@ class Socio:
                 f"El socio {self.numero_socio} tiene préstamos en curso o multas pendientes.",
                 pendientes,
             )
+        anterior = self.estado
         self.estado = EstadoSocio.BAJA
-        self.causas = set()
-        self.motivo_administrativo = None
+        self.causas = {c for c in self.causas if c == MotivoInhabilitacion.ADMINISTRATIVA}
+        self.tipo_baja = tipo
         self.fecha_baja = ahora
         self.motivo_baja = texto
+        self.solicitud = None
         self._registrar_cambio(actor, ahora)
+        self._registrar_evento(
+            TipoEventoSocio.BAJA,
+            actor,
+            ahora,
+            con_estado=True,
+            estado_anterior=anterior,
+            motivo=texto,
+            cambios=[Cambio("tipo_baja", None, tipo.value)],
+        )
 
-    def reactivar(self, *, actor: UsuarioRef, ahora: datetime) -> None:
+    def reactivar(
+        self, *, actor: UsuarioRef, es_administrador: bool, ahora: datetime, origen: str
+    ) -> None:
         """Vuelve a dar de alta a un socio dado de baja, en lugar de duplicarlo.
+
+        Vuelve ``HABILITADO``, o ``INHABILITADO`` si tenía una inhabilitación administrativa
+        (no se borra con la baja). Limpia la baja y una solicitud pendiente.
+
+        Args:
+            origen: Cómo se reactivó (en mostrador o por una solicitud aprobada).
 
         Raises:
             SocioYaActivo: No estaba dado de baja.
+            SocioNoReactivable: La baja fue por fallecimiento.
+            PermisoDenegado: Un bibliotecario intenta reactivar una baja administrativa.
         """
-        if self.estado != EstadoSocio.BAJA:
-            raise SocioYaActivo(f"El socio {self.numero_socio} no está dado de baja.")
-        self.estado = EstadoSocio.HABILITADO
+        self._exigir_reactivable(es_administrador)
+        anterior = self.estado
+        self.estado = EstadoSocio.INHABILITADO if self.causas else EstadoSocio.HABILITADO
+        self.tipo_baja = None
         self.fecha_baja = None
         self.motivo_baja = None
+        self.solicitud = None
         self._registrar_cambio(actor, ahora)
+        self._registrar_evento(
+            TipoEventoSocio.REACTIVACION,
+            actor,
+            ahora,
+            con_estado=True,
+            estado_anterior=anterior,
+            origen=origen,
+        )
+
+    def solicitar_reactivacion(
+        self, mensaje: str | None, *, actor: UsuarioRef, ahora: datetime
+    ) -> None:
+        """El socio dado de baja pide volver desde su cuenta; el personal decide.
+
+        Raises:
+            SocioYaActivo: No está dado de baja.
+            SocioNoReactivable: La baja fue por fallecimiento.
+            SolicitudYaPendiente: Ya hay una solicitud sin resolver.
+            ErrorDeValidacion: Mensaje de más de 300 caracteres.
+        """
+        self._exigir_en_baja()
+        if self.solicitud is not None:
+            raise SolicitudYaPendiente(
+                "Ya hay una solicitud de reactivación pendiente desde el "
+                f"{self.solicitud.fecha.strftime('%d/%m/%Y')}."
+            )
+        texto = " ".join((mensaje or "").split()) or None
+        if texto and len(texto) > MENSAJE_SOLICITUD_MAX:
+            raise error_de_campo("mensaje", "El mensaje no puede superar los 300 caracteres.")
+        self.solicitud = SolicitudReactivacion(ahora, texto)
+        self._registrar_evento(TipoEventoSocio.SOLICITUD_REACTIVACION, actor, ahora, motivo=texto)
+
+    def exigir_solicitud_pendiente(self) -> None:
+        """Raises: SinSolicitudPendiente: Si no hay una solicitud que resolver."""
+        if self.solicitud is None:
+            raise SinSolicitudPendiente(
+                f"El socio {self.numero_socio} no tiene una solicitud de reactivación pendiente."
+            )
+
+    def rechazar_solicitud(
+        self, motivo: str, *, actor: UsuarioRef, es_administrador: bool, ahora: datetime
+    ) -> None:
+        """Rechaza la solicitud con un motivo; el socio sigue en baja y puede volver a pedir.
+
+        Raises:
+            SinSolicitudPendiente: No hay solicitud.
+            PermisoDenegado: Un bibliotecario intenta resolver la de una baja administrativa.
+            ErrorDeValidacion: Motivo inválido.
+        """
+        self.exigir_solicitud_pendiente()
+        self._exigir_reactivable(es_administrador)
+        texto = validar_motivo(motivo)
+        self.solicitud = None
+        self._registrar_cambio(actor, ahora)
+        self._registrar_evento(TipoEventoSocio.SOLICITUD_RECHAZADA, actor, ahora, motivo=texto)
+
+    @property
+    def reactivable(self) -> bool:
+        """En baja y no por fallecimiento."""
+        return self.estado == EstadoSocio.BAJA and self.tipo_baja != TipoBaja.FALLECIMIENTO
 
     # --- guardas para otros módulos -------------------------------------------------------
 
@@ -421,21 +640,99 @@ class Socio:
                 [{"campo": "socio_id", "problema": "dado_de_baja"}],
             )
 
+    def _exigir_en_baja(self) -> None:
+        if self.estado != EstadoSocio.BAJA:
+            raise SocioYaActivo(f"El socio {self.numero_socio} no está dado de baja.")
+        if self.tipo_baja == TipoBaja.FALLECIMIENTO:
+            raise SocioNoReactivable(
+                f"El socio {self.numero_socio} fue dado de baja por fallecimiento."
+            )
+
+    def _exigir_reactivable(self, es_administrador: bool) -> None:
+        self._exigir_en_baja()
+        assert self.tipo_baja is not None
+        if self.tipo_baja.requiere_administrador and not es_administrador:
+            raise PermisoDenegado(
+                f"Solo un administrador resuelve una baja {TEXTO_TIPO_BAJA[self.tipo_baja]}."
+            )
+
     def _aplicar_causas(
-        self, causas: set[MotivoInhabilitacion], actor: UsuarioRef | None, ahora: datetime
+        self,
+        causas: set[MotivoInhabilitacion],
+        actor: UsuarioRef | None,
+        ahora: datetime,
+        *,
+        evento: TipoEventoSocio,
+        motivo: str | None = None,
+        origen: str | None = None,
     ) -> bool:
         estado = EstadoSocio.INHABILITADO if causas else EstadoSocio.HABILITADO
         if causas == self.causas and estado == self.estado:
             return False
+        anterior, causas_anteriores = self.estado, self.causas
         self.causas = causas
         self.estado = estado
         self._registrar_cambio(actor, ahora)
+        self._registrar_evento(
+            evento,
+            actor,
+            ahora,
+            con_estado=True,
+            estado_anterior=anterior,
+            motivo=motivo,
+            origen=origen,
+            cambios=[Cambio("causas", _ordenadas(causas_anteriores), _ordenadas(causas))],
+        )
         return True
 
     def _registrar_cambio(self, actor: UsuarioRef | None, ahora: datetime) -> None:
         self.actualizado_en = ahora
         if actor is not None:
             self.actualizado_por = actor
+
+    def _registrar_evento(
+        self,
+        tipo: TipoEventoSocio,
+        actor: UsuarioRef | None,
+        ahora: datetime,
+        *,
+        con_estado: bool = False,
+        estado_anterior: EstadoSocio | None = None,
+        motivo: str | None = None,
+        origen: str | None = None,
+        cambios: list[Cambio] | None = None,
+    ) -> None:
+        """Agrega un evento al historial; ``con_estado`` registra el estado anterior y el nuevo."""
+        self.eventos_pendientes.append(
+            EventoSocio(
+                tipo=tipo,
+                fecha_hora=ahora,
+                usuario=actor,
+                estado_anterior=estado_anterior if con_estado else None,
+                estado_nuevo=self.estado if con_estado else None,
+                motivo=motivo,
+                origen=origen,
+                cambios=cambios or [],
+            )
+        )
+
+
+def _valores(datos: DatosPersonales) -> dict[str, str | None]:
+    """Datos personales en una forma comparable y serializable (para el historial)."""
+    return {
+        "tipo_documento": datos.documento.tipo.value,
+        "nro_documento": datos.documento.numero,
+        "nombre": datos.nombre,
+        "apellido": datos.apellido,
+        "fecha_nacimiento": datos.fecha_nacimiento.isoformat() if datos.fecha_nacimiento else None,
+        "email": datos.email.valor if datos.email else None,
+        "telefono": datos.telefono.valor if datos.telefono else None,
+        "domicilio": datos.domicilio,
+    }
+
+
+def _ordenadas(causas: set[MotivoInhabilitacion]) -> list[str]:
+    return [c.value for c in MotivoInhabilitacion if c in causas]
 
 
 def formatear_numero_socio(secuencia: int) -> str:

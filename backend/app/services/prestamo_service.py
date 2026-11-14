@@ -208,7 +208,10 @@ class PrestamoService:
                     cantidad += 1
                     socio = self._uow.socios.obtener_para_modificar(prestamo.socio_id)
                     if socio is not None and socio.reevaluar(
-                        self._uow.socios.situacion(prestamo.socio_id), actor=None, ahora=ahora
+                        self._uow.socios.situacion(prestamo.socio_id),
+                        actor=None,
+                        ahora=ahora,
+                        origen=f"Préstamo {prestamo.numero} vencido",
                     ):
                         self._uow.socios.guardar(socio)
         return cantidad

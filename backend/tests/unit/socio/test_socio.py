@@ -1,5 +1,6 @@
 """Reglas del socio: documento, datos, inhabilitación, baja y reactivación."""
 
+from dataclasses import replace
 from datetime import UTC, date, datetime
 
 import pytest
@@ -7,14 +8,17 @@ import pytest
 from app.exceptions import (
     ErrorDeValidacion,
     PermisoDenegado,
+    SinSolicitudPendiente,
     SocioConActividadPendiente,
     SocioConCausasVigentes,
     SocioEnBaja,
     SocioInhabilitado,
+    SocioNoReactivable,
     SocioYaActivo,
     SocioYaEnBaja,
     SocioYaHabilitado,
     SocioYaInhabilitado,
+    SolicitudYaPendiente,
 )
 from app.models.socio import (
     DatosPersonales,
@@ -23,12 +27,16 @@ from app.models.socio import (
     MotivoInhabilitacion,
     SituacionSocio,
     Socio,
+    TipoBaja,
     TipoDocumento,
+    TipoEventoSocio,
     formatear_numero_socio,
 )
 from app.models.usuario import UsuarioRef
 
 AHORA = datetime(2026, 11, 10, 15, 0, tzinfo=UTC)
+A_PEDIDO = TipoBaja.A_PEDIDO
+MOSTRADOR = "Reactivación en mostrador"
 HOY = date(2026, 11, 10)
 ADMIN = UsuarioRef(1, "Admin")
 SIN_NADA = SituacionSocio()
@@ -147,7 +155,9 @@ def test_modificar_reemplaza_los_datos_y_avisa_si_no_cambio_nada():
 
 def test_un_socio_en_baja_no_se_modifica():
     s = socio()
-    s.dar_de_baja(SIN_NADA, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+    s.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
 
     with pytest.raises(SocioEnBaja):
         s.modificar(datos(apellido="Pérez"), actor=ADMIN, ahora=AHORA)
@@ -277,7 +287,9 @@ def test_un_socio_inhabilitado_o_en_baja_no_puede_operar():
     inhabilitado = socio()
     inhabilitado.reevaluar(CON_VENCIDO, actor=None, ahora=AHORA)
     en_baja = socio()
-    en_baja.dar_de_baja(SIN_NADA, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+    en_baja.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
 
     with pytest.raises(SocioInhabilitado) as error:
         inhabilitado.validar_puede_operar()
@@ -307,34 +319,47 @@ def test_la_baja_se_bloquea_con_prestamos_en_curso_o_multas(situacion, tipos):
     s = socio()
 
     with pytest.raises(SocioConActividadPendiente) as error:
-        s.dar_de_baja(situacion, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+        s.dar_de_baja(
+            situacion,
+            A_PEDIDO,
+            "Se mudó de ciudad",
+            actor=ADMIN,
+            es_administrador=True,
+            ahora=AHORA,
+        )
     assert [d["tipo"] for d in error.value.detalles] == tipos
     assert s.estado == EstadoSocio.HABILITADO
 
 
-def test_la_baja_registra_motivo_y_limpia_las_causas():
+def test_la_baja_registra_tipo_y_motivo():
     s = socio()
-    s.inhabilitar("Daño reiterado de material", actor=ADMIN, ahora=AHORA)
 
-    s.dar_de_baja(SituacionSocio(reservas_activas=2), "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+    s.dar_de_baja(
+        SituacionSocio(reservas_activas=2),
+        A_PEDIDO,
+        "Se mudó de ciudad",
+        actor=ADMIN,
+        es_administrador=True,
+        ahora=AHORA,
+    )
 
     assert s.estado == EstadoSocio.BAJA and s.causas == set()
-    assert (s.fecha_baja, s.motivo_baja, s.motivo_administrativo) == (
-        AHORA,
-        "Se mudó de ciudad",
-        None,
-    )
+    assert (s.tipo_baja, s.fecha_baja, s.motivo_baja) == (A_PEDIDO, AHORA, "Se mudó de ciudad")
     with pytest.raises(SocioYaEnBaja):
-        s.dar_de_baja(SIN_NADA, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+        s.dar_de_baja(
+            SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+        )
 
 
 def test_reactivar_vuelve_a_habilitar_y_solo_aplica_a_socios_en_baja():
     s = socio()
     with pytest.raises(SocioYaActivo):
-        s.reactivar(actor=ADMIN, ahora=AHORA)
-    s.dar_de_baja(SIN_NADA, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+        s.reactivar(actor=ADMIN, es_administrador=True, ahora=AHORA, origen=MOSTRADOR)
+    s.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
 
-    s.reactivar(actor=ADMIN, ahora=AHORA)
+    s.reactivar(actor=ADMIN, es_administrador=True, ahora=AHORA, origen=MOSTRADOR)
 
     assert s.estado == EstadoSocio.HABILITADO
     assert (s.fecha_baja, s.motivo_baja) == (None, None)
@@ -342,10 +367,174 @@ def test_reactivar_vuelve_a_habilitar_y_solo_aplica_a_socios_en_baja():
 
 def test_un_socio_en_baja_no_se_reevalua_ni_se_inhabilita():
     s = socio()
-    s.dar_de_baja(SIN_NADA, "Se mudó de ciudad", actor=ADMIN, ahora=AHORA)
+    s.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
 
     assert s.reevaluar(CON_VENCIDO, actor=None, ahora=AHORA) is False
     with pytest.raises(SocioEnBaja):
         s.inhabilitar("Daño reiterado de material", actor=ADMIN, ahora=AHORA)
     with pytest.raises(SocioEnBaja):
         s.rehabilitar(SIN_NADA, actor=ADMIN, es_administrador=True, ahora=AHORA)
+
+
+# --- tipos de baja, reactivación y solicitud ---------------------------------------------------
+
+BIBLIO = UsuarioRef(2, "Bibliotecaria")
+SOCIA = UsuarioRef(3, "Lucía Gómez")
+
+
+def _de_baja(tipo: TipoBaja = A_PEDIDO) -> Socio:
+    s = socio()
+    s.dar_de_baja(
+        SIN_NADA, tipo, "Motivo de la baja", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
+    return s
+
+
+@pytest.mark.ca("CA-SOC-12")
+def test_el_bibliotecario_solo_registra_la_baja_a_pedido_del_socio():
+    for tipo in (TipoBaja.ADMINISTRATIVA, TipoBaja.FALLECIMIENTO):
+        with pytest.raises(PermisoDenegado):
+            socio().dar_de_baja(
+                SIN_NADA,
+                tipo,
+                "Motivo de la baja",
+                actor=BIBLIO,
+                es_administrador=False,
+                ahora=AHORA,
+            )
+
+    s = socio()
+    s.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=BIBLIO, es_administrador=False, ahora=AHORA
+    )
+    assert s.estado == EstadoSocio.BAJA
+
+
+@pytest.mark.ca("CA-SOC-12", "CA-SOC-13")
+def test_quien_reactiva_depende_del_tipo_de_baja():
+    _de_baja(A_PEDIDO).reactivar(
+        actor=BIBLIO, es_administrador=False, ahora=AHORA, origen=MOSTRADOR
+    )
+    with pytest.raises(PermisoDenegado):
+        _de_baja(TipoBaja.ADMINISTRATIVA).reactivar(
+            actor=BIBLIO, es_administrador=False, ahora=AHORA, origen=MOSTRADOR
+        )
+    _de_baja(TipoBaja.ADMINISTRATIVA).reactivar(
+        actor=ADMIN, es_administrador=True, ahora=AHORA, origen=MOSTRADOR
+    )
+    with pytest.raises(SocioNoReactivable):
+        _de_baja(TipoBaja.FALLECIMIENTO).reactivar(
+            actor=ADMIN, es_administrador=True, ahora=AHORA, origen=MOSTRADOR
+        )
+
+
+@pytest.mark.ca("CA-SOC-14")
+def test_la_inhabilitacion_administrativa_sobrevive_a_la_baja_y_la_reactivacion():
+    s = socio()
+    s.inhabilitar("Daño reiterado de material", actor=ADMIN, ahora=AHORA)
+    s.dar_de_baja(
+        SIN_NADA, A_PEDIDO, "Se mudó de ciudad", actor=ADMIN, es_administrador=True, ahora=AHORA
+    )
+    assert s.causas == {MotivoInhabilitacion.ADMINISTRATIVA}
+
+    s.reactivar(actor=BIBLIO, es_administrador=False, ahora=AHORA, origen=MOSTRADOR)
+
+    assert s.estado == EstadoSocio.INHABILITADO
+    assert s.motivo_inhabilitacion == MotivoInhabilitacion.ADMINISTRATIVA
+    assert s.motivo_administrativo == "Daño reiterado de material"
+
+
+@pytest.mark.ca("CA-SOC-15")
+def test_la_solicitud_de_reactivacion_queda_pendiente_y_al_reactivar_se_resuelve():
+    s = _de_baja()
+
+    s.solicitar_reactivacion("  Volví a la ciudad  ", actor=SOCIA, ahora=AHORA)
+
+    assert s.solicitud is not None and s.solicitud.mensaje == "Volví a la ciudad"
+    with pytest.raises(SolicitudYaPendiente):
+        s.solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+    s.reactivar(actor=BIBLIO, es_administrador=False, ahora=AHORA, origen="Solicitud aprobada")
+    assert s.estado == EstadoSocio.HABILITADO and s.solicitud is None
+
+
+def test_solo_pide_la_reactivacion_un_socio_en_baja_que_no_fallecio():
+    with pytest.raises(SocioYaActivo):
+        socio().solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+    with pytest.raises(SocioNoReactivable):
+        _de_baja(TipoBaja.FALLECIMIENTO).solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+    with pytest.raises(ErrorDeValidacion):
+        _de_baja().solicitar_reactivacion("x" * 301, actor=SOCIA, ahora=AHORA)
+
+
+@pytest.mark.ca("CA-SOC-16")
+def test_rechazar_la_solicitud_la_cierra_con_motivo_y_el_socio_puede_volver_a_pedir():
+    s = _de_baja()
+    with pytest.raises(SinSolicitudPendiente):
+        s.rechazar_solicitud("Faltan datos", actor=BIBLIO, es_administrador=False, ahora=AHORA)
+    s.solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+
+    s.rechazar_solicitud(
+        "Debe acercarse con su documento", actor=BIBLIO, es_administrador=False, ahora=AHORA
+    )
+
+    assert s.estado == EstadoSocio.BAJA and s.solicitud is None
+    rechazo = s.eventos_pendientes[-1]
+    assert (rechazo.tipo, rechazo.motivo) == (
+        TipoEventoSocio.SOLICITUD_RECHAZADA,
+        "Debe acercarse con su documento",
+    )
+    s.solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+
+
+def test_la_solicitud_de_una_baja_administrativa_la_resuelve_solo_el_administrador():
+    s = _de_baja(TipoBaja.ADMINISTRATIVA)
+    s.solicitar_reactivacion(None, actor=SOCIA, ahora=AHORA)
+
+    with pytest.raises(PermisoDenegado):
+        s.rechazar_solicitud("No corresponde", actor=BIBLIO, es_administrador=False, ahora=AHORA)
+    s.rechazar_solicitud("No corresponde", actor=ADMIN, es_administrador=True, ahora=AHORA)
+
+
+# --- historial ----------------------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-SOC-18")
+def test_cada_cambio_queda_en_el_historial_con_autor_y_origen():
+    s = socio()
+    s.modificar(replace(s.datos, apellido="Gómez Paz"), actor=ADMIN, ahora=AHORA)
+    s.reevaluar(CON_VENCIDO, actor=None, ahora=AHORA, origen="Préstamo P-2026-0001 vencido")
+    s.reevaluar(SIN_NADA, actor=BIBLIO, ahora=AHORA, origen="Devolución del préstamo P-2026-0001")
+
+    tipos = [e.tipo for e in s.eventos_pendientes]
+    assert tipos == [
+        TipoEventoSocio.ALTA,
+        TipoEventoSocio.MODIFICACION,
+        TipoEventoSocio.CAMBIO_AUTOMATICO,
+        TipoEventoSocio.CAMBIO_AUTOMATICO,
+    ]
+    _, modificacion, vencido, devuelto = s.eventos_pendientes
+    assert [(c.campo, c.antes, c.despues) for c in modificacion.cambios] == [
+        ("apellido", "Gómez", "Gómez Paz")
+    ]
+    assert vencido.usuario is None and vencido.origen == "Préstamo P-2026-0001 vencido"
+    assert (vencido.estado_anterior, vencido.estado_nuevo) == (
+        EstadoSocio.HABILITADO,
+        EstadoSocio.INHABILITADO,
+    )
+    assert devuelto.estado_nuevo == EstadoSocio.HABILITADO and devuelto.usuario == BIBLIO
+
+
+def test_la_baja_y_la_reactivacion_quedan_en_el_historial():
+    s = _de_baja(TipoBaja.ADMINISTRATIVA)
+    s.reactivar(actor=ADMIN, es_administrador=True, ahora=AHORA, origen=MOSTRADOR)
+
+    baja, reactivacion = s.eventos_pendientes[-2:]
+    assert (baja.tipo, baja.motivo, baja.estado_nuevo) == (
+        TipoEventoSocio.BAJA,
+        "Motivo de la baja",
+        EstadoSocio.BAJA,
+    )
+    assert [(c.campo, c.despues) for c in baja.cambios] == [("tipo_baja", "ADMINISTRATIVA")]
+    assert (reactivacion.tipo, reactivacion.origen) == (TipoEventoSocio.REACTIVACION, MOSTRADOR)

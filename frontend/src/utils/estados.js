@@ -88,6 +88,13 @@ export const MOTIVOS_DE_INHABILITACION = {
   MULTA_IMPAGA: 'Multa impaga',
 };
 
+/** Tipos de baja de un socio, en orden de prioridad (la más grave primero). */
+export const TIPOS_DE_BAJA = {
+  FALLECIMIENTO: 'Fallecimiento',
+  ADMINISTRATIVA: 'Administrativa (sanción)',
+  A_PEDIDO: 'A pedido del socio',
+};
+
 /** Etiqueta de un estado; si no está en el mapa se muestra el valor tal cual. */
 export function estadoDe(entidad, estado) {
   return ESTADOS[entidad]?.[estado] ?? { tono: 'neutral', texto: String(estado) };

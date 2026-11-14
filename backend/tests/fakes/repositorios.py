@@ -248,7 +248,13 @@ class LocalidadRepositorioEnMemoria:
 
 from datetime import date  # noqa: E402
 
-from app.models.socio import Documento, SituacionSocio, Socio, formatear_numero_socio  # noqa: E402
+from app.models.socio import (  # noqa: E402
+    Documento,
+    EventoSocio,
+    SituacionSocio,
+    Socio,
+    formatear_numero_socio,
+)
 from app.repositories.interfaces.socio_repository import FiltroSocios  # noqa: E402
 
 
@@ -261,6 +267,7 @@ class SocioRepositorioEnMemoria:
     def __init__(self) -> None:
         self.socios: dict[int, Socio] = {}
         self.situaciones: dict[int, SituacionSocio] = {}
+        self.eventos: dict[int, list[EventoSocio]] = {}
         self._numero = 0
 
     def siguiente_numero(self) -> str:
@@ -272,9 +279,24 @@ class SocioRepositorioEnMemoria:
             raise DuplicadoError("Ya existe un socio con ese documento.")
         socio.id = socio.id or max(self.socios, default=0) + 1
         self.socios[socio.id] = socio
+        self._persistir_eventos(socio)
 
     def guardar(self, socio: Socio) -> None:
         assert socio.id in self.socios
+        self._persistir_eventos(socio)
+
+    def historial(self, socio_id: int, page: int, size: int) -> tuple[list[EventoSocio], int]:
+        eventos = list(reversed(self.eventos.get(socio_id, [])))
+        inicio = (page - 1) * size
+        return eventos[inicio : inicio + size], len(eventos)
+
+    def _persistir_eventos(self, socio: Socio) -> None:
+        assert socio.id is not None
+        guardados = self.eventos.setdefault(socio.id, [])
+        for evento in socio.eventos_pendientes:
+            evento.id = sum(len(e) for e in self.eventos.values()) + 1
+            guardados.append(evento)
+        socio.eventos_pendientes.clear()
 
     def obtener(self, socio_id: int) -> Socio | None:
         return self.socios.get(socio_id)
@@ -309,6 +331,8 @@ class SocioRepositorioEnMemoria:
         socios = list(self.socios.values())
         if filtro.estado:
             socios = [s for s in socios if s.estado == filtro.estado]
+        if filtro.solicitud_pendiente:
+            socios = [s for s in socios if s.solicitud is not None]
         if filtro.documento:
             socios = [s for s in socios if s.datos.documento.numero == filtro.documento]
         if filtro.texto:

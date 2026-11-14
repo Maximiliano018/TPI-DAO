@@ -16,6 +16,10 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | RF-SOC-08 | El sistema debe limitar los préstamos simultáneos de un socio al máximo configurado. | Obligatorio |
 | RF-SOC-09 | El sistema debe permitir dar de baja lógica a un socio sin préstamos activos ni multas pendientes, y reactivar a un socio dado de baja en lugar de duplicarlo. | Obligatorio |
 | RF-SOC-10 | El sistema debe mostrar la situación de un socio: préstamos activos y vencidos, multas, reservas e historial. El socio solo ve la propia. | Obligatorio |
+| RF-SOC-11 | La baja debe tener un tipo: a pedido del socio (la registra y la reactiva el personal), administrativa (solo el administrador) o por fallecimiento (solo el administrador; es definitiva y desactiva la cuenta). Una inhabilitación administrativa debe conservarse tras la baja y la reactivación. | Obligatorio |
+| RF-SOC-12 | El socio dado de baja debe poder solicitar su reactivación desde su cuenta; el personal que puede reactivarlo según el tipo de baja la aprueba o la rechaza con motivo. También debe poder reactivarse en mostrador. | Obligatorio |
+| RF-SOC-13 | El sistema debe registrar un historial de solo inserción por socio (alta, modificaciones campo a campo, inhabilitaciones y rehabilitaciones con su origen, bajas, solicitudes, reactivaciones y cuenta), con usuario y momento. | Obligatorio |
+| RF-SOC-14 | Cada rol debe recibir solo los datos del socio que puede ver: el socio no ve la auditoría ni la identidad del personal; el bibliotecario no ve la auditoría. | Obligatorio |
 
 ## Casos de uso
 
@@ -56,17 +60,40 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 
 ### CU-SOC-04. Dar de baja o reactivar a un socio
 
-- **Actor:** Administrador.
-- **Flujo normal:** solicita la baja con motivo; el sistema verifica que no tenga préstamos activos ni multas y lo pasa a `Baja`. Para reactivar, selecciona al socio en `Baja` y confirma.
+- **Actor:** Bibliotecario (baja a pedido del socio), Administrador (todas).
+- **Flujo normal:** elige el tipo de baja y el motivo; el sistema verifica que no tenga préstamos activos ni multas y lo pasa a `Baja`. Para reactivar en mostrador, selecciona al socio en `Baja` y confirma; vuelve `Habilitado`, o `Inhabilitado` si tenía una inhabilitación administrativa.
 - **Flujos alternativos:**
+  - **A0:** un bibliotecario intenta una baja administrativa o por fallecimiento, o reactivar una baja administrativa; el sistema lo rechaza por falta de permiso.
+  - **A3:** baja por fallecimiento: el sistema desactiva la cuenta de acceso del socio; la baja no se puede reactivar.
   - **A1:** tiene préstamos activos o multas; bloquea la baja y los lista.
   - **A2:** tiene reservas pendientes; el sistema avisa antes de confirmar, las cancela al darlo de baja e informa cuántas canceló (los ejemplares pasan al siguiente de la cola).
 
 ### CU-SOC-05. Consultar la situación de un socio
 
 - **Actor:** Bibliotecario, Administrador, Socio (solo la propia).
-- **Flujo normal:** busca al socio y abre su ficha con estado, préstamos, vencimientos, multas y reservas.
-- **Flujo alternativo A1:** el socio intenta ver a otro; el sistema lo rechaza.
+- **Flujo normal:** busca al socio y abre su ficha con estado, préstamos, vencimientos, multas, reservas e historial; cada rol ve solo los datos que le corresponden.
+- **Flujos alternativos:**
+  - **A1:** el socio intenta ver a otro; el sistema lo rechaza.
+  - **A2:** el socio está inhabilitado o dado de baja: igual puede ingresar y ver su situación, pero no reservar ni recibir préstamos.
+
+### CU-SOC-06. Solicitar la reactivación desde la cuenta
+
+- **Actores:** Socio dado de baja; Bibliotecario o Administrador (según el tipo de baja).
+- **Flujo normal:**
+  1. El socio ingresa con su cuenta, abre «Mis datos» y pide la reactivación, con un mensaje opcional.
+  2. La solicitud queda pendiente y aparece en el listado de socios del personal.
+  3. El personal la aprueba: el socio se reactiva y el evento queda en su historial.
+- **Flujos alternativos:**
+  - **A1 (paso 3):** el personal la rechaza con un motivo; el socio sigue en baja, ve el motivo en su historial y puede volver a pedirla.
+  - **A2 (paso 1):** ya tiene una solicitud pendiente; el sistema lo informa.
+  - **A3 (paso 1):** la baja fue por fallecimiento; no hay reactivación posible.
+  - **A4 (paso 3):** la baja es administrativa y la intenta resolver un bibliotecario; el sistema lo rechaza.
+
+### CU-SOC-07. Consultar el historial de un socio
+
+- **Actores:** Bibliotecario, Administrador, Socio (solo el propio).
+- **Flujo normal:** abre la pestaña de historial de la ficha; el sistema lista los eventos del más reciente al más antiguo, con autor, fecha, estados, motivo, origen y cambios.
+- **Flujo alternativo A1:** el socio ve el suyo sin la identidad del personal («Personal de la biblioteca», «Sistema»).
 
 ## Criterios de aceptación
 
@@ -83,3 +110,12 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | CA-SOC-09 | RF-SOC-09 | **Dado** un socio con un préstamo activo, **cuando** se pide su baja, **entonces** se bloquea. |
 | CA-SOC-10 | RF-SOC-06 | **Dado** un socio inhabilitado por decisión administrativa, **cuando** un bibliotecario intenta rehabilitarlo, **entonces** se rechaza. |
 | CA-SOC-11 | RF-SOC-10 | **Dado** un socio autenticado, **cuando** consulta a otro socio, **entonces** se rechaza. |
+| CA-SOC-12 | RF-SOC-11 | **Dado** un bibliotecario, **cuando** registra la baja a pedido de un socio, **entonces** se acepta; **cuando** intenta una baja administrativa o por fallecimiento, o reactivar una administrativa, **entonces** se rechaza por falta de permiso. |
+| CA-SOC-13 | RF-SOC-11 | **Dado** un socio con cuenta, **cuando** el administrador lo da de baja por fallecimiento, **entonces** su cuenta queda desactivada y la baja no se puede reactivar. |
+| CA-SOC-14 | RF-SOC-11 | **Dado** un socio inhabilitado por decisión administrativa, **cuando** se lo da de baja y se lo reactiva, **entonces** vuelve `Inhabilitado` con el mismo motivo. |
+| CA-SOC-15 | RF-SOC-12 | **Dado** un socio dado de baja a pedido, **cuando** pide la reactivación desde su cuenta, **entonces** la solicitud queda pendiente y visible para el personal, y al aprobarla vuelve a `Habilitado`. |
+| CA-SOC-16 | RF-SOC-12 | **Dado** una solicitud pendiente, **cuando** el personal la rechaza con motivo, **entonces** el socio sigue en baja, ve el motivo en su historial y puede volver a pedirla. |
+| CA-SOC-17 | RF-SOC-12 | **Dado** un socio inhabilitado o dado de baja, **cuando** ingresa con su cuenta, **entonces** ve su situación pero no puede reservar ni recibir préstamos. |
+| CA-SOC-18 | RF-SOC-13 | **Dado** un cambio en el socio, **cuando** se confirma, **entonces** el historial lo registra con autor y momento; los cambios automáticos, sin autor y con su origen. |
+| CA-SOC-19 | RF-SOC-13 | **Dado** un socio, **cuando** consulta su historial, **entonces** lo ve sin la identidad del personal; **cuando** pide el de otro socio, **entonces** se rechaza. |
+| CA-SOC-20 | RF-SOC-14 | **Dado** un socio, un bibliotecario y un administrador, **cuando** consultan la misma ficha, **entonces** solo el administrador ve la auditoría y el socio solo ve el nombre de usuario de su cuenta. |

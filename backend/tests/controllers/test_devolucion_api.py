@@ -146,7 +146,7 @@ def test_devolucion_tardia_genera_multa_y_se_rehabilita_al_saldarla(cliente, mun
     _error(
         cliente.post(
             f"{API}/socios/{mundo['lucia']['id']}/baja",
-            json={"motivo": "Pidió la baja"},
+            json={"tipo": "A_PEDIDO", "motivo": "Pidió la baja"},
             headers=mundo["h_admin"],
         ),
         409,

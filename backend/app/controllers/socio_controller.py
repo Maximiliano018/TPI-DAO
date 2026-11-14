@@ -1,4 +1,7 @@
-"""Endpoints de socios."""
+"""Endpoints de socios: alta, búsqueda, estados, bajas, reactivación, cuenta e historial.
+
+Las respuestas usan un esquema por rol (ver ``app/dtos/response/socio_response.py``).
+"""
 
 from datetime import date
 from typing import Annotated
@@ -7,17 +10,19 @@ from fastapi import APIRouter, Depends, Query, Response, status
 
 from app.controllers.dependencies import get_socio_service, requiere, usuario_actual
 from app.dtos.request.socio_request import (
+    BajaRequest,
     CuentaSocioRequest,
     MotivoRequest,
     SocioCrearRequest,
     SocioDatosRequest,
+    SolicitudReactivacionRequest,
 )
 from app.dtos.response.socio_response import (
-    BajaSocioResponse,
-    FichaSocioResponse,
+    PaginaHistorialSocioResponse,
     PaginaSociosResponse,
     SocioResponse,
     SocioResumenResponse,
+    socio_a_response,
 )
 from app.models.socio import EstadoSocio, TipoDocumento
 from app.models.usuario import Permiso, Usuario
@@ -65,7 +70,7 @@ def crear_socio(
         actor, datos.a_datos(), datos.sede_alta_id, datos.confirmar_posible_duplicado
     )
     response.headers["Location"] = f"/api/v1/socios/{socio.id}"
-    return SocioResponse.desde(socio)
+    return socio_a_response(socio, actor)
 
 
 @router.get(
@@ -82,11 +87,15 @@ def listar_socios(
     ] = None,
     documento: Annotated[str | None, Query(max_length=30)] = None,
     estado: EstadoSocio | None = None,
+    solicitud_pendiente: Annotated[
+        bool, Query(description="Solo socios con una solicitud de reactivación pendiente")
+    ] = False,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaSociosResponse:
     """Busca por número de socio, documento o apellido; ordena por apellido y nombre."""
-    return PaginaSociosResponse.desde(servicio.listar(actor, q, documento, estado, page, size))
+    pagina = servicio.listar(actor, q, documento, estado, page, size, solicitud_pendiente)
+    return PaginaSociosResponse.desde(pagina)
 
 
 @router.get(
@@ -113,13 +122,37 @@ def posibles_duplicados(
 
 @router.get(
     "/{socio_id}",
-    response_model=FichaSocioResponse,
+    response_model=SocioResponse,
     summary="Ficha y situación de un socio",
     responses={401: _ERROR_401, 404: _ERROR_404},
 )
-def obtener_socio(socio_id: int, servicio: Servicio, actor: Autenticado) -> FichaSocioResponse:
-    """Datos, estado y situación (préstamos, multas y reservas). Un socio solo ve la propia."""
-    return FichaSocioResponse.desde_ficha(servicio.ficha(actor, socio_id))
+def obtener_socio(socio_id: int, servicio: Servicio, actor: Autenticado) -> SocioResponse:
+    """Datos, estado y situación (préstamos, multas y reservas). Un socio solo ve la propia.
+
+    El esquema depende del rol: el socio no ve la auditoría ni el id de su cuenta.
+    """
+    ficha = servicio.ficha(actor, socio_id)
+    return socio_a_response(ficha.socio, actor, situacion=ficha.situacion)
+
+
+@router.get(
+    "/{socio_id}/historial",
+    response_model=PaginaHistorialSocioResponse,
+    summary="Historial del socio",
+    responses={401: _ERROR_401, 404: _ERROR_404},
+)
+def historial_socio(
+    socio_id: int,
+    servicio: Servicio,
+    actor: Autenticado,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PaginaHistorialSocioResponse:
+    """Eventos del socio, del más reciente al más antiguo. El socio ve el propio, sin la
+    identidad del personal."""
+    return PaginaHistorialSocioResponse.desde(
+        servicio.historial(actor, socio_id, page, size), actor
+    )
 
 
 @router.put(
@@ -138,7 +171,7 @@ def modificar_socio(
     socio_id: int, datos: SocioDatosRequest, servicio: Servicio, actor: Registrador
 ) -> SocioResponse:
     """Reemplaza los datos personales. El socio pide la corrección al personal."""
-    return SocioResponse.desde(servicio.modificar(actor, socio_id, datos.a_datos()))
+    return socio_a_response(servicio.modificar(actor, socio_id, datos.a_datos()), actor)
 
 
 @router.post(
@@ -157,7 +190,7 @@ def inhabilitar_socio(
     socio_id: int, datos: MotivoRequest, servicio: Servicio, actor: Administrador
 ) -> SocioResponse:
     """Inhabilita al socio por decisión administrativa; solo el administrador la levanta."""
-    return SocioResponse.desde(servicio.inhabilitar(actor, socio_id, datos.motivo))
+    return socio_a_response(servicio.inhabilitar(actor, socio_id, datos.motivo), actor)
 
 
 @router.post(
@@ -176,16 +209,18 @@ def inhabilitar_socio(
 )
 def rehabilitar_socio(socio_id: int, servicio: Servicio, actor: Registrador) -> SocioResponse:
     """Rehabilita si no hay causas vigentes. El administrador levanta la causa administrativa."""
-    return SocioResponse.desde(servicio.rehabilitar(actor, socio_id))
+    return socio_a_response(servicio.rehabilitar(actor, socio_id), actor)
 
 
 @router.post(
     "/{socio_id}/baja",
-    response_model=BajaSocioResponse,
+    response_model=SocioResponse,
     summary="Baja lógica de un socio",
     responses={
         401: _ERROR_401,
-        403: _ERROR_403,
+        403: {
+            "description": "Un bibliotecario intenta una baja administrativa o por fallecimiento"
+        },
         404: _ERROR_404,
         409: {
             "description": "Préstamos en curso o multas pendientes "
@@ -195,29 +230,91 @@ def rehabilitar_socio(socio_id: int, servicio: Servicio, actor: Registrador) -> 
     },
 )
 def dar_de_baja_socio(
-    socio_id: int, datos: MotivoRequest, servicio: Servicio, actor: Administrador
-) -> BajaSocioResponse:
-    """Baja lógica con motivo; conserva el historial.
+    socio_id: int, datos: BajaRequest, servicio: Servicio, actor: Registrador
+) -> SocioResponse:
+    """Baja lógica con tipo y motivo; conserva el historial.
 
-    Cancela las reservas activas del socio e informa cuántas en `reservas_canceladas`.
+    `A_PEDIDO` la registra el personal; `ADMINISTRATIVA` y `FALLECIMIENTO`, solo el
+    administrador (la de fallecimiento desactiva la cuenta y no se reactiva). Cancela las
+    reservas activas del socio e informa cuántas en `reservas_canceladas`.
     """
-    return BajaSocioResponse.desde_baja(servicio.dar_de_baja(actor, socio_id, datos.motivo))
+    baja = servicio.dar_de_baja(actor, socio_id, datos.tipo, datos.motivo)
+    return socio_a_response(baja.socio, actor, reservas_canceladas=baja.reservas_canceladas)
 
 
 @router.post(
     "/{socio_id}/reactivar",
     response_model=SocioResponse,
-    summary="Reactivar a un socio dado de baja",
+    summary="Reactivar a un socio dado de baja (en mostrador)",
+    responses={
+        401: _ERROR_401,
+        403: {"description": "Un bibliotecario intenta reactivar una baja administrativa"},
+        404: _ERROR_404,
+        409: {"description": "`SOCIO_YA_ACTIVO` o `SOCIO_NO_REACTIVABLE` (fallecimiento)"},
+    },
+)
+def reactivar_socio(socio_id: int, servicio: Servicio, actor: Registrador) -> SocioResponse:
+    """Vuelve a dar de alta a un socio dado de baja, en lugar de registrarlo de nuevo.
+
+    Vuelve inhabilitado si tenía una inhabilitación administrativa.
+    """
+    return socio_a_response(servicio.reactivar(actor, socio_id), actor)
+
+
+@router.post(
+    "/{socio_id}/solicitud-reactivacion",
+    response_model=SocioResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="El socio pide su reactivación",
+    responses={
+        401: _ERROR_401,
+        404: _ERROR_404,
+        409: {
+            "description": "`SOCIO_YA_ACTIVO`, `SOCIO_NO_REACTIVABLE` o `SOLICITUD_YA_PENDIENTE`"
+        },
+        422: _ERROR_422,
+    },
+)
+def solicitar_reactivacion(
+    socio_id: int, datos: SolicitudReactivacionRequest, servicio: Servicio, actor: Autenticado
+) -> SocioResponse:
+    """Solo el propio socio dado de baja, desde su cuenta. El personal la aprueba o rechaza."""
+    return socio_a_response(servicio.solicitar_reactivacion(actor, socio_id, datos.mensaje), actor)
+
+
+@router.post(
+    "/{socio_id}/solicitud-reactivacion/aprobar",
+    response_model=SocioResponse,
+    summary="Aprobar la solicitud de reactivación",
     responses={
         401: _ERROR_401,
         403: _ERROR_403,
         404: _ERROR_404,
-        409: {"description": "No estaba dado de baja (`SOCIO_YA_ACTIVO`)"},
+        409: {"description": "`SIN_SOLICITUD_PENDIENTE`"},
     },
 )
-def reactivar_socio(socio_id: int, servicio: Servicio, actor: Administrador) -> SocioResponse:
-    """Vuelve a habilitar a un socio dado de baja, en lugar de registrarlo de nuevo."""
-    return SocioResponse.desde(servicio.reactivar(actor, socio_id))
+def aprobar_solicitud(socio_id: int, servicio: Servicio, actor: Registrador) -> SocioResponse:
+    """Reactiva al socio; la baja administrativa la resuelve solo el administrador."""
+    return socio_a_response(servicio.aprobar_solicitud(actor, socio_id), actor)
+
+
+@router.post(
+    "/{socio_id}/solicitud-reactivacion/rechazar",
+    response_model=SocioResponse,
+    summary="Rechazar la solicitud de reactivación",
+    responses={
+        401: _ERROR_401,
+        403: _ERROR_403,
+        404: _ERROR_404,
+        409: {"description": "`SIN_SOLICITUD_PENDIENTE`"},
+        422: _ERROR_422,
+    },
+)
+def rechazar_solicitud(
+    socio_id: int, datos: MotivoRequest, servicio: Servicio, actor: Registrador
+) -> SocioResponse:
+    """Rechaza con un motivo (5 a 300 caracteres); el socio sigue en baja."""
+    return socio_a_response(servicio.rechazar_solicitud(actor, socio_id, datos.motivo), actor)
 
 
 @router.post(
@@ -237,6 +334,6 @@ def crear_cuenta_socio(
     socio_id: int, datos: CuentaSocioRequest, servicio: Servicio, actor: Registrador
 ) -> SocioResponse:
     """Crea el usuario (rol `SOCIO`) con el que el socio consulta y reserva."""
-    return SocioResponse.desde(
-        servicio.crear_cuenta(actor, socio_id, datos.username, datos.password)
+    return socio_a_response(
+        servicio.crear_cuenta(actor, socio_id, datos.username, datos.password), actor
     )

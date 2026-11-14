@@ -118,14 +118,18 @@ Errores: `401 TOKEN_INVALIDO` (vencido, manipulado o de un usuario dado de baja)
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
 | `POST /socios` | A, B | Alta (el bibliotecario en su sede; el administrador indica `sede_alta_id`) | RF-SOC-01, 02 |
-| `GET /socios` | A, B | Búsqueda paginada; `?q=` (número, documento o nombre), `?documento=`, `?estado=` | RF-SOC-04 |
+| `GET /socios` | A, B | Búsqueda paginada; `?q=` (número, documento o nombre), `?documento=`, `?estado=`, `?solicitud_pendiente=true` | RF-SOC-04, 12 |
 | `GET /socios/posibles-duplicados` | A, B | Búsqueda previa al alta; `?tipo_documento=&nro_documento=` y `?nombre=&apellido=&fecha_nacimiento=` | RF-SOC-02 |
-| `GET /socios/{id}` | A, B, S | Ficha y situación (el socio, solo la propia) | RF-SOC-10 |
+| `GET /socios/{id}` | A, B, S | Ficha y situación (el socio, solo la propia); esquema por rol | RF-SOC-10, 14 |
+| `GET /socios/{id}/historial` | A, B, S | Historial del socio (el socio, solo el propio y sin la identidad del personal) | RF-SOC-13 |
 | `PUT /socios/{id}` | A, B | Modificar | RF-SOC-03 |
 | `POST /socios/{id}/inhabilitar` | A | Inhabilitación administrativa con motivo | RF-SOC-06 |
 | `POST /socios/{id}/rehabilitar` | A, B | Rehabilita si no hay causas vigentes; solo A levanta la administrativa | RF-SOC-05, 06 |
-| `POST /socios/{id}/baja` | A | Baja lógica con motivo | RF-SOC-09 |
-| `POST /socios/{id}/reactivar` | A | Reactivar | RF-SOC-09 |
+| `POST /socios/{id}/baja` | A, B | Baja lógica con tipo y motivo; B solo `A_PEDIDO` | RF-SOC-09, 11 |
+| `POST /socios/{id}/reactivar` | A, B | Reactivación en mostrador; B solo bajas `A_PEDIDO`; la de fallecimiento no se reactiva | RF-SOC-09, 11 |
+| `POST /socios/{id}/solicitud-reactivacion` | S | El socio dado de baja pide volver (mensaje opcional) | RF-SOC-12 |
+| `POST /socios/{id}/solicitud-reactivacion/aprobar` | A, B | Aprueba (reactiva), con los mismos permisos que la reactivación | RF-SOC-12 |
+| `POST /socios/{id}/solicitud-reactivacion/rechazar` | A, B | Rechaza con motivo; el socio sigue en baja | RF-SOC-12 |
 | `POST /socios/{id}/cuenta` | A, B | Crear la cuenta de acceso del socio (rol `SOCIO`) | RF-ACC-01 |
 
 ### Catálogo
@@ -522,7 +526,22 @@ Errores, en este orden: `422 VALIDACION` (forma) → `409 DUPLICADO` (documento 
 
 `causas_inhabilitacion` lista todas las causas vigentes; `motivo_inhabilitacion` es la de mayor prioridad (administrativa, préstamo vencido, multa impaga). Un socio que consulta la ficha de otro recibe `404 SOCIO_NO_ENCONTRADO` (no se revela si existe).
 
-Estados: `POST /socios/{id}/inhabilitar` y `/baja` reciben `{ "motivo": "..." }` (5 a 300 caracteres). Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa). La baja cancela las reservas activas del socio y su respuesta agrega `reservas_canceladas` con la cantidad. Al modificar un socio en baja se responde `409 SOCIO_EN_BAJA` antes de revisar el documento.
+**Esquema por rol** (como en sedes, los campos que el rol no puede ver no se serializan):
+
+| Campo | Administrador | Bibliotecario | Socio (propio) |
+|-------|:---:|:---:|:---:|
+| Datos personales, estado, causas, motivo administrativo, `sede_alta` | ✔ | ✔ | ✔ |
+| `tipo_baja`, `fecha_baja`, `motivo_baja`, `reactivable`, `solicitud` | ✔ | ✔ | ✔ |
+| `situacion` (en la ficha) | ✔ | ✔ | ✔ |
+| `sede_alta_id` | ✔ | ✔ | — |
+| `cuenta` | `usuario_id`, `username`, `activo` | igual | solo `username` |
+| `creado_por`, `actualizado_en`, `actualizado_por` | ✔ | — | — |
+
+`reactivable` es verdadero si está en baja y no por fallecimiento; `solicitud` es `{fecha, mensaje}` mientras haya una solicitud de reactivación pendiente.
+
+`GET /socios/{id}/historial` (paginado, del más reciente al más antiguo) devuelve eventos `{id, tipo_evento, fecha_hora, autor, usuario, estado_anterior, estado_nuevo, motivo, origen, cambios}`. El personal recibe en `usuario` quién hizo el cambio y en `autor` su nombre; el socio recibe `usuario: null` y `autor` «Vos», «Personal de la biblioteca» o «Sistema» (cambios automáticos, con su `origen`).
+
+Estados: `POST /socios/{id}/inhabilitar` recibe `{ "motivo": "..." }` y `/baja`, `{ "tipo": "A_PEDIDO" | "ADMINISTRATIVA" | "FALLECIMIENTO", "motivo": "..." }` (motivo de 5 a 300 caracteres). La baja por fallecimiento desactiva la cuenta del socio. La solicitud de reactivación recibe `{ "mensaje": "..." }` (opcional, hasta 300) y solo la puede enviar el propio socio; el rechazo recibe `{ "motivo": "..." }`. Errores propios: `409 SOCIO_NO_REACTIVABLE` (fallecimiento), `409 SOLICITUD_YA_PENDIENTE`, `409 SIN_SOLICITUD_PENDIENTE` y `403 FORBIDDEN` cuando un bibliotecario intenta una baja administrativa o por fallecimiento, o resolver una baja administrativa. Errores: `409 SOCIO_YA_INHABILITADO`, `SOCIO_EN_BAJA`, `SOCIO_YA_EN_BAJA`, `SOCIO_YA_ACTIVO`, `SOCIO_YA_HABILITADO`, `SOCIO_CON_CAUSAS_VIGENTES` (rehabilitar con un préstamo vencido o una multa impaga), `SOCIO_CON_ACTIVIDAD_PENDIENTE` (baja con préstamos en curso o multas; `detalles` dice cuántos de cada tipo) y `403 FORBIDDEN` (un bibliotecario intenta levantar una inhabilitación administrativa). La baja cancela las reservas activas del socio y su respuesta agrega `reservas_canceladas` con la cantidad. Al modificar un socio en baja se responde `409 SOCIO_EN_BAJA` antes de revisar el documento.
 
 `POST /socios/{id}/cuenta` recibe `{ "username": "lucia.gomez", "password": "••••••••••" }` con las mismas reglas que el alta de personal. Errores: `409 SOCIO_CON_CUENTA`, `409 DUPLICADO` (usuario repetido), `409 SOCIO_EN_BAJA`.
 
