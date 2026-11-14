@@ -2,6 +2,10 @@
 
 Cada clase implementa el puerto ``VerificadorImpedimentoBaja`` del dominio y se registra en
 ``get_verificador_baja_sede``. ``SedeService`` no conoce ninguna de ellas.
+
+Son las **estrategias concretas** de Strategy y las **hojas** de Composite (ver
+``app/models/policies/verificacion_baja_sede.py``). Cada una devuelve la cantidad y una muestra de
+hasta ``MAX_ELEMENTOS_POR_IMPEDIMENTO`` elementos, o ``None`` si su causa no bloquea la baja.
 """
 
 from app.models.ejemplar import Ejemplar

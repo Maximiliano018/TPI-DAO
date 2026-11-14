@@ -3,6 +3,25 @@
 El dominio define el **puerto** ``VerificadorImpedimentoBaja``; cada módulo (usuarios,
 ejemplares, préstamos, remitos, reservas) aporta su implementación. ``VerificadorBajaSede`` las
 agrupa. Así ``SedeService`` no conoce a los demás módulos ni cambia cuando aparece uno nuevo.
+
+Roles de **Strategy**:
+
+- Estrategia abstracta: ``VerificadorImpedimentoBaja`` (``Protocol``; las estrategias lo cumplen
+  sin heredar, así el dominio no depende de los módulos que lo implementan).
+- Estrategias concretas: los seis verificadores de ``app/services/verificadores_baja_sede.py``.
+- Contexto: ``VerificadorBajaSede``, que guarda las estrategias y les delega la verificación.
+- Cliente: ``get_verificador_baja_sede`` (``app/controllers/dependencies.py``), que elige las
+  estrategias concretas y se las inyecta al contexto.
+
+Roles de **Composite**:
+
+- Componente: ``VerificadorImpedimentoBaja`` (la operación común ``verificar``).
+- Hojas: cada verificador concreto (una sola causa de bloqueo).
+- Contenedor: ``VerificadorBajaSede``, que recorre sus hijos y junta los impedimentos.
+- Cliente: ``SedeService.dar_de_baja``, que trata al conjunto como un único verificador.
+
+La **decisión** de bloquear la toma la entidad (``Sede.dar_de_baja``); los verificadores solo
+informan. Detalle y diagrama en ``docs/tecnica/05-patrones-de-diseno.md`` (sección 10).
 """
 
 from collections.abc import Sequence
@@ -83,7 +102,11 @@ class Impedimento:
 
 
 class VerificadorImpedimentoBaja(Protocol):
-    """Puerto: una verificación de un tipo de actividad pendiente."""
+    """Puerto: una verificación de un tipo de actividad pendiente.
+
+    Es la **estrategia abstracta** de Strategy y el **componente** de Composite. Cada
+    implementación cubre un único ``tipo`` y consulta solo el repositorio de su módulo.
+    """
 
     tipo: TipoImpedimento
 
@@ -93,7 +116,15 @@ class VerificadorImpedimentoBaja(Protocol):
 
 
 class VerificadorBajaSede:
-    """Compuesto: aplica todos los verificadores registrados."""
+    """Compuesto: aplica todos los verificadores registrados.
+
+    Es el **contexto** de Strategy (guarda las estrategias y les delega) y el **contenedor** de
+    Composite (el cliente lo usa como un único verificador).
+
+    A diferencia del Composite clásico, no es intercambiable con una hoja: devuelve la lista de
+    impedimentos (la baja necesita el detalle por tipo) y no tiene ``tipo``. Tampoco se anidan
+    contenedores: las causas son independientes y basta un nivel.
+    """
 
     def __init__(self, verificadores: Sequence[VerificadorImpedimentoBaja]) -> None:
         self._verificadores = list(verificadores)

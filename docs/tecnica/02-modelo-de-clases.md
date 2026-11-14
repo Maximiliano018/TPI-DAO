@@ -307,7 +307,9 @@ classDiagram
     Devolucion ..> PoliticaMulta
 ```
 
-Los estados de préstamo, ejemplar y reserva siguen la misma estructura que `EstadoRemito` (una clase por estado que define qué operaciones admite). Ver [Máquinas de estado](03-maquinas-de-estado.md).
+Los estados de préstamo, ejemplar y reserva siguen la misma estructura que `EstadoRemito` (una clase por estado que define qué operaciones admite). Ver [Máquinas de estado](03-maquinas-de-estado.md). La sede no usa State: su estado es el enum `EstadoSede` ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)).
+
+La verificación de baja de sede (Strategy + Composite: `VerificadorImpedimentoBaja`, sus seis verificadores concretos y el compuesto `VerificadorBajaSede`) tiene su diagrama y la tabla de roles en [Patrones de diseño](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede).
 
 ## Capa de aplicación y persistencia
 
