@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Protocol
 
-from app.models.socio import Documento, EstadoSocio, SituacionSocio, Socio
+from app.models.socio import Documento, EstadoSocio, EventoSocio, SituacionSocio, Socio
 
 
 @dataclass(frozen=True)
@@ -17,6 +17,7 @@ class FiltroSocios:
     texto: str | None = None
     documento: str | None = None
     estado: EstadoSocio | None = None
+    solicitud_pendiente: bool = False
 
 
 class SocioRepository(Protocol):
@@ -64,4 +65,8 @@ class SocioRepository(Protocol):
 
     def situacion(self, socio_id: int) -> SituacionSocio:
         """Préstamos en curso y vencidos, multas pendientes y reservas activas del socio."""
+        ...
+
+    def historial(self, socio_id: int, page: int, size: int) -> tuple[list[EventoSocio], int]:
+        """Eventos del socio, del más reciente al más antiguo."""
         ...

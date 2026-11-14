@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
@@ -32,9 +32,9 @@ describe('Ficha del socio', () => {
       '/socios/45/editar',
     );
     expect(screen.getByRole('button', { name: 'Crear cuenta' })).toBeVisible();
-    // Inhabilitar, dar de baja y reactivar son del administrador.
+    // Inhabilitar es del administrador; la baja a pedido del socio la registra el personal.
     expect(screen.queryByRole('button', { name: 'Inhabilitar' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Dar de baja' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Dar de baja' })).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
   });
 
@@ -120,11 +120,18 @@ describe('Ficha del socio', () => {
     responder(
       'get',
       '/socios/45',
-      socio({ estado: 'BAJA', fecha_baja: '2026-11-01T12:00:00Z', motivo_baja: 'Se mudó' }),
+      socio({
+        estado: 'BAJA',
+        tipo_baja: 'A_PEDIDO',
+        reactivable: true,
+        fecha_baja: '2026-11-01T12:00:00Z',
+        motivo_baja: 'Se mudó',
+      }),
     );
     renderizarApp('/socios/45', { conSesion: true });
 
     expect(await screen.findByText(/Motivo: Se mudó/)).toBeVisible();
+    expect(screen.getByText(/A pedido del socio/)).toBeVisible();
     expect(screen.getByRole('button', { name: 'Reactivar' })).toBeVisible();
     expect(screen.queryByRole('link', { name: 'Editar' })).not.toBeInTheDocument();
   });
@@ -168,5 +175,120 @@ describe('Ficha del socio', () => {
     expect(screen.queryByRole('link', { name: 'Editar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Crear cuenta' })).not.toBeInTheDocument();
     expect(screen.getByText(/pida la corrección en el mostrador/)).toBeVisible();
+  });
+
+  it('el bibliotecario solo registra la baja a pedido; el administrador elige el tipo', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/socios/45', socio());
+    const user = userEvent.setup();
+    const { unmount } = renderizarApp('/socios/45', { conSesion: true });
+    await user.click(await screen.findByRole('button', { name: 'Dar de baja' }));
+    const tipo = within(screen.getByRole('dialog')).getByLabelText('Tipo de baja');
+    expect(tipo).toBeDisabled();
+    expect(
+      within(tipo)
+        .getAllByRole('option')
+        .map((o) => o.value),
+    ).toEqual(['A_PEDIDO']);
+    unmount();
+
+    sesionDe(ADMIN);
+    const llamadas = registrar('post', '/socios/45/baja', {
+      ...socio({ estado: 'BAJA' }),
+      reservas_canceladas: 0,
+    });
+    renderizarApp('/socios/45', { conSesion: true });
+    await user.click(await screen.findByRole('button', { name: 'Dar de baja' }));
+    const dialogo = screen.getByRole('dialog');
+    await user.selectOptions(within(dialogo).getByLabelText('Tipo de baja'), 'FALLECIMIENTO');
+    expect(dialogo).toHaveTextContent('Es definitiva');
+    await user.type(within(dialogo).getByLabelText(/Motivo/), 'Aviso de un familiar');
+    await user.click(within(dialogo).getByRole('button', { name: 'Dar de baja' }));
+    await waitFor(() =>
+      expect(llamadas[0].cuerpo).toEqual({ tipo: 'FALLECIMIENTO', motivo: 'Aviso de un familiar' }),
+    );
+  });
+
+  it('con una solicitud pendiente el personal la aprueba o la rechaza según el tipo de baja', async () => {
+    const enBaja = (tipo) =>
+      socio({
+        estado: 'BAJA',
+        tipo_baja: tipo,
+        reactivable: true,
+        fecha_baja: '2026-11-01T12:00:00Z',
+        motivo_baja: 'Se mudó',
+        solicitud: { fecha: '2026-11-05T12:00:00Z', mensaje: 'Volví a la ciudad' },
+      });
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/socios/45', enBaja('A_PEDIDO'));
+    const llamadas = registrar('post', '/socios/45/solicitud-reactivacion/aprobar', socio());
+    const user = userEvent.setup();
+    const { unmount } = renderizarApp('/socios/45', { conSesion: true });
+
+    expect(await screen.findByText(/Volví a la ciudad/)).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Rechazar solicitud' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reactivar' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Aprobar reactivación' }));
+    await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Aprobar' }));
+    await waitFor(() => expect(llamadas).toHaveLength(1));
+    unmount();
+
+    // Una baja administrativa la resuelve solo el administrador.
+    responder('get', '/socios/45', enBaja('ADMINISTRATIVA'));
+    renderizarApp('/socios/45', { conSesion: true });
+    await screen.findByText(/Volví a la ciudad/);
+    expect(screen.queryByRole('button', { name: 'Aprobar reactivación' })).not.toBeInTheDocument();
+  });
+
+  it('el socio dado de baja pide la reactivación desde «Mis datos»', async () => {
+    sesionDe(SOCIO);
+    const propio = {
+      ...socio({ estado: 'BAJA', tipo_baja: 'A_PEDIDO', reactivable: true }),
+      fecha_baja: '2026-11-01T12:00:00Z',
+      motivo_baja: 'Se mudó',
+      cuenta: { username: 'sol.socia' },
+    };
+    delete propio.creado_por;
+    responder('get', '/socios/45', propio);
+    const llamadas = registrar('post', '/socios/45/solicitud-reactivacion', propio, 201);
+    const user = userEvent.setup();
+    renderizarApp('/mis-datos', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Solicitar la reactivación' }));
+    const dialogo = screen.getByRole('dialog');
+    await user.type(within(dialogo).getByLabelText(/Mensaje/), 'Volví a la ciudad');
+    await user.click(within(dialogo).getByRole('button', { name: 'Enviar solicitud' }));
+    await waitFor(() => expect(llamadas[0]?.cuerpo).toEqual({ mensaje: 'Volví a la ciudad' }));
+    expect(screen.queryByText('Auditoría')).not.toBeInTheDocument();
+  });
+
+  it('el historial muestra cada evento con su autor y su origen', async () => {
+    sesionDe(SOCIO);
+    responder('get', '/socios/45', socio());
+    responder(
+      'get',
+      '/socios/45/historial',
+      pagina([
+        {
+          id: 2,
+          tipo_evento: 'CAMBIO_AUTOMATICO',
+          fecha_hora: '2026-11-10T03:05:00Z',
+          autor: 'Sistema',
+          usuario: null,
+          estado_anterior: 'HABILITADO',
+          estado_nuevo: 'INHABILITADO',
+          motivo: null,
+          origen: 'Préstamo P-2026-0012 vencido',
+          cambios: [{ campo: 'causas', antes: [], despues: ['PRESTAMO_VENCIDO'] }],
+        },
+      ]),
+    );
+    renderizarApp('/mis-datos?tab=historial', { conSesion: true });
+
+    const linea = await screen.findByRole('list', { name: 'Historial del socio' });
+    expect(linea).toHaveTextContent('Cambio automático de estado');
+    expect(linea).toHaveTextContent(/Sistema ·/);
+    expect(linea).toHaveTextContent('Origen: Préstamo P-2026-0012 vencido');
+    expect(linea).toHaveTextContent('Causas: ninguna → Préstamo vencido');
   });
 });

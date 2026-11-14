@@ -7,18 +7,30 @@ from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.db.models import MultaORM, PrestamoORM, ReservaORM, SocioORM, UsuarioORM
+from app.db.models import (
+    HistorialSocioORM,
+    MultaORM,
+    PrestamoORM,
+    ReservaORM,
+    SocioORM,
+    UsuarioORM,
+)
 from app.db.models.socio import SECUENCIA_NUMERO_SOCIO
 from app.exceptions import DuplicadoError
+from app.models.sede import Cambio
 from app.models.socio import (
     CuentaSocio,
     DatosPersonales,
     Documento,
     EstadoSocio,
+    EventoSocio,
     MotivoInhabilitacion,
     SituacionSocio,
     Socio,
+    SolicitudReactivacion,
+    TipoBaja,
     TipoDocumento,
+    TipoEventoSocio,
     formatear_numero_socio,
 )
 from app.models.usuario import UsuarioRef
@@ -57,8 +69,14 @@ def _a_dominio(orm: SocioORM, nombres: dict[int, str], cuenta: UsuarioORM | None
         causas=causas,
         motivo_administrativo=orm.motivo_administrativo,
         fecha_alta=orm.creado_en,
+        tipo_baja=TipoBaja(orm.tipo_baja) if orm.tipo_baja else None,
         fecha_baja=orm.fecha_baja,
         motivo_baja=orm.motivo_baja,
+        solicitud=(
+            SolicitudReactivacion(orm.reactivacion_solicitada_en, orm.mensaje_solicitud)
+            if orm.reactivacion_solicitada_en
+            else None
+        ),
         creado_por=ref(orm.creado_por_id),
         actualizado_en=orm.actualizado_en,
         actualizado_por=ref(orm.actualizado_por_id),
@@ -86,11 +104,33 @@ def _copiar_a_orm(socio: Socio, orm: SocioORM) -> None:
     orm.causa_prestamo_vencido = MotivoInhabilitacion.PRESTAMO_VENCIDO in socio.causas
     orm.causa_multa_impaga = MotivoInhabilitacion.MULTA_IMPAGA in socio.causas
     orm.motivo_administrativo = socio.motivo_administrativo
+    orm.tipo_baja = socio.tipo_baja.value if socio.tipo_baja else None
     orm.fecha_baja = socio.fecha_baja
     orm.motivo_baja = socio.motivo_baja
+    orm.reactivacion_solicitada_en = socio.solicitud.fecha if socio.solicitud else None
+    orm.mensaje_solicitud = socio.solicitud.mensaje if socio.solicitud else None
     if socio.actualizado_en is not None:
         orm.actualizado_en = socio.actualizado_en
     orm.actualizado_por_id = socio.actualizado_por.id if socio.actualizado_por else None
+
+
+def _evento_a_dominio(orm: HistorialSocioORM, nombres: dict[int, str]) -> EventoSocio:
+    usuario = (
+        UsuarioRef(orm.usuario_id, nombres.get(orm.usuario_id, "Usuario eliminado"))
+        if orm.usuario_id is not None
+        else None
+    )
+    return EventoSocio(
+        id=orm.id,
+        tipo=TipoEventoSocio(orm.tipo_evento),
+        fecha_hora=orm.fecha_hora,
+        usuario=usuario,
+        estado_anterior=EstadoSocio(orm.estado_anterior) if orm.estado_anterior else None,
+        estado_nuevo=EstadoSocio(orm.estado_nuevo) if orm.estado_nuevo else None,
+        motivo=orm.motivo,
+        origen=orm.origen,
+        cambios=[Cambio(c["campo"], c.get("antes"), c.get("despues")) for c in orm.cambios],
+    )
 
 
 class SqlAlchemySocioRepository:
@@ -207,6 +247,7 @@ class SqlAlchemySocioRepository:
         _copiar_a_orm(socio, orm)
         self._persistir(lambda: self._sesion.add(orm))
         socio.id = orm.id
+        self._persistir_eventos(socio)
 
     def guardar(self, socio: Socio) -> None:
         assert socio.id is not None
@@ -214,6 +255,48 @@ class SqlAlchemySocioRepository:
         assert orm is not None
         _copiar_a_orm(socio, orm)
         self._persistir(lambda: None)
+        self._persistir_eventos(socio)
+
+    def historial(self, socio_id: int, page: int, size: int) -> tuple[list[EventoSocio], int]:
+        condicion = HistorialSocioORM.socio_id == socio_id
+        total = self._sesion.scalar(select(func.count(HistorialSocioORM.id)).where(condicion))
+        filas = list(
+            self._sesion.scalars(
+                select(HistorialSocioORM)
+                .where(condicion)
+                .order_by(HistorialSocioORM.fecha_hora.desc(), HistorialSocioORM.id.desc())
+                .offset((page - 1) * size)
+                .limit(size)
+            )
+        )
+        nombres = nombres_de_usuarios(
+            self._sesion, (f.usuario_id for f in filas if f.usuario_id is not None)
+        )
+        return [_evento_a_dominio(f, nombres) for f in filas], total or 0
+
+    def _persistir_eventos(self, socio: Socio) -> None:
+        assert socio.id is not None
+        filas = [
+            HistorialSocioORM(
+                socio_id=socio.id,
+                tipo_evento=evento.tipo.value,
+                fecha_hora=evento.fecha_hora,
+                usuario_id=evento.usuario.id if evento.usuario else None,
+                estado_anterior=evento.estado_anterior.value if evento.estado_anterior else None,
+                estado_nuevo=evento.estado_nuevo.value if evento.estado_nuevo else None,
+                motivo=evento.motivo,
+                origen=evento.origen,
+                cambios=[c.como_dict() for c in evento.cambios],
+            )
+            for evento in socio.eventos_pendientes
+        ]
+        if not filas:
+            return
+        self._sesion.add_all(filas)
+        self._sesion.flush()
+        for evento, fila in zip(socio.eventos_pendientes, filas, strict=True):
+            evento.id = fila.id
+        socio.eventos_pendientes.clear()
 
     # --- internos -------------------------------------------------------------------------
 
@@ -256,6 +339,8 @@ class SqlAlchemySocioRepository:
         condiciones: list[ColumnElement[bool]] = []
         if filtro.estado is not None:
             condiciones.append(SocioORM.estado == filtro.estado.value)
+        if filtro.solicitud_pendiente:
+            condiciones.append(SocioORM.reactivacion_solicitada_en.is_not(None))
         if filtro.documento:
             condiciones.append(SocioORM.nro_documento == filtro.documento)
         if filtro.texto:

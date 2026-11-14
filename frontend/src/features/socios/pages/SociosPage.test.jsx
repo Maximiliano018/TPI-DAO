@@ -58,6 +58,24 @@ describe('Listado de socios', () => {
     );
   });
 
+  it('filtra las solicitudes de reactivación pendientes y las marca en la tabla', async () => {
+    sesionDe(BIBLIOTECARIO);
+    const llamadas = registrar(
+      'get',
+      '/socios',
+      pagina([{ ...SOCIOS[0], estado: 'BAJA', solicitud_pendiente: true }]),
+    );
+    const user = userEvent.setup();
+    renderizarApp('/socios', { conSesion: true });
+
+    await screen.findByRole('table', { name: 'Socios' });
+    expect(screen.getByText('Pide reactivación')).toBeVisible();
+    await user.selectOptions(screen.getByLabelText('Reactivación'), 'true');
+    await waitFor(() =>
+      expect(llamadas.at(-1).url.searchParams.get('solicitud_pendiente')).toBe('true'),
+    );
+  });
+
   it('sin resultados ofrece limpiar los filtros', async () => {
     sesionDe(BIBLIOTECARIO);
     registrar('get', '/socios', pagina([]));

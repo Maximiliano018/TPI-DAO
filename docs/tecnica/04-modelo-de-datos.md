@@ -190,22 +190,47 @@ Un bibliotecario **dado de baja** (`activo = false`) conserva su `sede_id` como 
 | inhabilitacion_administrativa | BOOLEAN | NOT NULL, por defecto falso; la decisión del administrador, que solo él levanta |
 | motivo_administrativo | VARCHAR(300) | texto del administrador; NOT NULL si y solo si hay inhabilitación administrativa |
 | causa_prestamo_vencido, causa_multa_impaga | BOOLEAN | NOT NULL, por defecto falso; causas automáticas vigentes en la última evaluación |
-| fecha_baja, motivo_baja | TIMESTAMPTZ, VARCHAR(300) | NOT NULL si y solo si `estado = 'BAJA'`; la baja es lógica |
+| tipo_baja | VARCHAR(15) | `A_PEDIDO`, `ADMINISTRATIVA` o `FALLECIMIENTO`; decide quién puede reactivar |
+| fecha_baja, motivo_baja | TIMESTAMPTZ, VARCHAR(300) | junto con `tipo_baja`, NOT NULL si y solo si `estado = 'BAJA'`; la baja es lógica |
+| reactivacion_solicitada_en, mensaje_solicitud | TIMESTAMPTZ, VARCHAR(300) | solicitud de reactivación pendiente del socio; solo en baja y no por fallecimiento |
 | creado_por_id, actualizado_por_id | FK usuario | auditoría (`RF-ACC-07`) |
 
 Las causas automáticas (préstamo vencido, multa impaga) **no son una decisión**: el servicio las recalcula con los préstamos y multas del socio en cada evento (`Socio.reevaluar`). Igual se guarda el resultado de la última evaluación, una columna por causa, para que el socio vuelva de la base con **todas** sus causas (la ficha las muestra y `reevaluar` no informa cambios que no hubo). La administrativa se guarda porque no surge de otros datos. Si hay varias causas, `motivo_inhabilitacion` muestra la de mayor prioridad (administrativa, préstamo vencido, multa impaga).
 
+La inhabilitación administrativa **se conserva en la baja** (al reactivarse, el socio vuelve inhabilitado); las causas automáticas no, porque la baja exige no tener préstamos ni multas.
+
 ```sql
-CHECK ((estado = 'INHABILITADO') = (motivo_inhabilitacion IS NOT NULL))
+-- causas = inhabilitacion_administrativa OR causa_prestamo_vencido OR causa_multa_impaga
+CHECK ((motivo_inhabilitacion IS NOT NULL) = causas)
 CHECK (inhabilitacion_administrativa = (motivo_administrativo IS NOT NULL))
 CHECK (NOT inhabilitacion_administrativa OR motivo_inhabilitacion = 'ADMINISTRATIVA')
-CHECK ((estado = 'INHABILITADO') =
-       (inhabilitacion_administrativa OR causa_prestamo_vencido OR causa_multa_impaga))
-CHECK ((estado = 'BAJA' AND fecha_baja IS NOT NULL AND motivo_baja IS NOT NULL)
-    OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL))
+CHECK (CASE estado WHEN 'HABILITADO' THEN NOT causas
+                   WHEN 'INHABILITADO' THEN causas
+                   ELSE NOT (causa_prestamo_vencido OR causa_multa_impaga) END)
+CHECK ((estado = 'BAJA' AND fecha_baja IS NOT NULL AND motivo_baja IS NOT NULL AND tipo_baja IS NOT NULL)
+    OR (estado <> 'BAJA' AND fecha_baja IS NULL AND motivo_baja IS NULL AND tipo_baja IS NULL))
+CHECK ((reactivacion_solicitada_en IS NULL OR (estado = 'BAJA' AND tipo_baja <> 'FALLECIMIENTO'))
+   AND (mensaje_solicitud IS NULL OR reactivacion_solicitada_en IS NOT NULL))
 ```
 
-La cuenta de acceso del socio es una fila de `usuario` con `rol = 'SOCIO'` y `socio_id`; la crea el personal desde la ficha del socio.
+La cuenta de acceso del socio es una fila de `usuario` con `rol = 'SOCIO'` y `socio_id`; la crea el personal desde la ficha del socio. Sigue activa aunque el socio esté inhabilitado o dado de baja (puede entrar a ver su situación y pedir la reactivación); solo la baja por fallecimiento la desactiva.
+
+### historial_socio
+
+Historial de solo inserción del socio (un disparador impide `UPDATE` y `DELETE`). Registra los eventos **de la entidad socio**; los préstamos, multas y reservas no se copian: tienen sus propios movimientos y la ficha los muestra desde ahí.
+
+| Columna | Tipo | Restricciones |
+|---------|------|---------------|
+| socio_id | FK socio | NOT NULL |
+| tipo_evento | VARCHAR(25) | `ALTA`, `MODIFICACION`, `INHABILITACION`, `REHABILITACION`, `CAMBIO_AUTOMATICO`, `BAJA`, `SOLICITUD_REACTIVACION`, `SOLICITUD_RECHAZADA`, `REACTIVACION`, `CUENTA_CREADA` |
+| fecha_hora | TIMESTAMPTZ | NOT NULL |
+| usuario_id | FK usuario | NULL cuando el cambio lo hizo el sistema (inhabilitación automática) |
+| estado_anterior, estado_nuevo | VARCHAR(15) | solo en los eventos que pueden cambiar el estado |
+| motivo | VARCHAR(300) | motivo de la inhabilitación, la baja, el rechazo o el mensaje de la solicitud |
+| origen | VARCHAR(200) | qué provocó un cambio automático (`Préstamo P-2026-0012 vencido`) o cómo se reactivó |
+| cambios | JSONB | NOT NULL; lista de `{campo, antes, despues}` (datos personales, `causas`, `tipo_baja`, `cuenta`) |
+
+Los socios que ya existían antes de la migración `0010` empiezan su historial vacío.
 
 ### categoria, autor, libro, libro_autor
 
@@ -361,6 +386,7 @@ Además de claves primarias, únicas y los índices parciales anteriores:
 | `horario_sede (sede_id, dia_semana)` | Horario semanal y cálculo de «abierta ahora» |
 | `excepcion_horario_sede (sede_id, fecha)` | Excepciones vigentes de una sede |
 | `historial_sede (sede_id, fecha_hora DESC)` | Historial de la sede |
+| `historial_socio (socio_id, fecha_hora DESC)` | Historial del socio |
 | `usuario (sede_id)` parcial para bibliotecarios activos | Impedimento de baja de sede |
 
 ## Reportes sobre el modelo
@@ -392,6 +418,8 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0006_prestamos_y_remitos` | `parametro` (con los valores iniciales), `prestamo` (índice único parcial por ejemplar abierto), `remito`, `detalle_remito` (con `resultado` de la recepción: `RECIBIDO`, `DANADO`, `DESTRUIDO`), `movimiento_prestamo` y `movimiento_remito` (solo inserción), `incidencia` y las secuencias de números de préstamo y remito |
 | `0005_catalogo` | `categoria` (con las categorías iniciales), `autor`, `libro`, `libro_autor`, `ejemplar` y `movimiento_ejemplar` con su disparador de solo inserción |
 | `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
+| `0009_causas_de_inhabilitacion` | `socio.causa_prestamo_vencido` y `causa_multa_impaga` (todas las causas automáticas, no solo la principal), completadas con los préstamos y multas reales |
+| `0010_bajas_y_historial_de_socios` | `socio.tipo_baja` y la solicitud de reactivación; restricciones para conservar la inhabilitación administrativa en la baja; `historial_socio` con su disparador de solo inserción. Las bajas existentes quedan como `A_PEDIDO` |
 
 ### Seed de demostración
 

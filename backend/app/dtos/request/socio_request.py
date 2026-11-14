@@ -4,7 +4,7 @@ from datetime import date
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.socio import TipoDocumento
+from app.models.socio import TipoBaja, TipoDocumento
 from app.services.socio_service import DatosSocio
 
 _EJEMPLO_DATOS = {
@@ -81,3 +81,28 @@ class CuentaSocioRequest(BaseModel):
 
     username: str = Field(max_length=100)
     password: str = Field(max_length=300)
+
+
+class BajaRequest(BaseModel):
+    """Baja con tipo y motivo.
+
+    ``A_PEDIDO`` la registra el personal; ``ADMINISTRATIVA`` y ``FALLECIMIENTO``, solo el
+    administrador. La de fallecimiento desactiva la cuenta y no se reactiva.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"tipo": "A_PEDIDO", "motivo": "Se mudó de ciudad"}}
+    )
+
+    tipo: TipoBaja
+    motivo: str = Field(max_length=500)
+
+
+class SolicitudReactivacionRequest(BaseModel):
+    """Pedido de reactivación del socio dado de baja, con un mensaje opcional."""
+
+    model_config = ConfigDict(
+        json_schema_extra={"example": {"mensaje": "Volví a la ciudad y quiero retomar."}}
+    )
+
+    mensaje: str | None = Field(default=None, max_length=1000)

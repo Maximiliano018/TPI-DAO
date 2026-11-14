@@ -219,7 +219,7 @@ def test_la_baja_del_socio_cancela_sus_reservas(cliente, mundo, ocupado):  # noq
 
     baja = cliente.post(
         f"{API}/socios/{mundo['lucia']['id']}/baja",
-        json={"motivo": "Se mudó"},
+        json={"tipo": "A_PEDIDO", "motivo": "Se mudó"},
         headers=mundo["h_admin"],
     )
 

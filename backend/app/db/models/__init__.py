@@ -26,7 +26,7 @@ from app.db.models.sede import (
     HorarioSedeORM,
     SedeORM,
 )
-from app.db.models.socio import SocioORM
+from app.db.models.socio import HistorialSocioORM, SocioORM
 from app.db.models.usuario import UsuarioORM
 
 __all__ = [
@@ -48,6 +48,7 @@ __all__ = [
     "MovimientoEjemplarORM",
     "ExcepcionHorarioSedeORM",
     "HistorialSedeORM",
+    "HistorialSocioORM",
     "HorarioSedeORM",
     "LocalidadORM",
     "ProvinciaORM",

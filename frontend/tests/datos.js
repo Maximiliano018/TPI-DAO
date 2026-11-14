@@ -208,7 +208,10 @@ export function usuarioPersonal(over = {}) {
   };
 }
 
-/** Socio con el formato de `GET /socios/{id}` (ficha con situación); `over` pisa cualquier campo. */
+/**
+ * Socio con el formato de `GET /socios/{id}` como lo ve el administrador (ficha con situación);
+ * `over` pisa cualquier campo.
+ */
 export function socio(over = {}) {
   return {
     id: 45,
@@ -228,8 +231,11 @@ export function socio(over = {}) {
     causas_inhabilitacion: [],
     motivo_administrativo: null,
     fecha_alta: '2026-10-14T15:30:00Z',
+    tipo_baja: null,
     fecha_baja: null,
     motivo_baja: null,
+    reactivable: false,
+    solicitud: null,
     creado_por: { id: 2, nombre: 'Lucía Gómez' },
     actualizado_en: '2026-10-14T15:30:00Z',
     actualizado_por: { id: 2, nombre: 'Lucía Gómez' },

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
+  Badge,
   BusquedaConEspera,
   Button,
   EmptyState,
@@ -29,6 +30,7 @@ export default function SociosPage() {
   const { data, isPending, error, refetch } = useSocios({
     q: filtros.q,
     estado: filtros.estado,
+    solicitud_pendiente: filtros.solicitud || undefined,
     page,
     size,
   });
@@ -54,7 +56,16 @@ export default function SociosPage() {
       render: (s) => `${s.tipo_documento} ${s.nro_documento}`,
     },
     { clave: 'sede_alta', titulo: 'Sede de alta' },
-    { clave: 'estado', titulo: 'Estado', render: (s) => <EstadoSocioBadge socio={s} /> },
+    {
+      clave: 'estado',
+      titulo: 'Estado',
+      render: (s) => (
+        <>
+          <EstadoSocioBadge socio={s} />{' '}
+          {s.solicitud_pendiente && <Badge tono="warning">Pide reactivación</Badge>}
+        </>
+      ),
+    },
   ];
 
   return (
@@ -81,6 +92,14 @@ export default function SociosPage() {
           <option value="HABILITADO">Habilitados</option>
           <option value="INHABILITADO">Inhabilitados</option>
           <option value="BAJA">Dados de baja</option>
+        </FiltroSelect>
+        <FiltroSelect
+          etiqueta="Reactivación"
+          valor={filtros.solicitud ?? ''}
+          onCambiar={(solicitud) => cambiar({ solicitud })}
+        >
+          <option value="">Todos</option>
+          <option value="true">Con solicitud pendiente</option>
         </FiltroSelect>
       </FilterBar>
 

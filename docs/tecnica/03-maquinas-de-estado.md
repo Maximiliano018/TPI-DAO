@@ -26,12 +26,22 @@ stateDiagram-v2
     [*] --> Habilitado
     Habilitado --> Inhabilitado : préstamo vencido / multa pendiente / decisión administrativa
     Inhabilitado --> Habilitado : sin causas vigentes
-    Habilitado --> Baja : baja (sin préstamos ni multas)
-    Inhabilitado --> Baja : baja (sin préstamos ni multas)
-    Baja --> Habilitado : reactivar
+    Habilitado --> Baja : baja con tipo (sin préstamos ni multas)
+    Inhabilitado --> Baja : baja con tipo (sin préstamos ni multas)
+    Baja --> Habilitado : reactivar (en mostrador o solicitud aprobada)
+    Baja --> Inhabilitado : reactivar con inhabilitación administrativa vigente
+    Baja --> Baja : solicitud de reactivación / rechazo
 ```
 
-El estado `Inhabilitado` se reevalúa en cada evento relevante: préstamo que vence, devolución, multa generada o saldada. Una inhabilitación administrativa solo la levanta el administrador.
+El estado `Inhabilitado` se reevalúa en cada evento relevante: préstamo que vence, devolución, multa generada o saldada. Una inhabilitación administrativa solo la levanta el administrador, y **sobrevive a la baja**: al reactivarse, el socio vuelve inhabilitado.
+
+| Tipo de baja | La registra | La reactiva |
+|--------------|-------------|-------------|
+| `A_PEDIDO` (a pedido del socio) | bibliotecario o administrador | bibliotecario o administrador |
+| `ADMINISTRATIVA` (sanción) | administrador | administrador |
+| `FALLECIMIENTO` | administrador | nadie: es definitiva y desactiva la cuenta |
+
+En `Baja` el socio puede pedir la reactivación desde su cuenta (salvo fallecimiento); la solicitud queda pendiente hasta que quien puede reactivar la aprueba (reactiva) o la rechaza con motivo (sigue en baja). Como en la sede, no hay patrón State: el estado sale de las causas y las guardas viven en la entidad (`Socio`).
 
 ## Ejemplar
 

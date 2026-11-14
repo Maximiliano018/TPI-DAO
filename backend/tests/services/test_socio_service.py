@@ -10,12 +10,21 @@ from app.exceptions import (
     PermisoDenegado,
     PosibleDuplicado,
     SedeEnBaja,
+    SinSolicitudPendiente,
     SocioConActividadPendiente,
     SocioConCuenta,
     SocioEnBaja,
     SocioNoEncontrado,
+    SocioNoReactivable,
 )
-from app.models.socio import EstadoSocio, MotivoInhabilitacion, SituacionSocio, TipoDocumento
+from app.models.socio import (
+    EstadoSocio,
+    MotivoInhabilitacion,
+    SituacionSocio,
+    TipoBaja,
+    TipoDocumento,
+    TipoEventoSocio,
+)
 from app.models.usuario import Rol, SedeRef
 from app.services.sede_service import SedeService
 from app.services.socio_service import DatosSocio, SocioService
@@ -25,6 +34,7 @@ from tests.fakes.repositorios import UnitOfWorkEnMemoria
 from tests.fakes.verificadores import verificador_con
 
 ADMIN = UsuarioFactory(id=100, nombre="Admin")
+A_PEDIDO = TipoBaja.A_PEDIDO
 
 
 @pytest.fixture
@@ -123,7 +133,7 @@ def test_no_se_registran_dos_socios_con_el_mismo_documento(servicio, biblio):
 @pytest.mark.ca("CA-SOC-03")
 def test_si_el_socio_existe_dado_de_baja_se_ofrece_reactivarlo(servicio, biblio):
     existente = servicio.crear(biblio, _datos())
-    servicio.dar_de_baja(ADMIN, existente.id, "Se mudó de ciudad")
+    servicio.dar_de_baja(ADMIN, existente.id, A_PEDIDO, "Se mudó de ciudad")
 
     with pytest.raises(DuplicadoError) as error:
         servicio.crear(biblio, _datos())
@@ -195,7 +205,7 @@ def test_modificar_rechaza_el_documento_de_otro_socio(servicio, biblio):
 def test_modificar_un_socio_en_baja_se_rechaza_antes_que_el_documento_repetido(servicio, biblio):
     servicio.crear(biblio, _datos())
     otro = servicio.crear(biblio, _datos(nro_documento="40111222", nombre="Juan"))
-    servicio.dar_de_baja(ADMIN, otro.id, "Se mudó de ciudad")
+    servicio.dar_de_baja(ADMIN, otro.id, A_PEDIDO, "Se mudó de ciudad")
 
     # El documento es de Lucía, pero el motivo del rechazo es que Juan está dado de baja.
     with pytest.raises(SocioEnBaja):
@@ -247,19 +257,105 @@ def test_la_baja_se_bloquea_si_tiene_prestamos_activos(servicio, biblio, uow):
     uow.socios.situaciones[socio.id] = SituacionSocio(prestamos_activos=1)
 
     with pytest.raises(SocioConActividadPendiente):
-        servicio.dar_de_baja(ADMIN, socio.id, "Se mudó de ciudad")
+        servicio.dar_de_baja(ADMIN, socio.id, A_PEDIDO, "Se mudó de ciudad")
     assert uow.socios.obtener(socio.id).estado == EstadoSocio.HABILITADO
 
 
-def test_baja_y_reactivacion_son_del_administrador(servicio, biblio):
+@pytest.mark.ca("CA-SOC-12")
+def test_el_bibliotecario_da_de_baja_y_reactiva_solo_las_bajas_a_pedido(servicio, biblio):
     socio = servicio.crear(biblio, _datos())
 
     with pytest.raises(PermisoDenegado):
-        servicio.dar_de_baja(biblio, socio.id, "Se mudó de ciudad")
-    baja = servicio.dar_de_baja(ADMIN, socio.id, "Se mudó de ciudad")
+        servicio.dar_de_baja(biblio, socio.id, TipoBaja.ADMINISTRATIVA, "Daño reiterado")
+    baja = servicio.dar_de_baja(biblio, socio.id, A_PEDIDO, "Se mudó de ciudad")
     assert baja.socio.estado == EstadoSocio.BAJA and baja.reservas_canceladas == 0
+    assert servicio.reactivar(biblio, socio.id).estado == EstadoSocio.HABILITADO
+
+    servicio.dar_de_baja(ADMIN, socio.id, TipoBaja.ADMINISTRATIVA, "Daño reiterado")
     with pytest.raises(PermisoDenegado):
         servicio.reactivar(biblio, socio.id)
+    assert servicio.reactivar(ADMIN, socio.id).estado == EstadoSocio.HABILITADO
+
+
+@pytest.mark.ca("CA-SOC-13")
+def test_la_baja_por_fallecimiento_desactiva_la_cuenta_y_no_se_reactiva(servicio, biblio, uow):
+    socio = servicio.crear(biblio, _datos())
+    servicio.crear_cuenta(biblio, socio.id, "lucia.gomez", "Clave-segura-123")
+
+    servicio.dar_de_baja(ADMIN, socio.id, TipoBaja.FALLECIMIENTO, "Aviso de un familiar")
+
+    assert uow.usuarios.obtener_por_username("lucia.gomez").activo is False
+    assert uow.socios.obtener(socio.id).cuenta.activo is False
+    with pytest.raises(SocioNoReactivable):
+        servicio.reactivar(ADMIN, socio.id)
+
+
+# --- solicitud de reactivación ---------------------------------------------------------------
+
+
+def _socio_con_cuenta_en_baja(servicio, biblio, uow, tipo=TipoBaja.A_PEDIDO):
+    socio = servicio.crear(biblio, _datos())
+    servicio.crear_cuenta(biblio, socio.id, "lucia.gomez", "Clave-segura-123")
+    servicio.dar_de_baja(ADMIN, socio.id, tipo, "Se mudó de ciudad")
+    cuenta = uow.usuarios.obtener_por_username("lucia.gomez")
+    return socio, SocioUsuarioFactory(id=cuenta.id, socio_id=socio.id)
+
+
+@pytest.mark.ca("CA-SOC-15")
+def test_el_socio_pide_la_reactivacion_y_el_personal_la_aprueba(servicio, biblio, uow):
+    socio, cuenta = _socio_con_cuenta_en_baja(servicio, biblio, uow)
+
+    pedido = servicio.solicitar_reactivacion(cuenta, socio.id, "Volví a la ciudad")
+
+    assert pedido.solicitud.mensaje == "Volví a la ciudad"
+    pendientes = servicio.listar(
+        biblio, None, None, None, page=1, size=20, solicitud_pendiente=True
+    )
+    assert [s.id for s in pendientes.items] == [socio.id]
+    aprobado = servicio.aprobar_solicitud(biblio, socio.id)
+    assert aprobado.estado == EstadoSocio.HABILITADO and aprobado.solicitud is None
+    with pytest.raises(SinSolicitudPendiente):
+        servicio.aprobar_solicitud(biblio, socio.id)
+
+
+@pytest.mark.ca("CA-SOC-16")
+def test_el_personal_rechaza_la_solicitud_con_motivo(servicio, biblio, uow):
+    socio, cuenta = _socio_con_cuenta_en_baja(servicio, biblio, uow)
+    servicio.solicitar_reactivacion(cuenta, socio.id, None)
+
+    rechazado = servicio.rechazar_solicitud(biblio, socio.id, "Debe traer su documento")
+
+    assert rechazado.estado == EstadoSocio.BAJA and rechazado.solicitud is None
+    ultimo = servicio.historial(cuenta, socio.id, 1, 1).items[0]
+    assert (ultimo.tipo, ultimo.motivo) == (
+        TipoEventoSocio.SOLICITUD_RECHAZADA,
+        "Debe traer su documento",
+    )
+
+
+def test_solo_el_propio_socio_pide_su_reactivacion(servicio, biblio, uow):
+    socio, _ = _socio_con_cuenta_en_baja(servicio, biblio, uow)
+    otro = SocioUsuarioFactory(id=999, socio_id=socio.id + 1)
+
+    with pytest.raises(SocioNoEncontrado):
+        servicio.solicitar_reactivacion(otro, socio.id, None)
+    with pytest.raises(SocioNoEncontrado):
+        servicio.solicitar_reactivacion(biblio, socio.id, None)
+
+
+# --- historial -------------------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-SOC-19")
+def test_el_historial_lo_ve_el_personal_y_el_propio_socio(servicio, biblio, uow):
+    socio, cuenta = _socio_con_cuenta_en_baja(servicio, biblio, uow)
+
+    tipos = [e.tipo for e in servicio.historial(biblio, socio.id, 1, 20).items]
+
+    assert tipos == [TipoEventoSocio.BAJA, TipoEventoSocio.CUENTA_CREADA, TipoEventoSocio.ALTA]
+    assert servicio.historial(cuenta, socio.id, 1, 20).total == 3
+    with pytest.raises(SocioNoEncontrado):
+        servicio.historial(SocioUsuarioFactory(id=998, socio_id=socio.id + 1), socio.id, 1, 20)
 
 
 # --- cuenta de acceso ------------------------------------------------------------------------
@@ -287,7 +383,7 @@ def test_la_cuenta_valida_clave_usuario_repetido_y_socio_en_baja(servicio, bibli
         servicio.crear_cuenta(biblio, otro.id, "juan.gomez", "corta")
     with pytest.raises(DuplicadoError):
         servicio.crear_cuenta(biblio, otro.id, "lucia.gomez", "Clave-segura-123")
-    servicio.dar_de_baja(ADMIN, otro.id, "Se mudó de ciudad")
+    servicio.dar_de_baja(ADMIN, otro.id, A_PEDIDO, "Se mudó de ciudad")
     with pytest.raises(SocioEnBaja):
         servicio.crear_cuenta(biblio, otro.id, "juan.gomez", "Clave-segura-123")
 
@@ -324,7 +420,7 @@ def test_la_busqueda_filtra_por_texto_documento_y_estado(servicio, biblio):
     juan = servicio.crear(
         biblio, _datos(nro_documento="40111222", nombre="Juan", apellido="Álvarez")
     )
-    servicio.dar_de_baja(ADMIN, juan.id, "Se mudó de ciudad")
+    servicio.dar_de_baja(ADMIN, juan.id, A_PEDIDO, "Se mudó de ciudad")
 
     def nombres(**filtros):
         valores = {"texto": None, "documento": None, "estado": None, **filtros}
