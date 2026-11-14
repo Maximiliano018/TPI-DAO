@@ -1,6 +1,6 @@
 """Endpoints de sedes: administración, consulta según rol, excepciones de horario e historial."""
 
-from datetime import datetime
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response, status
@@ -28,7 +28,7 @@ from app.dtos.response.sede_response import (
 )
 from app.models.sede import TipoEventoSede
 from app.models.usuario import Permiso, Usuario
-from app.repositories.interfaces.sede_repository import FiltroEstado, FiltroHistorial, OrdenSedes
+from app.repositories.interfaces.sede_repository import FiltroEstado, OrdenSedes
 from app.services.sede_service import SedeService
 
 router = APIRouter(prefix="/api/v1", tags=["Sedes"])
@@ -115,7 +115,10 @@ def listar_sedes(
     summary="Cantidad de sedes por estado",
     responses={401: _ERROR_401, 403: _ERROR_403},
 )
-def resumen_sedes(servicio: Servicio, usuario: Administrador) -> SedesResumenResponse:
+def resumen_sedes(
+    servicio: Servicio,
+    usuario: Annotated[Usuario, Depends(requiere(Permiso.SEDE_LEER_COMPLETO))],
+) -> SedesResumenResponse:
     """Totales de sedes activas y en baja (inicio del administrador)."""
     return SedesResumenResponse(**servicio.resumen(usuario))
 
@@ -277,15 +280,17 @@ def historial_sede(
     servicio: Servicio,
     usuario: Annotated[Usuario, Depends(requiere(Permiso.SEDE_VER_HISTORIAL))],
     tipo_evento: TipoEventoSede | None = None,
-    desde: datetime | None = None,
-    hasta: datetime | None = None,
+    desde: Annotated[date | None, Query(description="Desde ese día (inclusive)")] = None,
+    hasta: Annotated[date | None, Query(description="Hasta ese día (inclusive)")] = None,
     page: Pagina = 1,
     size: Tamanio = 20,
 ) -> PaginaHistorialResponse:
-    """Eventos de auditoría del más reciente al más antiguo (solo administrador)."""
-    pagina = servicio.historial(
-        usuario, sede_id, FiltroHistorial(tipo_evento, desde, hasta), page, size
-    )
+    """Eventos de auditoría del más reciente al más antiguo (solo administrador).
+
+    `desde` y `hasta` son días completos en la zona de negocio; `hasta` anterior a `desde`
+    responde `422 VALIDACION`.
+    """
+    pagina = servicio.historial(usuario, sede_id, page, size, tipo_evento, desde, hasta)
     return PaginaHistorialResponse(
         items=[EventoSedeResponse.desde(e) for e in pagina.items],
         total=pagina.total,

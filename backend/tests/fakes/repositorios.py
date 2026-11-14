@@ -217,6 +217,10 @@ class SedeRepositorioEnMemoria:
         eventos = list(reversed(self.eventos.get(sede_id, [])))
         if filtro.tipo_evento:
             eventos = [e for e in eventos if e.tipo == filtro.tipo_evento]
+        if filtro.desde:
+            eventos = [e for e in eventos if e.fecha_hora >= filtro.desde]
+        if filtro.hasta:
+            eventos = [e for e in eventos if e.fecha_hora < filtro.hasta]
         inicio = (page - 1) * size
         return eventos[inicio : inicio + size], len(eventos)
 

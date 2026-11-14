@@ -5,10 +5,10 @@ import {
   EmptyState,
   ErrorState,
   FilterBar,
+  FiltroFecha,
   FiltroSelect,
   Skeleton,
 } from '../../../components/index.js';
-import estilosFiltro from '../../../components/FilterBar.module.css';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import { useFiltrosUrl } from '../../../hooks/useFiltrosUrl.js';
 import { descargarCsv } from '../../../utils/csv.js';
@@ -38,20 +38,6 @@ export function useFiltrosDeReporte(claves) {
   const limpiar = () => cambiar(Object.fromEntries(claves.map((clave) => [clave, ''])));
   const rangoInvalido = Boolean(filtros.desde && filtros.hasta && filtros.hasta < filtros.desde);
   return { filtros, cambiar, limpiar, hayFiltros, rangoInvalido };
-}
-
-export function FiltroFecha({ etiqueta, valor, onCambiar }) {
-  return (
-    <label className={estilosFiltro.campo}>
-      <span className={estilosFiltro.etiqueta}>{etiqueta}</span>
-      <input
-        type="date"
-        className={estilosFiltro.control}
-        value={valor ?? ''}
-        onChange={(e) => onCambiar(e.target.value)}
-      />
-    </label>
-  );
 }
 
 /** Sede del reporte: el administrador elige; el bibliotecario ve siempre la suya. */

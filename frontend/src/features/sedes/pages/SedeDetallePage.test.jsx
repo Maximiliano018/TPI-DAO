@@ -233,6 +233,26 @@ describe('Detalle de sede', () => {
     await waitFor(() => expect(historial.at(-1).url.searchParams.get('page')).toBe('2'));
   });
 
+  it('historial: filtra por fechas y no consulta con un rango invertido', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/sedes/1', sedeAdmin());
+    const historial = registrar('get', '/sedes/1/historial', pagina([evento()]));
+    renderizarApp('/sedes/1?tab=historial', { conSesion: true });
+    await screen.findByRole('list', { name: 'Historial de la sede' });
+
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-11-01' } });
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-11-10' } });
+    await waitFor(() => {
+      const params = historial.at(-1).url.searchParams;
+      expect([params.get('desde'), params.get('hasta')]).toEqual(['2026-11-01', '2026-11-10']);
+    });
+
+    const consultas = historial.length;
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-10-01' } });
+    expect(await screen.findByText(/no puede ser anterior/)).toBeInTheDocument();
+    expect(historial).toHaveLength(consultas);
+  });
+
   it('historial: describe los cierres cargados y quitados', async () => {
     sesionDe(ADMIN);
     responder('get', '/sedes/1', sedeAdmin());

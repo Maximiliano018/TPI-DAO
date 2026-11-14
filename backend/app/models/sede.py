@@ -23,11 +23,10 @@ from app.models.valores import (
     Direccion,
     FranjaHoraria,
     error_de_campo,
+    validar_motivo,
 )
 from app.utils.texto import normalizar
 
-MOTIVO_MIN = 5
-MOTIVO_MAX = 300
 NOMBRE_MIN = 3
 NOMBRE_MAX = 100
 MENSAJE_NO_DISPONIBLE = "La sede solicitada no existe o no está disponible."
@@ -88,14 +87,6 @@ def validar_nombre(nombre: str) -> str:
     limpio = " ".join((nombre or "").split())
     if not NOMBRE_MIN <= len(limpio) <= NOMBRE_MAX:
         raise error_de_campo("nombre", "El nombre debe tener entre 3 y 100 caracteres.")
-    return limpio
-
-
-def validar_motivo_baja(motivo: str) -> str:
-    """Motivo de baja de 5 a 300 caracteres."""
-    limpio = " ".join((motivo or "").split())
-    if not MOTIVO_MIN <= len(limpio) <= MOTIVO_MAX:
-        raise error_de_campo("motivo", "El motivo debe tener entre 5 y 300 caracteres.")
     return limpio
 
 
@@ -276,7 +267,7 @@ class Sede:
         """
         if not self.esta_activa():
             raise SedeYaEnBaja(f"La sede {self.nombre} ya está dada de baja.")
-        motivo = validar_motivo_baja(motivo)
+        motivo = validar_motivo(motivo)
         if impedimentos:
             resumen = ", ".join(i.etiqueta() for i in impedimentos)
             raise SedeConActividadPendiente(

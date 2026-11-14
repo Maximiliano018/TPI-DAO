@@ -238,7 +238,7 @@ class SqlAlchemySedeRepository:
         if filtro.desde is not None:
             condiciones.append(HistorialSedeORM.fecha_hora >= filtro.desde)
         if filtro.hasta is not None:
-            condiciones.append(HistorialSedeORM.fecha_hora <= filtro.hasta)
+            condiciones.append(HistorialSedeORM.fecha_hora < filtro.hasta)
         total = self._sesion.scalar(select(func.count(HistorialSedeORM.id)).where(*condiciones))
         filas = self._sesion.scalars(
             select(HistorialSedeORM)

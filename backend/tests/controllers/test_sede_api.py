@@ -551,6 +551,19 @@ def test_excepciones_se_cargan_por_rango_se_listan_y_se_quitan(
         headers=h_admin,
     )
     assert parcial.json()[0]["hora_desde"] == "14:00" and parcial.json()[0]["motivo"] is None
+    otra_el_mismo_dia = cliente.post(
+        url,
+        json={
+            "fecha_desde": _fecha(20),
+            "tipo": "CIERRE_PARCIAL",
+            "hora_desde": "09:00",
+            "hora_hasta": "10:00",
+        },
+        headers=h_admin,
+    )
+    # La respuesta trae solo la creada, no el cierre previo de la misma fecha.
+    assert [e["hora_desde"] for e in otra_el_mismo_dia.json()] == ["09:00"]
+    cliente.delete(f"{url}/{otra_el_mismo_dia.json()[0]['id']}", headers=h_admin)
 
     para_socio = cliente.get(url, headers=h_socio).json()
     assert len(para_socio) == 4 and para_socio == sorted(para_socio, key=lambda e: e["fecha"])
@@ -671,6 +684,24 @@ def test_historial_del_mas_reciente_al_mas_antiguo_con_filtros(
     assert [e["tipo_evento"] for e in pagina["items"]] == ["ALTA"]
     _error(cliente.get(f"{url}/historial", headers=h_biblio), 403, "FORBIDDEN")
     _error(cliente.get(f"{BASE}/999999/historial", headers=h_admin), 404, "SEDE_NO_ENCONTRADA")
+
+
+def test_historial_filtra_por_dias_completos(cliente, h_admin, localidad_id):
+    sede = _alta(cliente, h_admin, localidad_id).json()
+    url = f"{BASE}/{sede['id']}/historial"
+
+    def total(**params):
+        return cliente.get(url, params=params, headers=h_admin).json()["total"]
+
+    assert total(desde=_fecha(0), hasta=_fecha(0)) == 1  # «hasta» incluye todo el día
+    assert total(desde=_fecha(1)) == 0
+    assert total(hasta=_fecha(-1)) == 0
+    error = _error(
+        cliente.get(url, params={"desde": _fecha(1), "hasta": _fecha(0)}, headers=h_admin),
+        422,
+        "VALIDACION",
+    )
+    assert error["detalles"][0]["campo"] == "hasta"
 
 
 @pytest.mark.ca("CA-SED-38")
