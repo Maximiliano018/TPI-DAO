@@ -9,7 +9,8 @@ import {
 } from '../../../components/index.js';
 import { mensajeDeError } from '../../../utils/errores.js';
 import { ESTADOS_RECIBIDOS } from '../../../utils/estados.js';
-import { formatearMonto } from '../../../utils/formato.js';
+import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { fechaLocalISO, formatearFecha, formatearMonto } from '../../../utils/formato.js';
 import { useRegistrarDevolucion } from '../hooks/useDevoluciones.js';
 
 const CON_DESCRIPCION = ['DANADO', 'EXTRAVIADO'];
@@ -39,9 +40,19 @@ function efecto(prestamo, estado) {
   return 'El ejemplar vuelve a estar disponible (o se asigna a la primera reserva del libro).';
 }
 
+/** Días de atraso si se devuelve el día `fecha` (`aaaa-mm-dd`); el día de vencimiento vale. */
+export function diasDeAtraso(prestamo, fecha) {
+  if (!prestamo.fecha_vencimiento) return 0;
+  return Math.max(
+    0,
+    differenceInCalendarDays(parseISO(fecha), parseISO(prestamo.fecha_vencimiento)),
+  );
+}
+
 /**
  * Registra la devolución de un préstamo activo o vencido en la sede destino.
- * Si pasó el vencimiento, el servidor genera la multa por los días de atraso.
+ * Si pasó el vencimiento, el servidor genera la multa por los días de atraso. Una fecha anterior
+ * a hoy (la devolvió antes y se registra ahora) exige el motivo: cambia el atraso y la multa.
  */
 export default function DevolucionDialog({ prestamo, onCerrar }) {
   const registrar = useRegistrarDevolucion();
@@ -49,9 +60,15 @@ export default function DevolucionDialog({ prestamo, onCerrar }) {
   const [estado, setEstado] = useState('BUENO');
   const [observaciones, setObservaciones] = useState('');
   const [fechaHora, setFechaHora] = useState('');
+  const [motivoFecha, setMotivoFecha] = useState('');
   const [fallo, setFallo] = useState(null);
   const exigeDescripcion = CON_DESCRIPCION.includes(estado);
+  const hoy = fechaLocalISO();
+  const fecha = fechaHora ? fechaHora.slice(0, 10) : hoy;
+  const retroactiva = fecha < hoy;
+  const atraso = diasDeAtraso(prestamo, fecha);
   const faltaDescripcion = exigeDescripcion && !observaciones.trim();
+  const faltaMotivo = retroactiva && motivoFecha.trim().length < 5;
 
   return (
     <ConfirmDialog
@@ -59,7 +76,7 @@ export default function DevolucionDialog({ prestamo, onCerrar }) {
       descripcion={`${prestamo.libro} · ${prestamo.socio}. ${efecto(prestamo, estado)}`}
       textoConfirmar="Registrar devolución"
       procesando={registrar.isPending}
-      deshabilitarConfirmar={faltaDescripcion}
+      deshabilitarConfirmar={faltaDescripcion || faltaMotivo}
       onConfirmar={() => {
         setFallo(null);
         registrar.mutate(
@@ -68,6 +85,7 @@ export default function DevolucionDialog({ prestamo, onCerrar }) {
             estado_fisico: estado,
             observaciones: observaciones.trim() || null,
             fecha_hora: fechaHora || null,
+            motivo_fecha: retroactiva ? motivoFecha.trim() : null,
           },
           {
             onSuccess: (resultado) => {
@@ -107,6 +125,23 @@ export default function DevolucionDialog({ prestamo, onCerrar }) {
         value={fechaHora}
         onChange={(e) => setFechaHora(e.target.value)}
       />
+      {retroactiva && (
+        <Textarea
+          etiqueta="Motivo de la fecha anterior"
+          requerido
+          ayuda="Queda en el historial del préstamo: la fecha cambia el atraso y la multa."
+          maxLength={300}
+          rows={2}
+          value={motivoFecha}
+          onChange={(e) => setMotivoFecha(e.target.value)}
+        />
+      )}
+      {atraso > 0 && (
+        <Alert tono="warning">
+          Venció el {formatearFecha(prestamo.fecha_vencimiento)}: {atraso} día(s) de atraso. Al
+          registrarla se genera la multa.
+        </Alert>
+      )}
       {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
     </ConfirmDialog>
   );

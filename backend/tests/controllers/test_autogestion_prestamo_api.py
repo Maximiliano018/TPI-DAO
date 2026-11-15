@@ -216,9 +216,11 @@ def test_el_socio_cancela_su_solicitud_pero_no_la_ajena_ni_una_en_camino(cliente
 
 
 def _vencer_retiro(cliente, m, sesion, prestamo_id):
+    # Con la fecha del reloj de pruebas (Córdoba): ``current_date`` de la base está en UTC y de
+    # 21 a 24 h ya es el día siguiente.
     sesion.execute(
-        text("UPDATE prestamo SET fecha_limite_retiro = current_date - 1 WHERE id = :id"),
-        {"id": prestamo_id},
+        text("UPDATE prestamo SET fecha_limite_retiro = :f WHERE id = :id"),
+        {"f": HOY_DE_PRUEBAS - timedelta(days=1), "id": prestamo_id},
     )
     r = cliente.post(f"{API}/admin/tareas/vencer-retiros", headers=m["h_admin"])
     assert r.status_code == 200, r.json()

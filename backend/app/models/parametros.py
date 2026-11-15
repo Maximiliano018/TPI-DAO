@@ -7,7 +7,12 @@ administrador puede cambiar sin redesplegar (ver ``docs/negocio/00-contexto-y-ac
 from dataclasses import dataclass, fields
 from decimal import Decimal
 
+from app.models.policies.multa import MultaFijaPorDia
 from app.models.valores import error_de_campo
+
+# Parámetros en pesos: admiten centavos y montos mayores que los plazos.
+MONTOS = frozenset({"multa_por_dia", "multa_tope_por_prestamo"})
+MONTO_MAXIMO = Decimal("1000000")
 
 
 @dataclass(frozen=True)
@@ -22,8 +27,15 @@ class Parametros:
     vigencia_retiro_reserva_dias: int = 3
     vigencia_retiro_prestamo_dias: int = 3
     multa_por_dia: Decimal = Decimal("200.00")
+    # Tope de la multa de un préstamo; 0 = sin tope (CU-DEV-02, A2).
+    multa_tope_por_prestamo: Decimal = Decimal("0.00")
     transito_maximo_dias: int = 7
     despacho_maximo_dias: int = 3
+
+    def politica_multa(self) -> MultaFijaPorDia:
+        """Strategy de cálculo vigente: monto por día con el tope configurado (si hay)."""
+        tope = self.multa_tope_por_prestamo or None
+        return MultaFijaPorDia(self.multa_por_dia, tope)
 
     @classmethod
     def claves(cls) -> list[str]:
@@ -50,11 +62,15 @@ def convertir(clave: str, texto: str) -> int | Decimal:
         raise error_de_campo("clave", f"No existe el parámetro {clave}.")
     try:
         valor: int | Decimal = (
-            Decimal(texto).quantize(Decimal("0.01")) if clave == "multa_por_dia" else int(texto)
+            Decimal(texto).quantize(Decimal("0.01")) if clave in MONTOS else int(texto)
         )
     except (ArithmeticError, ValueError) as error:
         raise error_de_campo("valor", "El valor debe ser un número.") from error
-    minimo = 0 if clave in ("renovaciones_maximas", "multa_por_dia") else 1
+    if clave in MONTOS:
+        if not 0 <= valor <= MONTO_MAXIMO:
+            raise error_de_campo("valor", f"El monto debe estar entre 0 y {MONTO_MAXIMO}.")
+        return valor
+    minimo = 0 if clave == "renovaciones_maximas" else 1
     if not minimo <= valor <= 365 * 10:
         raise error_de_campo("valor", f"El valor debe estar entre {minimo} y 3650.")
     return valor

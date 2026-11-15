@@ -129,3 +129,53 @@ def test_saldar_una_multa_registra_quien_y_cuando_y_no_se_salda_dos_veces():
     )
     with pytest.raises(TransicionInvalida):
         multa.saldar(BIBLIO, AHORA)
+
+
+# --- fecha retroactiva y tope ------------------------------------------------------------------
+
+
+@pytest.mark.ca("CA-DEV-17")
+def test_una_fecha_anterior_a_hoy_exige_motivo():
+    p = activo(HOY - timedelta(days=5))
+
+    with pytest.raises(ErrorDeValidacion) as error:
+        devolver(p, fecha=HOY - timedelta(days=5))
+    assert error.value.detalles[0]["campo"] == "motivo_fecha"
+
+    d, multa = Devolucion.registrar(
+        prestamo=p,
+        fecha_hora=AHORA - timedelta(days=5),
+        fecha=HOY - timedelta(days=5),
+        hoy=HOY,
+        estado_recibido=EstadoRecibido.BUENO,
+        observaciones=None,
+        politica=POLITICA,
+        actor=BIBLIO,
+        ahora=AHORA,
+        motivo_fecha="  Lo dejó   en el buzón ",
+    )
+    assert (d.motivo_fecha, d.registrada_en, multa) == ("Lo dejó en el buzón", AHORA, None)
+    assert d.texto_del_historial(HOY - timedelta(days=5), HOY) == (
+        "Devuelto el 15/11/2026 (registrado el 20/11/2026): Lo dejó en el buzón"
+    )
+
+
+def test_hoy_no_pide_motivo_y_el_historial_dice_devuelto():
+    d, _ = devolver(activo(HOY))
+
+    assert (d.motivo_fecha, d.es_retroactiva) == (None, False)
+    assert d.texto_del_historial(HOY, HOY) == "Devuelto"
+
+
+@pytest.mark.ca("CA-DEV-18")
+def test_la_politica_vigente_aplica_el_tope_y_cero_es_sin_tope():
+    from app.models.parametros import Parametros, convertir
+
+    con_tope = Parametros(multa_tope_por_prestamo=Decimal("500.00")).politica_multa()
+    sin_tope = Parametros().politica_multa()
+
+    assert con_tope.calcular(5) == Decimal("500.00")
+    assert sin_tope.calcular(5) == Decimal("1000.00")
+    assert convertir("multa_tope_por_prestamo", "25000") == Decimal("25000.00")
+    with pytest.raises(ErrorDeValidacion):
+        convertir("multa_tope_por_prestamo", "-1")

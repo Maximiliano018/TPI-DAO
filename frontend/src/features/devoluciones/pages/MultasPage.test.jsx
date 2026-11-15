@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
-import { BIBLIOTECARIO, SOCIO, multa, pagina, prestamo } from '../../../../tests/datos.js';
+import { BIBLIOTECARIO, SOCIO, multa, pagina, prestamo, socio } from '../../../../tests/datos.js';
 import { error, registrar, responder, sesionDe } from '../../../../tests/handlers.js';
 import { renderizarApp } from '../../../../tests/render.jsx';
 
@@ -41,7 +41,64 @@ describe('Devoluciones', () => {
       estado_fisico: 'BUENO',
       observaciones: null,
       fecha_hora: null,
+      motivo_fecha: null,
     });
+  });
+
+  it('CA-DEV-17: una fecha anterior a hoy exige el motivo y avisa el atraso', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/prestamos/118', ACTIVO);
+    const llamadas = registrar(
+      'post',
+      '/prestamos/118/devolucion',
+      {
+        prestamo: { ...ACTIVO, estado: 'DEVUELTO' },
+        devolucion: { id: 60, dias_atraso: 0, estado_fisico_recibido: 'BUENO' },
+        multa: null,
+        remito_retorno: null,
+        reserva_asignada: null,
+        socio: { id: 45, estado: 'HABILITADO', motivo: null },
+      },
+      201,
+    );
+    const user = userEvent.setup();
+    renderizarApp('/prestamos/118', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Registrar devolución' }));
+    const dialogo = screen.getByRole('dialog');
+    // Hoy ya pasó el vencimiento (10/11/2026): avisa la multa antes de confirmar (D5).
+    expect(
+      within(dialogo).getByText(/Venció el 10\/11\/2026: \d+ día\(s\) de atraso/),
+    ).toBeVisible();
+
+    await user.type(within(dialogo).getByLabelText(/Fecha y hora/), '2026-11-09T18:00');
+    const confirmar = within(dialogo).getByRole('button', { name: 'Registrar devolución' });
+    expect(confirmar).toBeDisabled();
+    expect(within(dialogo).queryByText(/de atraso/)).not.toBeInTheDocument();
+    await user.type(within(dialogo).getByLabelText(/Motivo de la fecha/), 'Lo dejó en el buzón');
+    await user.click(confirmar);
+
+    expect(await screen.findByText('Devolución registrada')).toBeVisible();
+    expect(llamadas[0].cuerpo).toMatchObject({
+      fecha_hora: '2026-11-09T18:00',
+      motivo_fecha: 'Lo dejó en el buzón',
+    });
+  });
+
+  it('CA-DEV-20: el personal ve las multas de un socio elegido', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/socios/45', socio({ id: 45, nombre: 'Sol', apellido: 'Socia' }));
+    const llamadas = registrar('get', '/multas', pagina([multa()]));
+    const user = userEvent.setup();
+    renderizarApp('/multas?socio_id=45', { conSesion: true });
+
+    expect(await screen.findByText(/Socia, Sol/)).toBeVisible();
+    await screen.findByRole('table', { name: 'Multas' });
+    expect(llamadas[0].url.searchParams.get('socio_id')).toBe('45');
+
+    await user.click(screen.getByRole('button', { name: 'Cambiar' }));
+    expect(await screen.findByLabelText(/Buscar socio/)).toBeVisible();
+    expect(llamadas.at(-1).url.searchParams.has('socio_id')).toBe(false);
   });
 
   it('un daño exige observaciones y el error del servidor se muestra en el diálogo', async () => {

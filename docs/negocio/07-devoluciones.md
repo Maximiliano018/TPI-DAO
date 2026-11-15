@@ -16,13 +16,15 @@ Una **devolución** es el registro de que el socio entrega un ejemplar prestado 
 | Días de atraso | Calculado |
 | Multa generada | Si corresponde |
 | Registrado por | Bibliotecario |
+| Registrada en | Cuándo se cargó en el sistema (difiere de la fecha si es retroactiva) |
+| Motivo de la fecha | Obligatorio si la fecha es anterior al día en que se registra |
 
 ## ¿Aplica a préstamos entre sedes y locales?
 
 A ambos.
 
 - **Local:** el ejemplar vuelve a `Disponible` en la misma sede.
-- **Interbibliotecario:** el socio devuelve en la sede destino; el ejemplar queda `En tránsito` de vuelta y se genera el **remito de retorno** hacia la sede propietaria. El préstamo queda `Devuelto` al registrar la devolución del socio. El retorno del ejemplar sigue su propio ciclo de remito.
+- **Interbibliotecario:** el socio devuelve en la sede destino; el ejemplar queda `Apartado` y se genera el **remito de retorno** hacia la sede propietaria (pasa a `En tránsito` cuando se despacha). El préstamo queda `Devuelto` al registrar la devolución del socio. El retorno del ejemplar sigue su propio ciclo de remito.
 
 ## ¿Quién registra una devolución?
 
@@ -39,7 +41,9 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 - La multa nace al registrar la devolución tardía.
 - Estados: `Pendiente`, `Saldada`.
 - Una multa `Pendiente` inhabilita al socio. El sistema solo marca la multa como saldada; el cobro real está fuera del alcance.
-- Opcional: tope máximo de multa por préstamo.
+- **Tope por préstamo** configurable (parámetro, valor inicial 0 = sin tope): si se configura, ninguna multa lo supera.
+- El socio ve sus multas y sus devoluciones sin la identidad del personal que las registró o saldó (ve «Personal de la biblioteca», como en el resto del sistema); el personal sí la ve.
+- El personal busca las multas de un socio desde la página de multas o desde su ficha.
 
 ## ¿Qué pasa si se devuelve en mal estado?
 
@@ -58,6 +62,7 @@ El bibliotecario registra el estado físico y las observaciones.
 - Solo se devuelve un préstamo en estado `Activo` o `Vencido`.
 - La devolución se registra en la sede destino del préstamo.
 - La fecha de devolución no puede ser anterior a la de inicio ni futura.
+- **Fecha retroactiva:** si el socio lo devolvió antes y se registra después, se puede indicar la fecha real, pero hace falta un **motivo** (de 5 a 300 caracteres): la fecha cambia el atraso y puede evitar la multa. El historial del préstamo deja las dos fechas («Devuelto el 10/11/2026 (registrado el 14/11/2026): motivo»). Una hora anterior del mismo día no necesita motivo.
 - Al devolver, el sistema vuelve a evaluar al socio: si no le quedan vencidos ni multas pendientes, se rehabilita.
 - Al liberarse el ejemplar, se revisa la cola de reservas del libro (ver [Reservas](06-reservas.md)).
 

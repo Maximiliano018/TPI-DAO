@@ -262,14 +262,16 @@ class ReporteService:
     ) -> VencidosYMultas:
         """Préstamos vencidos con su multa acumulada a hoy y las multas generadas (RF-REP-04).
 
-        La multa acumulada usa el monto por día vigente (la definitiva se fija al devolver). El
+        La multa acumulada usa el monto por día y el tope vigentes (la definitiva se fija al
+        devolver). El
         período filtra las multas por su fecha de generación.
         """
         actor.exigir(Permiso.REPORTE_SEDE)
         self._validar_periodo(desde, hasta)
         sede_id = self._alcance(actor, sede_id)
         hoy = self._reloj.hoy()
-        monto = SqlAlchemyParametroRepository(self._sesion).vigentes().multa_por_dia
+        parametros = SqlAlchemyParametroRepository(self._sesion).vigentes()
+        monto, politica = parametros.multa_por_dia, parametros.politica_multa()
         sede = aliased(SedeORM)
         condiciones: list[ColumnElement[bool]] = [
             PrestamoORM.estado.in_(PRESTAMOS_AFUERA),
@@ -313,7 +315,7 @@ class ReporteService:
                     sede=f[7],
                     fecha_vencimiento=f[8],
                     dias_atraso=dias,
-                    multa_acumulada=(monto * dias).quantize(Decimal("0.01")),
+                    multa_acumulada=politica.calcular(dias),
                 )
             )
         multas = self._multas(sede_id, socio_id, estado_multa, desde, hasta)

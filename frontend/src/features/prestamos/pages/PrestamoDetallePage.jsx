@@ -296,6 +296,21 @@ export default function PrestamoDetallePage() {
               <dl className={estilos.definiciones}>
                 <dt>Fecha</dt>
                 <dd>{formatearFechaHora(prestamo.devolucion.fecha_hora)}</dd>
+                {prestamo.devolucion.motivo_fecha && (
+                  <>
+                    <dt>Registrada</dt>
+                    <dd>
+                      {formatearFechaHora(prestamo.devolucion.registrada_en)}:{' '}
+                      {prestamo.devolucion.motivo_fecha}
+                    </dd>
+                  </>
+                )}
+                {prestamo.devolucion.registrada_por && (
+                  <>
+                    <dt>Registrada por</dt>
+                    <dd>{prestamo.devolucion.registrada_por.nombre}</dd>
+                  </>
+                )}
                 <dt>Llegó</dt>
                 <dd>{ESTADOS_RECIBIDOS[prestamo.devolucion.estado_fisico_recibido]}</dd>
                 <dt>Atraso</dt>

@@ -29,6 +29,11 @@ class DevolucionORM(ConAuditoriaDeTiempo, Base):
             name="estado_valido",
         ),
         CheckConstraint("dias_atraso >= 0", name="atraso_no_negativo"),
+        # Una fecha anterior al registro (retroactiva) exige su motivo (RF-DEV-14).
+        CheckConstraint(
+            "motivo_fecha IS NOT NULL OR fecha_hora >= registrada_en - interval '1 day'",
+            name="retroactiva_con_motivo",
+        ),
     )
 
     prestamo_id: Mapped[int] = mapped_column(ForeignKey("prestamo.id"), nullable=False, unique=True)
@@ -37,7 +42,9 @@ class DevolucionORM(ConAuditoriaDeTiempo, Base):
     estado_fisico_recibido: Mapped[str] = mapped_column(String(15), nullable=False)
     dias_atraso: Mapped[int] = mapped_column(Integer, nullable=False)
     observaciones: Mapped[str | None] = mapped_column(String(300))
-    registrada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    registrada_por_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    registrada_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    motivo_fecha: Mapped[str | None] = mapped_column(String(300))
 
 
 class MultaORM(ConAuditoriaDeTiempo, Base):
@@ -49,6 +56,12 @@ class MultaORM(ConAuditoriaDeTiempo, Base):
         CheckConstraint("monto_total >= 0", name="monto_no_negativo"),
         CheckConstraint(
             "(estado = 'SALDADA') = (fecha_saldada IS NOT NULL)", name="saldada_con_fecha"
+        ),
+        # Solo hay multa con atraso, y el total no supera días × monto (menos si hay tope).
+        CheckConstraint("dias_atraso > 0", name="atraso_positivo"),
+        CheckConstraint(
+            "monto_por_dia >= 0 AND monto_total <= dias_atraso * monto_por_dia",
+            name="monto_coherente",
         ),
         Index("ix_multa_socio_id_estado", "socio_id", "estado"),
     )

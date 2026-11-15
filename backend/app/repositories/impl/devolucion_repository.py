@@ -25,6 +25,8 @@ class SqlAlchemyDevolucionRepository:
             dias_atraso=devolucion.dias_atraso,
             observaciones=devolucion.observaciones,
             registrada_por_id=devolucion.registrada_por.id if devolucion.registrada_por else None,
+            registrada_en=devolucion.registrada_en or devolucion.fecha_hora,
+            motivo_fecha=devolucion.motivo_fecha,
         )
         self._sesion.add(orm)
         self._sesion.flush()
@@ -50,6 +52,8 @@ class SqlAlchemyDevolucionRepository:
                 if orm.registrada_por_id
                 else None
             ),
+            registrada_en=orm.registrada_en,
+            motivo_fecha=orm.motivo_fecha,
         )
 
 

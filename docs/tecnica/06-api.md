@@ -172,7 +172,7 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
 | `POST /prestamos/{id}/renovar` | B | Renovación | RF-PRE-14 |
 | `POST /prestamos/{id}/cancelar` | B, S | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno. El socio solo cancela los propios en `SOLICITADO` | RF-PRE-13, 21 |
-| `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11 |
+| `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11, 14 |
 | `POST /admin/tareas/detectar-vencidos` | A | Ejecuta la detección de vencidos (también corre sola cada día) | RF-PRE-12 |
 | `POST /admin/tareas/vencer-retiros` | A | Cancela los préstamos no retirados a tiempo (también corre sola cada día) | RF-PRE-20 |
 
@@ -680,10 +680,10 @@ Request: sin cuerpo. Response `200`:
 Request:
 
 ```json
-{ "estado_fisico": "BUENO", "observaciones": "Sin daños", "fecha_hora": "2026-11-15T10:30:00-03:00" }
+{ "estado_fisico": "BUENO", "observaciones": "Sin daños", "fecha_hora": "2026-11-15T10:30:00-03:00", "motivo_fecha": "Lo dejó en el buzón" }
 ```
 
-`estado_fisico` es `BUENO`, `REGULAR`, `DANADO` o `EXTRAVIADO` (los dos últimos exigen observaciones). `fecha_hora` es opcional: si falta se toma el momento actual; sirve para registrar después una devolución que ocurrió antes.
+`estado_fisico` es `BUENO`, `REGULAR`, `DANADO` o `EXTRAVIADO` (los dos últimos exigen observaciones). `fecha_hora` es opcional: si falta se toma el momento actual; sirve para registrar después una devolución que ocurrió antes. Si su día es anterior a hoy, `motivo_fecha` (de 5 a 300 caracteres) es obligatorio y el movimiento `DEVUELTO` del préstamo queda como «Devuelto el dd/mm/aaaa (registrado el dd/mm/aaaa): motivo». La devolución responde además `registrada_en` y `motivo_fecha`.
 
 Response `201`:
 
@@ -698,7 +698,7 @@ Response `201`:
 }
 ```
 
-`multa`, `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, u observaciones faltantes).
+`multa`, `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, observaciones faltantes, o fecha anterior a hoy sin `motivo_fecha`).
 
 Qué pasa con el ejemplar según el estado recibido, todo en la misma transacción:
 
@@ -708,7 +708,7 @@ Qué pasa con el ejemplar según el estado recibido, todo en la misma transacci�
 | `DANADO` | `EN_REVISION` con incidencia `DANIO` | Remito de retorno con incidencia `DANIO`; al recibirse dañado en su sede pasa a `EN_REVISION` sin otra incidencia |
 | `EXTRAVIADO` | `BAJA` con incidencia `EXTRAVIO` | `BAJA` con incidencia `EXTRAVIO` |
 
-Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse. Al saldarla (`POST /multas/{id}/saldar`, `409 TRANSICION_INVALIDA` si ya estaba saldada) se reevalúa la habilitación del socio.
+Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0. Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar`, `409 TRANSICION_INVALIDA` si ya estaba saldada) se reevalúa la habilitación del socio.
 
 ### `POST /remitos` — generar remito
 
@@ -881,7 +881,7 @@ Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`) de
 }
 ```
 
-La multa acumulada de un vencido usa el monto por día vigente; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada).
+La multa acumulada de un vencido usa el monto por día y el tope vigentes; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada).
 
 ## Documentación de endpoints en el código
 

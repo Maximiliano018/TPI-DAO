@@ -18,7 +18,10 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | RF-DEV-10 | Según el estado recibido: `Bueno` o `Regular` actualizan el estado físico; `Dañado` deja el ejemplar en revisión, no disponible; `Extraviado` lo pasa a `Baja` con incidencia. | Obligatorio |
 | RF-DEV-11 | Al liberarse el ejemplar, el sistema debe revisar la cola de reservas del libro (ver [Reservas](06-reservas.md)). | Obligatorio |
 | RF-DEV-12 | El sistema debe registrar una incidencia asociada al socio ante daño o extravío, sin penalización económica. | Opcional |
-| RF-DEV-13 | El sistema debe permitir consultar devoluciones y multas por préstamo y por socio. | Obligatorio |
+| RF-DEV-13 | El sistema debe permitir consultar devoluciones y multas por préstamo y por socio; el personal busca las multas de un socio desde la página de multas o desde su ficha. | Obligatorio |
+| RF-DEV-14 | Una devolución con fecha anterior al día en que se registra debe exigir un motivo (de 5 a 300 caracteres) y dejar en el historial del préstamo la fecha de devolución, la de registro y el motivo. | Obligatorio |
+| RF-DEV-15 | El sistema debe permitir configurar un tope de multa por préstamo (0 = sin tope); la política de cálculo lo aplica. | Opcional |
+| RF-DEV-16 | El socio debe ver sus devoluciones y multas sin la identidad del personal que las registró o saldó; el personal sí la ve. | Obligatorio |
 
 ## Casos de uso
 
@@ -36,6 +39,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
   - **A1 (paso 1): préstamo ya `Devuelto` o `Cancelado`.** Rechaza.
   - **A2 (paso 1): sede distinta del destino.** Rechaza e indica la sede correcta.
   - **A3 (paso 2): fecha futura o anterior al inicio.** Rechaza.
+  - **A3b (paso 2): fecha anterior a hoy (lo devolvió antes y se registra ahora).** Exige el motivo; el historial guarda las dos fechas. El diálogo avisa el atraso y la multa antes de confirmar.
   - **A4 (paso 5): el libro tiene reservas.** El ejemplar se asigna a la primera (CU-RES-02) en lugar de quedar `Disponible`.
 
 ### CU-DEV-02. Registrar una devolución fuera de término
@@ -48,7 +52,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
   4. El socio sigue inhabilitado mientras la multa esté pendiente.
 - **Flujos alternativos:**
   - **A1:** devolución el día del vencimiento; sin multa.
-  - **A2:** la multa tiene un tope configurado; se aplica el tope.
+  - **A2:** la multa tiene un tope configurado (`multa_tope_por_prestamo`); se aplica el tope.
   - **A3:** la política de cálculo cambió; se usa la vigente al devolver.
 
 ### CU-DEV-03. Registrar una devolución con daño o extravío
@@ -77,7 +81,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 ### CU-DEV-05. Saldar una multa
 
 - **Actor:** Bibliotecario, Administrador.
-- **Flujo normal:** busca al socio, selecciona la multa `Pendiente` y la marca `Saldada`; el sistema reevalúa su habilitación.
+- **Flujo normal:** busca al socio (en la página de multas o desde su ficha, «Ver las multas del socio»), selecciona la multa `Pendiente` y la marca `Saldada`; el sistema reevalúa su habilitación.
 - **Flujos alternativos:**
   - **A1:** la multa ya está saldada; informa.
   - **A2:** el socio tiene otras causas de inhabilitación; sigue inhabilitado.
@@ -107,3 +111,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | CA-DEV-14 | RF-DEV-10 | **Dado** una devolución `Extraviado`, **cuando** se registra, **entonces** el ejemplar pasa a `Baja`. |
 | CA-DEV-15 | RF-DEV-11 | **Dado** un libro con una reserva pendiente, **cuando** se devuelve un ejemplar, **entonces** se asigna a esa reserva. |
 | CA-DEV-16 | RF-DEV-13 | **Dado** un socio, **cuando** consulta sus multas, **entonces** ve solo las propias con su estado. |
+| CA-DEV-17 | RF-DEV-14 | **Dado** un préstamo vencido, **cuando** se registra la devolución con una fecha anterior a hoy sin motivo, **entonces** se rechaza; con motivo se acepta y el historial muestra las dos fechas y el motivo. |
+| CA-DEV-18 | RF-DEV-15 | **Dado** un tope de $500, **cuando** se devuelve con 5 días de atraso a $200 por día, **entonces** la multa es de $500. |
+| CA-DEV-19 | RF-DEV-16 | **Dado** una devolución con multa saldada, **cuando** el socio la consulta, **entonces** no ve quién la registró ni quién la saldó; el personal sí. |
+| CA-DEV-20 | RF-DEV-13 | **Dado** un socio elegido en la página de multas, **cuando** el personal la consulta, **entonces** ve solo las multas de ese socio. |

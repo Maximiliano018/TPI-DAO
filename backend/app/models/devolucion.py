@@ -3,6 +3,10 @@
 La devolución cierra un préstamo ``Activo`` o ``Vencido`` y registra en qué estado llegó el
 ejemplar. Si es fuera de término, nace una multa con la política de cálculo vigente (Strategy).
 El día de vencimiento todavía está en término (CA-DEV-05).
+
+Una devolución con fecha anterior al día en que se registra (el socio la entregó antes y se
+carga ahora) exige un motivo, y el historial del préstamo deja las dos fechas: la fecha cambia
+el atraso y, con él, la multa (RF-DEV-14).
 """
 
 from dataclasses import dataclass
@@ -14,7 +18,7 @@ from app.exceptions import TransicionInvalida
 from app.models.policies.multa import PoliticaMulta
 from app.models.prestamo import Prestamo
 from app.models.usuario import UsuarioRef
-from app.models.valores import error_de_campo
+from app.models.valores import MOTIVO_MAX, MOTIVO_MIN, error_de_campo
 
 OBSERVACIONES_MAX = 300
 
@@ -73,6 +77,22 @@ class Devolucion:
     dias_atraso: int
     observaciones: str | None
     registrada_por: UsuarioRef | None
+    # Cuándo se cargó en el sistema; difiere de ``fecha_hora`` si es retroactiva.
+    registrada_en: datetime | None = None
+    motivo_fecha: str | None = None
+
+    @property
+    def es_retroactiva(self) -> bool:
+        return self.motivo_fecha is not None
+
+    def texto_del_historial(self, devuelto: date, registro: date) -> str:
+        """Observación del movimiento ``Devuelto``: con las dos fechas si es retroactiva."""
+        if not self.es_retroactiva:
+            return "Devuelto"
+        return (
+            f"Devuelto el {devuelto.strftime('%d/%m/%Y')} "
+            f"(registrado el {registro.strftime('%d/%m/%Y')}): {self.motivo_fecha}"
+        )
 
     @classmethod
     def registrar(
@@ -86,15 +106,20 @@ class Devolucion:
         observaciones: str | None,
         politica: PoliticaMulta,
         actor: UsuarioRef,
+        ahora: datetime | None = None,
+        motivo_fecha: str | None = None,
     ) -> tuple["Devolucion", Multa | None]:
         """Valida la devolución y calcula la multa si corresponde.
 
         ``fecha`` es el día de la devolución en la zona de negocio (para contar el atraso).
+        Si es anterior a ``hoy``, ``motivo_fecha`` es obligatorio (de 5 a 300 caracteres); si es
+        de hoy, se ignora.
 
         Raises:
             TransicionInvalida: El préstamo no está activo ni vencido (CA-DEV-02).
-            ErrorDeValidacion: Fecha futura o anterior al inicio (CA-DEV-04), o un daño o
-                extravío sin observaciones (CU-DEV-03, A2).
+            ErrorDeValidacion: Fecha futura o anterior al inicio (CA-DEV-04), un daño o
+                extravío sin observaciones (CU-DEV-03, A2), o una fecha anterior a hoy sin
+                motivo (CA-DEV-17).
         """
         prestamo.estado.devolver()  # valida el estado antes que los datos
         assert prestamo.id is not None and prestamo.fecha_inicio is not None
@@ -111,6 +136,15 @@ class Devolucion:
             raise error_de_campo(
                 "observaciones", "Describa el daño o el extravío en las observaciones."
             )
+        motivo = None
+        if fecha < hoy:
+            motivo = " ".join((motivo_fecha or "").split())
+            if not MOTIVO_MIN <= len(motivo) <= MOTIVO_MAX:
+                raise error_de_campo(
+                    "motivo_fecha",
+                    "Indique por qué la devolución tiene una fecha anterior a hoy "
+                    "(de 5 a 300 caracteres): cambia el atraso y la multa.",
+                )
         dias = prestamo.dias_de_atraso(fecha)
         devolucion = cls(
             id=None,
@@ -121,6 +155,8 @@ class Devolucion:
             dias_atraso=dias,
             observaciones=texto,
             registrada_por=actor,
+            registrada_en=ahora or fecha_hora,
+            motivo_fecha=motivo,
         )
         multa = None
         if dias > 0:

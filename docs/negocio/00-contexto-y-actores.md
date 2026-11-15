@@ -53,7 +53,8 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Plazo de préstamo interbibliotecario | 21 días corridos, contados desde la recepción en la sede destino |
 | Renovaciones permitidas por préstamo | 1 (solo si no hay reservas pendientes sobre el libro) |
 | Máximo de préstamos simultáneos por socio | 3 |
-| Multa por día de atraso | $200 por día de atraso, monto fijo; sin tope por defecto |
+| Multa por día de atraso | $200 por día de atraso, monto fijo |
+| Tope de multa por préstamo | 0 (sin tope); si se configura, la multa no lo supera |
 | Vigencia de una reserva cumplida (retiro) | 3 días corridos |
 | Plazo de despacho de un remito | 3 días corridos desde la generación; vencido, el remito figura atrasado |
 | Plazo para retirar un préstamo solicitado | 3 días corridos (el local, desde la solicitud; el interbibliotecario, desde la llegada a la sede destino) |
