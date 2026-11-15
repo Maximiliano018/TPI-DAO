@@ -40,7 +40,7 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 
 - La multa nace al registrar la devolución tardía.
 - Estados: `Pendiente`, `Saldada`.
-- Una multa `Pendiente` inhabilita al socio. El sistema solo marca la multa como saldada; el cobro real está fuera del alcance.
+- Una multa `Pendiente` inhabilita al socio hasta que se paga (ver [¿Cómo se paga una multa?](#cómo-se-paga-una-multa)).
 - **Tope por préstamo** configurable (parámetro, valor inicial 0 = sin tope): si se configura, ninguna multa lo supera.
 - El socio ve sus multas y sus devoluciones sin la identidad del personal que las registró o saldó (ve «Personal de la biblioteca», como en el resto del sistema); el personal sí la ve.
 - El personal busca las multas de un socio desde la página de multas o desde su ficha.
@@ -57,6 +57,21 @@ El bibliotecario registra el estado físico y las observaciones.
 
 *La penalización económica al socio por daño o extravío queda fuera del alcance obligatorio.* Se deja registrada la incidencia asociada al socio por si se decide aplicarla más adelante. Las incidencias de un envío (remito), en cambio, no son del socio: quedan a cargo de la sede origen (ver [Remitos](05-remitos.md#quién-es-responsable-de-una-incidencia)).
 
+## ¿Cómo se paga una multa?
+
+De dos formas; en ambas la multa queda `Saldada` con **un** pago aprobado y el socio se reevalúa (si era su única causa, se rehabilita).
+
+| Forma | Quién | Cómo |
+|-------|-------|------|
+| **En el mostrador** | Bibliotecario (o administrador) de cualquier sede | Cobra y registra el **medio**: efectivo, débito, crédito o transferencia, con un comprobante opcional (cupón u operación) |
+| **En línea (simulado)** | El propio socio, solo sus multas | Desde «Mis multas» va a un checkout simulado: elige tarjeta de crédito, de débito o dinero en cuenta, completa los datos y confirma. Es una demostración: **no hay cobro real** ni pasarela externa, y de la tarjeta solo se guardan los últimos 4 dígitos |
+
+- Mientras el pago en línea no se aprueba, la multa sigue `Pendiente`.
+- Todo pago aprobado (de mostrador o en línea) tiene su **comprobante en PDF**, que el socio descarga desde «Mis multas» y el personal desde la página de multas.
+- Un pago rechazado deja la multa pendiente; el socio puede intentarlo de nuevo.
+- Si el socio inició un pago en línea y se le cobra en el mostrador, el pago en línea se cancela y ya no se puede aprobar (ver [técnica/12](../tecnica/12-pago-de-multas.md)).
+- El socio ve el medio con que se pagó su multa, pero no quién la cobró ni el comprobante.
+
 ## Validaciones y reglas
 
 - Solo se devuelve un préstamo en estado `Activo` o `Vencido`.
@@ -72,5 +87,6 @@ El bibliotecario registra el estado físico y las observaciones.
 2. **Devolución tardía** con generación de multa.
 3. **Devolución con daño o extravío.**
 4. **Devolución de préstamo interbibliotecario** con remito de retorno.
-5. **Saldar una multa.**
+5. **Saldar una multa** en el mostrador, con su medio de pago.
+5b. **Pagar una multa en línea** (el socio, simulado).
 6. **Asignación del ejemplar liberado** a la primera reserva.

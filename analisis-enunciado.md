@@ -21,9 +21,9 @@ El sistema sirve a dos tipos de usuario: el personal (operación y administraci�
 | 7 | Reservas | Cola o espera sobre material no disponible |
 | 8 | Devoluciones | Registro del estado físico del material |
 
-**Opcional (extensiones):** notificaciones, historial de lecturas, recomendaciones, inventario por códigos y revisión de recepción (extravío, daño, destrucción).
+**Opcional (extensiones):** notificaciones, historial de lecturas, recomendaciones, inventario por códigos, revisión de recepción (extravío, daño, destrucción) y **pago de multas** (en el mostrador con su medio de pago, o en línea de forma simulada; ver [técnica/12](docs/tecnica/12-pago-de-multas.md)).
 
-**Fuera de alcance (implícito):** adquisiciones, catalogación bibliográfica avanzada (MARC), pagos de multas y logística externa real.
+**Fuera de alcance (implícito):** adquisiciones, catalogación bibliográfica avanzada (MARC), cobros reales con una pasarela de pagos, devoluciones de dinero y logística externa real.
 
 ## Entidades candidatas
 

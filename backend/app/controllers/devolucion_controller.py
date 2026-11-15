@@ -6,11 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.controllers.dependencies import get_devolucion_service, requiere, usuario_actual
 from app.dtos.request.devolucion_request import DevolucionRequest
-from app.dtos.response.devolucion_response import (
-    MultaResponse,
-    PaginaMultasResponse,
-    multa_a_response,
-)
+from app.dtos.response.devolucion_response import PaginaMultasResponse
 from app.dtos.response.resultado_devolucion_response import ResultadoDevolucionResponse
 from app.models.devolucion import EstadoMulta
 from app.models.usuario import Permiso, Usuario
@@ -21,7 +17,6 @@ router = APIRouter(prefix="/api/v1", tags=["Devoluciones y multas"])
 Servicio = Annotated[DevolucionService, Depends(get_devolucion_service)]
 Autenticado = Annotated[Usuario, Depends(usuario_actual)]
 Bibliotecario = Annotated[Usuario, Depends(requiere(Permiso.DEVOLUCION_REGISTRAR))]
-Personal = Annotated[Usuario, Depends(requiere(Permiso.MULTA_SALDAR))]
 
 _401 = {"description": "No autenticado (`TOKEN_INVALIDO`)"}
 _403 = {"description": "Sin permiso o préstamo de otra sede (`FORBIDDEN`)"}
@@ -80,19 +75,3 @@ def listar_multas(
     return PaginaMultasResponse.desde(
         servicio.listar_multas(actor, socio_id, estado, page, size), actor
     )
-
-
-@router.post(
-    "/multas/{multa_id}/saldar",
-    response_model=MultaResponse,
-    summary="Marcar una multa como saldada",
-    responses={
-        401: _401,
-        403: _403,
-        404: {"description": "`MULTA_NO_ENCONTRADA`"},
-        409: {"description": "Ya estaba saldada (`TRANSICION_INVALIDA`)"},
-    },
-)
-def saldar_multa(multa_id: int, servicio: Servicio, actor: Personal) -> MultaResponse:
-    """El cobro queda fuera del sistema; al saldarla se reevalúa la habilitación del socio."""
-    return multa_a_response(servicio.saldar_multa(actor, multa_id), actor)

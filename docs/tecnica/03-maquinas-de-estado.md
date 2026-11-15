@@ -212,6 +212,20 @@ stateDiagram-v2
     Pendiente --> Saldada : saldar
 ```
 
+
+## Pago de una multa
+
+```mermaid
+stateDiagram-v2
+    [*] --> Aprobado : cobro en el mostrador
+    [*] --> Pendiente : el socio inicia el pago en línea
+    Pendiente --> Aprobado : el socio paga (multa saldada, comprobante)
+    Pendiente --> Rechazado : la tarjeta se rechaza (la de prueba terminada en 0002)
+    Pendiente --> Cancelado : se cobró en el mostrador
+```
+
+El pago en línea es simulado. Ver [12. Pago de multas](12-pago-de-multas.md).
+
 ## Acoplamiento entre máquinas
 
 | Evento | Sede | Socio | Ejemplar | Préstamo | Remito | Reserva |

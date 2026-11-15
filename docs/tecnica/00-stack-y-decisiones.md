@@ -94,6 +94,10 @@ Provincias y localidades son tablas de referencia cargadas por migración, no te
 
 Las versiones se fijan en `pyproject.toml` y `package.json` y las actualiza Dependabot.
 
+### D12. Pago en línea de multas simulado
+
+El pago en línea del socio es una simulación (checkout del propio sistema donde se elige aprobar o rechazar), sin pasarela externa ni dependencias nuevas: alcanza para demostrar el flujo y no exige cuentas ni credenciales. Ver [12. Pago de multas](12-pago-de-multas.md).
+
 ## Alternativas descartadas
 
 | Alternativa | Por qué no |

@@ -12,6 +12,7 @@ from app.repositories.interfaces.catalogo_repository import (
 from app.repositories.interfaces.devolucion_repository import (
     DevolucionRepository,
     MultaRepository,
+    PagoRepository,
 )
 from app.repositories.interfaces.prestamo_repository import (
     IncidenciaRepository,
@@ -42,6 +43,7 @@ class UnitOfWork(Protocol):
     reservas: ReservaRepository
     devoluciones: DevolucionRepository
     multas: MultaRepository
+    pagos: PagoRepository
 
     def commit(self) -> None:
         """Confirma la transacción."""
@@ -64,6 +66,7 @@ class SqlAlchemyUnitOfWork:
         from app.repositories.impl.devolucion_repository import (
             SqlAlchemyDevolucionRepository,
             SqlAlchemyMultaRepository,
+            SqlAlchemyPagoRepository,
         )
         from app.repositories.impl.prestamo_repository import (
             SqlAlchemyIncidenciaRepository,
@@ -94,6 +97,7 @@ class SqlAlchemyUnitOfWork:
         self.reservas: ReservaRepository = SqlAlchemyReservaRepository(sesion)
         self.devoluciones: DevolucionRepository = SqlAlchemyDevolucionRepository(sesion)
         self.multas: MultaRepository = SqlAlchemyMultaRepository(sesion)
+        self.pagos: PagoRepository = SqlAlchemyPagoRepository(sesion)
 
     def commit(self) -> None:
         self.sesion.commit()

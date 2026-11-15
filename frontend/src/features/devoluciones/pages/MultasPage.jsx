@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
@@ -10,8 +10,10 @@ import {
   ErrorState,
   FilterBar,
   FiltroSelect,
+  Input,
   PageHeader,
   Pagination,
+  Select,
   Skeleton,
   Table,
   useToast,
@@ -19,38 +21,107 @@ import {
 import { useFiltrosUrl } from '../../../hooks/useFiltrosUrl.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { mensajeDeError } from '../../../utils/errores.js';
-import { ESTADOS } from '../../../utils/estados.js';
+import { ESTADOS, MEDIOS_DE_MOSTRADOR, MEDIOS_DE_PAGO } from '../../../utils/estados.js';
 import { formatearFecha, formatearMonto } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
+import BotonComprobante from '../components/BotonComprobante.jsx';
+import estilos from '../../sedes/components/Sedes.module.css';
 import ElegirSocio from '../../socios/components/ElegirSocio.jsx';
 import { useSocio } from '../../socios/hooks/useSocios.js';
-import { useMultas, useSaldarMulta } from '../hooks/useDevoluciones.js';
+import { useIniciarPago, useMultas, useSaldarMulta } from '../hooks/useDevoluciones.js';
 
 function Saldar({ multa, onCerrar }) {
   const saldar = useSaldarMulta();
   const { mostrar } = useToast();
+  const [medio, setMedio] = useState('EFECTIVO');
+  const [comprobante, setComprobante] = useState('');
   const [fallo, setFallo] = useState(null);
   return (
     <ConfirmDialog
-      titulo={`Saldar la multa de ${multa.socio}`}
-      descripcion={`${formatearMonto(multa.monto_total)} por el préstamo ${multa.numero_prestamo}. El cobro se registra fuera del sistema; si era la única causa, el socio vuelve a estar habilitado.`}
-      textoConfirmar="Marcar saldada"
+      titulo={`Cobrar la multa de ${multa.socio}`}
+      descripcion={`${formatearMonto(multa.monto_total)} por el préstamo ${multa.numero_prestamo}. Si era la única causa, el socio vuelve a estar habilitado.`}
+      textoConfirmar="Registrar el cobro"
       procesando={saldar.isPending}
       onConfirmar={() =>
-        saldar.mutate(multa.id, {
-          onSuccess: () => {
-            mostrar('Multa saldada');
-            onCerrar();
+        saldar.mutate(
+          { id: multa.id, medio, comprobante: comprobante.trim() },
+          {
+            onSuccess: () => {
+              mostrar('Multa saldada');
+              onCerrar();
+            },
+            onError: setFallo,
           },
-          onError: setFallo,
-        })
+        )
       }
       onCancelar={onCerrar}
     >
+      {multa.pago_en_curso && (
+        <Alert tono="warning">
+          El socio inició un pago en línea: al cobrar en el mostrador se cancela.
+        </Alert>
+      )}
+      <Select etiqueta="Medio de pago" value={medio} onChange={(e) => setMedio(e.target.value)}>
+        {MEDIOS_DE_MOSTRADOR.map((valor) => (
+          <option key={valor} value={valor}>
+            {MEDIOS_DE_PAGO[valor]}
+          </option>
+        ))}
+      </Select>
+      <Input
+        etiqueta="Comprobante (opcional)"
+        ayuda="Número de cupón o de operación."
+        maxLength={100}
+        value={comprobante}
+        onChange={(e) => setComprobante(e.target.value)}
+      />
       {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
     </ConfirmDialog>
   );
+}
+
+/** El socio paga su multa en línea: va al checkout simulado (no hay cobro real). */
+function PagarEnLinea({ multa }) {
+  const iniciar = useIniciarPago();
+  const navegar = useNavigate();
+  const [fallo, setFallo] = useState(null);
+  const enCurso = multa.pago_en_curso;
+  return (
+    <div className={estilos.acciones}>
+      <Button
+        tamano="sm"
+        aria-label={`${enCurso ? 'Continuar el pago' : 'Pagar en línea'} de la multa del préstamo ${multa.numero_prestamo}`}
+        cargando={iniciar.isPending}
+        onClick={() => {
+          setFallo(null);
+          iniciar.mutate(multa.id, {
+            onSuccess: (pago) => navegar(`/pagos/simulado?pago=${pago.id}`),
+            onError: setFallo,
+          });
+        }}
+      >
+        {enCurso ? 'Continuar el pago' : 'Pagar en línea'}
+      </Button>
+      {fallo && <span role="alert">{mensajeDeError(fallo)}</span>}
+    </div>
+  );
+}
+
+function SituacionDelPago({ multa }) {
+  if (multa.estado === 'SALDADA') {
+    const medio = multa.pago ? MEDIOS_DE_PAGO[multa.pago.medio] : null;
+    return (
+      <div className={estilos.acciones}>
+        <span>
+          Saldada el {formatearFecha(multa.fecha_saldada)}
+          {medio ? ` · ${medio}` : ''}
+        </span>
+        {multa.pago && <BotonComprobante pago={multa.pago} variante="secondary" tamano="sm" />}
+      </div>
+    );
+  }
+  return multa.pago_en_curso ? 'Pago en línea en curso' : 'Sin pagar';
 }
 
 /** El personal busca al socio para ver y saldar sus multas (CU-DEV-05). */
@@ -128,13 +199,14 @@ export default function MultasPage() {
       titulo: 'Estado',
       render: (m) => <EstadoBadge entidad="multa" estado={m.estado} />,
     },
+    { clave: 'pago', titulo: 'Pago', render: (m) => <SituacionDelPago multa={m} /> },
     ...(tienePermiso(PERMISOS.MULTA_SALDAR)
       ? [
           {
             clave: 'acciones',
             titulo: 'Acciones',
             render: (m) =>
-              m.estado === 'PENDIENTE' ? (
+              m.estado === 'PENDIENTE' && (
                 <Button
                   tamano="sm"
                   aria-label={`Saldar la multa del préstamo ${m.numero_prestamo}`}
@@ -142,9 +214,16 @@ export default function MultasPage() {
                 >
                   Saldar
                 </Button>
-              ) : (
-                `Saldada el ${formatearFecha(m.fecha_saldada)}`
               ),
+          },
+        ]
+      : []),
+    ...(tienePermiso(PERMISOS.MULTA_PAGAR_PROPIA)
+      ? [
+          {
+            clave: 'pagar',
+            titulo: 'Acciones',
+            render: (m) => m.estado === 'PENDIENTE' && <PagarEnLinea multa={m} />,
           },
         ]
       : []),
@@ -158,8 +237,8 @@ export default function MultasPage() {
       />
       {!esPersonal && pendientes.length > 0 && (
         <Alert tono="warning">
-          Mientras tenga multas pendientes no puede pedir préstamos ni reservas. Acérquese a
-          cualquier sede para saldarlas.
+          Mientras tenga multas pendientes no puede pedir préstamos ni reservas. Puede pagarlas en
+          línea o en el mostrador de cualquier sede.
         </Alert>
       )}
       {esPersonal && (

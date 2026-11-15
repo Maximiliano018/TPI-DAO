@@ -1,5 +1,12 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { listarMultas, registrarDevolucion, saldarMulta } from '../../../api/devoluciones.js';
+import {
+  iniciarPago,
+  listarMultas,
+  obtenerPago,
+  registrarDevolucion,
+  saldarMulta,
+  pagarEnLinea,
+} from '../../../api/devoluciones.js';
 
 // La devolución toca el préstamo, el ejemplar, los remitos, las reservas y al socio.
 const AFECTADAS = [['prestamos'], ['remitos'], ['catalogo'], ['socios'], ['reservas'], ['multas']];
@@ -23,3 +30,7 @@ export const useMultas = (filtros = {}) =>
 export const useRegistrarDevolucion = () =>
   useMutacion(({ id, ...datos }) => registrarDevolucion(id, datos));
 export const useSaldarMulta = () => useMutacion(saldarMulta);
+export const useIniciarPago = () => useMutacion(iniciarPago);
+export const usePagarEnLinea = () => useMutacion(pagarEnLinea);
+export const usePago = (id) =>
+  useQuery({ queryKey: ['multas', 'pago', String(id)], queryFn: () => obtenerPago(id) });

@@ -319,3 +319,10 @@ class LibroSinEjemplares(ReglaDeNegocioViolada):
 
 class MultaNoEncontrada(EntidadNoEncontrada):
     codigo = "MULTA_NO_ENCONTRADA"
+
+
+# --- pagos de multas -----------------------------------------------------------------------------
+
+
+class PagoNoEncontrado(EntidadNoEncontrada):
+    codigo = "PAGO_NO_ENCONTRADO"

@@ -67,6 +67,8 @@ class Permiso(StrEnum):
     MULTA_LEER = "MULTA_LEER"
     MULTA_SALDAR = "MULTA_SALDAR"
     MULTA_VER_PROPIAS = "MULTA_VER_PROPIAS"
+    # Pagar en línea las multas propias (la multa sale de la sesión del socio).
+    MULTA_PAGAR_PROPIA = "MULTA_PAGAR_PROPIA"
     REPORTE_SEDE = "REPORTE_SEDE"
     REPORTE_RED = "REPORTE_RED"
 
@@ -130,6 +132,7 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.PRESTAMO_SOLICITAR_PROPIO,
             Permiso.RESERVA_PROPIA,
             Permiso.MULTA_VER_PROPIAS,
+            Permiso.MULTA_PAGAR_PROPIA,
         }
     ),
 }

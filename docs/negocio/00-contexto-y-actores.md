@@ -39,6 +39,7 @@ La sesión dura 60 minutos. Si el usuario se da de baja, cambia de sede o de rol
 | Remitos | V (todos) | R (su sede) | V (los de sus préstamos) |
 | Reservas | V (todas) | R (en nombre del socio), V (toda la red; por defecto su sede), cancela y entrega las de su sede | R (propias), cancela las propias |
 | Devoluciones | V | R (su sede) | - |
+| Multas | V, cobra en el mostrador | V, cobra en el mostrador | V (propias), paga en línea las propias (simulado) |
 | Reportes | todos | los operativos de su sede | - |
 
 Esta matriz se detalla en cada documento por proceso.

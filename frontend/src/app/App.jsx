@@ -36,6 +36,7 @@ const NuevoRemitoPage = lazy(() => import('../features/remitos/pages/NuevoRemito
 const ReservasPage = lazy(() => import('../features/reservas/pages/ReservasPage.jsx'));
 const ReservaDetallePage = lazy(() => import('../features/reservas/pages/ReservaDetallePage.jsx'));
 const MultasPage = lazy(() => import('../features/devoluciones/pages/MultasPage.jsx'));
+const PagoSimuladoPage = lazy(() => import('../features/devoluciones/pages/PagoSimuladoPage.jsx'));
 const ReportesPage = lazy(() => import('../features/reportes/pages/ReportesPage.jsx'));
 const ParametrosPage = lazy(() => import('../features/sistema/pages/ParametrosPage.jsx'));
 
@@ -200,6 +201,7 @@ export default function App() {
           <Route path=":id" element={<ReservaDetallePage />} />
         </Route>
         <Route path="multas" element={<MultasPage />} />
+        <Route path="pagos/simulado" element={<PagoSimuladoPage />} />
         <Route path="reportes" element={<ReportesPage />} />
         <Route
           path="parametros"

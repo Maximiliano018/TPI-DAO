@@ -97,6 +97,34 @@ export async function solicitar(ruta, { method = 'GET', body, params, autenticad
   throw error;
 }
 
+/**
+ * Descarga un archivo de la API (con el token) y devuelve `{ blob, nombre }`; el nombre sale de
+ * `Content-Disposition`. Los errores llegan como `ApiError`, igual que en `solicitar`.
+ */
+export async function descargar(ruta) {
+  const actual = leerToken();
+  let respuesta;
+  try {
+    respuesta = await fetch(`/api/v1${ruta}`, {
+      headers: actual ? { Authorization: `Bearer ${actual}` } : {},
+    });
+  } catch {
+    throw new ApiError({ estado: 0, codigo: 'SIN_CONEXION', mensaje: MENSAJES.sinConexion });
+  }
+  if (!respuesta.ok) {
+    const cuerpo = await respuesta.json().catch(() => null);
+    throw new ApiError({
+      estado: respuesta.status,
+      codigo: cuerpo?.error?.codigo ?? `HTTP_${respuesta.status}`,
+      mensaje: cuerpo?.error?.mensaje ?? MENSAJES.errorGeneral,
+      detalles: cuerpo?.error?.detalles ?? [],
+    });
+  }
+  const disposicion = respuesta.headers.get('Content-Disposition') ?? '';
+  const nombre = /filename="([^"]+)"/.exec(disposicion)?.[1] ?? 'archivo';
+  return { blob: await respuesta.blob(), nombre };
+}
+
 export const api = {
   get: (ruta, params) => solicitar(ruta, { params }),
   post: (ruta, body) => solicitar(ruta, { method: 'POST', body: body ?? {} }),
