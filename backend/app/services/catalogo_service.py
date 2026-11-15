@@ -44,6 +44,7 @@ class DatosLibroNuevo:
     isbn: str | None = None
     editorial: str | None = None
     anio_edicion: int | None = None
+    portada_url: str | None = None
 
 
 @dataclass(frozen=True)
@@ -354,6 +355,7 @@ class CatalogoService:
             categoria=categoria,
             tipo_material=datos.tipo_material,
             anio_actual=self._reloj.hoy().year,
+            portada_url=datos.portada_url,
         )
 
     def _rechazar_duplicado(self, datos: DatosLibro, excluir_id: int | None = None) -> None:

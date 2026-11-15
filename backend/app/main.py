@@ -11,6 +11,7 @@ from app.controllers import (
     devolucion_controller,
     pago_controller,
     prestamo_controller,
+    publico_controller,
     remito_controller,
     reporte_controller,
     reserva_controller,
@@ -60,6 +61,7 @@ def crear_app() -> FastAPI:
     app.include_router(devolucion_controller.router)
     app.include_router(pago_controller.router)
     app.include_router(reporte_controller.router)
+    app.include_router(publico_controller.router)
     return app
 
 

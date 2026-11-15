@@ -18,6 +18,9 @@ TITULO_MAX = 200
 AUTOR_MAX = 100
 MAX_AUTORES = 10
 EDITORIAL_MAX = 100
+PORTADA_MAX = 300
+# Imagen de tapa: un enlace web o una de las portadas que sirve el frontend.
+PORTADA_PATRON = re.compile(r"^(https?://|/portadas/)\S+$")
 ANIO_MINIMO = 1450  # imprenta de Gutenberg
 
 
@@ -84,6 +87,7 @@ class DatosLibro:
     anio_edicion: int | None
     categoria: CategoriaRef
     tipo_material: TipoMaterial
+    portada_url: str | None = None
 
     @classmethod
     def crear(
@@ -97,6 +101,7 @@ class DatosLibro:
         categoria: CategoriaRef,
         tipo_material: TipoMaterial,
         anio_actual: int,
+        portada_url: str | None = None,
     ) -> "DatosLibro":
         """Valida los datos de la obra.
 
@@ -121,8 +126,20 @@ class DatosLibro:
             raise error_de_campo(
                 "anio_edicion", f"El año de edición debe estar entre {ANIO_MINIMO} y el actual."
             )
+        portada_ok = (portada_url or "").strip() or None
+        if portada_ok and (len(portada_ok) > PORTADA_MAX or not PORTADA_PATRON.match(portada_ok)):
+            raise error_de_campo(
+                "portada_url", "La portada debe ser el enlace (http o https) a una imagen."
+            )
         return cls(
-            isbn_ok, titulo_ok, autores_ok, editorial_ok, anio_edicion, categoria, tipo_material
+            isbn_ok,
+            titulo_ok,
+            autores_ok,
+            editorial_ok,
+            anio_edicion,
+            categoria,
+            tipo_material,
+            portada_ok,
         )
 
     @property

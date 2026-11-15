@@ -12,7 +12,7 @@ Contrato de la API del backend. La especificación completa e interactiva se gen
 | Fechas | ISO 8601: fecha `2026-10-14`, fecha y hora en UTC `2026-10-14T15:30:00Z` |
 | Dinero | Cadena decimal (`"1000.00"`) para no perder precisión |
 | Identificadores | Enteros |
-| Autenticación | `Authorization: Bearer <token>` en todo salvo el login (`POST /auth/login`) y `GET /api/version` |
+| Autenticación | `Authorization: Bearer <token>` en todo salvo el login (`POST /auth/login`), `GET /api/version` y el inicio público (`GET /publico/inicio`) |
 | Paginación | `?page=1&size=20` (máximo 100). Respuesta `{ "items": [...], "total": 125, "page": 1, "size": 20 }` |
 | Filtros y orden | Parámetros de consulta (`?estado=ACTIVA&q=centro&orden=nombre`) |
 | Acciones de estado | `POST /recursos/{id}/accion` (por ejemplo `/remitos/7/despachar`); nunca se edita el estado con `PATCH` |
@@ -257,6 +257,7 @@ Permisos: `REPORTE_SEDE` (administrador y bibliotecario) para R1, R4 y R6; `REPO
 | Método y ruta | Roles | Descripción |
 |---------------|-------|-------------|
 | `GET /api/version` | público (sin token, sin `/v1`) | Estado y versión del backend: `{ "servicio": "backend", "estado": "ok", "version": "..." }` |
+| `GET /publico/inicio?limite=12` | público (sin token) | Datos de la página de inicio, antes de ingresar: `{ "sedes_activas", "libros", "ejemplares", "destacados": [{ "libro_id", "titulo", "autores", "portada_url", "pedidos" }] }`. `destacados` son los libros más prestados de los últimos 120 días (sin contar los préstamos cancelados), completados con los más nuevos del catálogo si no alcanzan; `limite` va de 1 a 24. Solo informa sobre la colección, nunca sobre socios ni préstamos |
 
 ---
 
@@ -591,9 +592,12 @@ Request de libro:
   "editorial": "Prentice Hall",
   "anio_edicion": 2008,
   "categoria_id": 7,
-  "tipo_material": "LIBRO"
+  "tipo_material": "LIBRO",
+  "portada_url": "https://covers.openlibrary.org/b/id/8231856-M.jpg"
 }
 ```
+
+`portada_url` es opcional (hasta 300 caracteres): el enlace `http` o `https` a la imagen de la tapa, o una ruta `/portadas/...` servida por el frontend. Sin portada, la interfaz dibuja una tapa con el título y el autor.
 
 Response `201`: el libro con `id`, `isbn` (sin guiones), `categoria` `{id, nombre}`, `ejemplares` y `disponibles`. Errores: `409 LIBRO_DUPLICADO` (mismo ISBN o, sin ISBN, mismo título, autor, editorial y año; `detalles[0].libro_id` indica el existente), `422 VALIDACION` (ISBN con verificador inválido, sin título o sin autores), `422 CATEGORIA_INVALIDA`.
 
