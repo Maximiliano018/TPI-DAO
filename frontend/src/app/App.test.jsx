@@ -5,12 +5,19 @@ import { ADMIN, sedeAdmin, pagina } from '../../tests/datos.js';
 import { renderizarApp } from '../../tests/render.jsx';
 
 describe('App', () => {
-  it('sin sesión lleva al login', async () => {
+  it('sin sesión la raíz muestra el inicio público con el acceso al sistema', async () => {
     renderizarApp('/');
 
     expect(
-      await screen.findByRole('heading', { name: /préstamos interbibliotecarios/i }),
+      await screen.findByRole('heading', { level: 1, name: /todos los libros de la red/i }),
     ).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/login');
+  });
+
+  it('sin sesión una pantalla interna lleva al login', async () => {
+    renderizarApp('/catalogo');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Ingresar' })).toBeInTheDocument();
     expect(screen.getByLabelText('Usuario')).toBeInTheDocument();
   });
 
@@ -34,7 +41,7 @@ describe('App', () => {
 
   it('un token vencido al restaurar la sesión lleva al login', async () => {
     responder('get', '/auth/me', () => error(401, 'TOKEN_INVALIDO', 'Su sesión venció.'));
-    renderizarApp('/', { conSesion: true });
+    renderizarApp('/catalogo', { conSesion: true });
 
     expect(await screen.findByLabelText('Usuario')).toBeInTheDocument();
     expect(sessionStorage.getItem('tpi.token')).toBeNull();

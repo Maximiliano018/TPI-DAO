@@ -69,7 +69,7 @@ Rutas de `app/App.jsx` (A administrador, B bibliotecario, S socio; entre parént
 |------|----------|--------|
 | `/login` | Inicio de sesión | Público (redirige a `/` si ya hay sesión) |
 | `/version` | Estado y versión del backend | Público |
-| `/` | Inicio por rol | Autenticado |
+| `/` | Sin sesión, el inicio público; con sesión, el inicio por rol | Público / Autenticado |
 | `/sedes`, `/sedes/:id` | Listado y detalle de sedes (pestañas Datos, Horarios, Historial) | A, B, S |
 | `/sedes/nueva`, `/sedes/:id/editar` | Alta y edición de sede | A (`SEDE_ADMINISTRAR`) |
 | `/usuarios`, `/usuarios/nuevo`, `/usuarios/:id/editar` | Personal: listado, alta, edición y reasignación de sede | A (`USUARIO_ADMINISTRAR`) |
@@ -91,7 +91,7 @@ Rutas de `app/App.jsx` (A administrador, B bibliotecario, S socio; entre parént
 | `/parametros` | Parámetros de negocio y tareas del sistema | A (`PARAMETROS_ADMINISTRAR`) |
 | `*` | No encontrado | Autenticado |
 
-`RutaProtegida` redirige a `/login` guardando la ruta de origen (se vuelve a ella tras ingresar) y muestra «sin permiso» si el rol no alcanza. Las rutas se cargan con `React.lazy`.
+`RutaProtegida` redirige a `/login` guardando la ruta de origen (se vuelve a ella tras ingresar) y muestra «sin permiso» si el rol no alcanza. En `/` sin sesión muestra el inicio público, salvo que la sesión se acabe de cerrar con un aviso (venció o no hay conexión): entonces va al login para mostrarlo. Las rutas se cargan con `React.lazy`.
 
 ## Layout base
 
@@ -118,9 +118,16 @@ Estructura de toda pantalla autenticada (`app/AppLayout.jsx`):
 
 El menú (`app/navegacion.js`) muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
 
+## Inicio público
+
+Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la barra con el logo y el botón «Ingresar»; después, la portada de madera con el lema, las cifras de la red (sedes, libros y ejemplares) y un estante con los lomos de los libros más pedidos; abajo, «Los más pedidos de la red»: hasta 12 libros con su puesto, la portada, el título, el autor y cuántas veces se prestaron. Los datos salen de `GET /publico/inicio`, que no pide token.
+
+Las portadas (`components/Portada.jsx`) muestran la imagen de `portada_url`; si el libro no tiene o la imagen no carga, dibujan una tapa de tela con el título y el autor, del color de los lomos. El detalle del libro muestra la portada junto a sus datos y, debajo y a todo el ancho, la disponibilidad por sede.
+
 ## Inicio de sesión
 
-- Campos usuario y contraseña (con mostrar u ocultar), botón «Ingresar» que se deshabilita mientras se procesa.
+- Pantalla en dos mitades: a la izquierda, la red (lema, cifras y un estante); a la derecha, el formulario. Bajo 860 px queda una sola columna.
+- Campos usuario y contraseña (con mostrar u ocultar y el aviso «Bloq Mayús está activado»), botón «Ingresar» que se deshabilita mientras se procesa.
 - Error `CREDENCIALES_INVALIDAS`: aviso general «Usuario o contraseña incorrectos» (no indica cuál). `422`: error por campo. Error de red: «No se pudo conectar. Reintente».
 - Si la sesión vence (`401` en cualquier pantalla), se vuelve al login con el aviso «Su sesión venció. Ingrese de nuevo».
 - Foco inicial en el usuario; `Enter` envía; el formulario es accesible por teclado.

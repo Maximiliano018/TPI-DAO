@@ -1,0 +1,63 @@
+/* Tapa de libro: imagen con sombra de objeto, o tela con filete de lomo */
+.portada {
+  display: block;
+  flex: none;
+  aspect-ratio: 2 / 3;
+  border-radius: 3px 6px 6px 3px;
+  object-fit: cover;
+  background: var(--color-neutral-100);
+  box-shadow:
+    inset 4px 0 0 rgba(0, 0, 0, 0.18),
+    0 6px 14px rgba(42, 23, 11, 0.35);
+}
+.chica {
+  width: 44px;
+}
+.mediana {
+  width: 150px;
+}
+.grande {
+  width: 220px;
+}
+.tela {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 10% 10% 9% 16%;
+  color: var(--color-cream);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.35) 0 6%,
+      rgba(255, 255, 255, 0.12) 6% 7.5%,
+      transparent 9%
+    ),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.12), transparent 45%, rgba(0, 0, 0, 0.25)),
+    var(--tapa);
+  overflow: hidden;
+}
+.titulo {
+  font-family: var(--font-serif);
+  font-weight: 700;
+  line-height: 1.15;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.autor {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+.chica .titulo {
+  font-size: 0.42rem;
+}
+.chica .autor {
+  display: none;
+}
+.grande .titulo {
+  font-size: 1.45rem;
+}
+.grande .autor {
+  font-size: 0.8rem;
+}
