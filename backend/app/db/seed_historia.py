@@ -28,6 +28,7 @@ sus reglas aplicadas, y la demo recorre todos los estados de cada entidad:
   y en línea (con un rechazo de prueba y un pago en curso cancelado por un cobro en mostrador).
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, time, timedelta
 
@@ -588,8 +589,24 @@ class Historia:
 
     # --- la historia ----------------------------------------------------------------------
 
-    def contar(self) -> None:
+    def contar(
+        self,
+        volumen: bool = True,
+        dias_de_movimiento: int = 59,
+        avisar: Callable[[str], None] = lambda _texto: None,
+    ) -> None:
+        """Cuenta la historia; con ``volumen`` suma catálogo, socios y movimiento diario."""
+        avisar("Fundación de la red: sedes, personal, catálogo y socios...")
         self.fundacion()
+        if volumen:
+            # Mucho catálogo, más socios y movimiento diario (seed_volumen).
+            from app.db.seed_volumen import Volumen
+
+            extra = Volumen(self, avisar)
+            avisar("Catálogo amplio y socios nuevos...")
+            extra.fundar()
+            extra.simular(desde=dias_de_movimiento)
+        avisar("Los casos especiales de los últimos 50 días...")
         self.primer_mes()
         self.segundo_mes()
         self.ultimas_dos_semanas()

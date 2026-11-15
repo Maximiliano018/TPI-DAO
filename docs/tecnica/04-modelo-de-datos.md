@@ -450,6 +450,16 @@ Un comando (`python -m app.db.seed`) carga la red de demostración con **90 día
 | Multas y pagos | Por atraso, daño y extravío; cobradas en el mostrador (débito, efectivo, transferencia) y en línea (un rechazo con la tarjeta de prueba, un pago aprobado y uno en curso que se cancela al cobrar en el mostrador). Queda una multa por extravío pendiente |
 | Contraseña | La de todos los usuarios es `SEED_PASSWORD` del `.env` (de 10 a 128 caracteres, con al menos una letra y un número; el seed la valida antes de cargar) |
 
+**Volumen para la demo** (`app/db/seed_volumen.py`). Sobre esa historia contada a mano, el seed suma lo que tendría una red real, también con los casos de uso reales y una semilla de azar fija (sale siempre igual):
+
+| Qué | Cuánto |
+|-----|--------|
+| Catálogo | 124 libros más (clásicos universales, autores argentinos y latinoamericanos, los más leídos de los últimos años, infantiles, ciencia, historia, filosofía e informática), con dos revistas y dos obras de referencia. Unos 230 ejemplares repartidos en Central, Norte, Río Cuarto y Villa María (códigos `SEDE-Vnnn-n`). Sus ISBN son de demostración: válidos, pero no los de una edición real |
+| Socios | 72 más, registrados en el mostrador de cada sede |
+| Movimiento | Día por día, de hace 59 días a ayer: unos 380 préstamos (locales y entre sedes), 330 remitos (envíos, retornos y traslados semanales), devoluciones en término, tardías, dañadas y extraviadas, reparaciones, renovaciones, reservas que se asignan, se retiran, se cancelan o vencen, y multas que se cobran en el mostrador o quedan pendientes |
+
+El volumen hace que la carga tarde varios minutos (más en Windows con Docker, por la demora de cada consulta); el comando muestra el avance. `seed.cargar(..., volumen=False)` carga solo la historia contada a mano, y es lo que usan las pruebas rápidas.
+
 Así las seis pantallas de reportes (R1 a R6), los historiales de cada ficha y la auditoría de parámetros tienen datos desde el primer arranque.
 
 Los datos del seed son distintos de los fixtures de los tests y los tests no los usan.
