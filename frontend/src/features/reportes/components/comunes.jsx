@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   Alert,
@@ -8,10 +9,12 @@ import {
   FiltroFecha,
   FiltroSelect,
   Skeleton,
+  useToast,
 } from '../../../components/index.js';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import { useFiltrosUrl } from '../../../hooks/useFiltrosUrl.js';
 import { descargarCsv } from '../../../utils/csv.js';
+import { mensajeDeError } from '../../../utils/errores.js';
 import { useSedes } from '../../sedes/hooks/useSedes.js';
 import estilos from './Reportes.module.css';
 
@@ -40,14 +43,17 @@ export function useFiltrosDeReporte(claves) {
   return { filtros, cambiar, limpiar, hayFiltros, rangoInvalido };
 }
 
-/** Sede del reporte: el administrador elige; el bibliotecario ve siempre la suya. */
-export function FiltroSede({ valor, onCambiar, paraTodos = false }) {
+/**
+ * Sede del reporte: el administrador elige; el bibliotecario ve siempre la suya. Con
+ * `paraTodos`, la eligen todos los roles (R5, y el origen o destino de una ruta en R1).
+ */
+export function FiltroSede({ valor, onCambiar, paraTodos = false, etiqueta = 'Sede' }) {
   const { usuario } = useSesion();
   const elige = paraTodos || usuario.rol === 'ADMIN';
   const sedes = useSedes({ estado: 'TODAS', orden: 'nombre', size: 100 }, { enabled: elige });
   if (!elige) return null;
   return (
-    <FiltroSelect etiqueta="Sede" valor={valor ?? ''} onCambiar={onCambiar}>
+    <FiltroSelect etiqueta={etiqueta} valor={valor ?? ''} onCambiar={onCambiar}>
       <option value="">Toda la red</option>
       {sedes.data?.items.map((s) => (
         <option key={s.id} value={s.id}>
@@ -118,18 +124,47 @@ export function Indicadores({ items }) {
   );
 }
 
-/** Exporta a CSV las mismas filas que muestra la tabla (RF-REP-10). */
-export function BotonCsv({ nombre, columnas, filas }) {
+/**
+ * Exporta a CSV las filas del reporte (RF-REP-10). En un reporte paginado, `obtenerFilas` trae
+ * todas las páginas: el archivo tiene el reporte entero, no solo la página visible.
+ */
+export function BotonCsv({ nombre, columnas, filas, obtenerFilas }) {
+  const { mostrar } = useToast();
+  const [exportando, setExportando] = useState(false);
+  const exportar = async () => {
+    if (!obtenerFilas) {
+      descargarCsv(nombre, columnas, filas);
+      return;
+    }
+    setExportando(true);
+    try {
+      descargarCsv(nombre, columnas, await obtenerFilas());
+    } catch (error) {
+      mostrar(mensajeDeError(error), 'danger');
+    } finally {
+      setExportando(false);
+    }
+  };
   return (
     <Button
       variante="secondary"
       tamano="sm"
-      onClick={() => descargarCsv(nombre, columnas, filas)}
-      disabled={filas.length === 0}
+      onClick={exportar}
+      disabled={filas.length === 0 || exportando}
     >
-      Exportar CSV
+      {exportando ? 'Exportando…' : 'Exportar CSV'}
     </Button>
   );
+}
+
+/** Todas las filas de un reporte paginado, pidiendo páginas de 200 hasta completar el total. */
+export async function todasLasPaginas(consulta, params) {
+  const filas = [];
+  for (let page = 1; ; page += 1) {
+    const datos = await consulta({ ...params, page, size: 200 });
+    filas.push(...datos.items);
+    if (datos.items.length === 0 || filas.length >= datos.total) return filas;
+  }
 }
 
 /** Título de una sección del reporte con su botón de exportación. */

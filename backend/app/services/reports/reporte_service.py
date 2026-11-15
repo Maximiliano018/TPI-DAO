@@ -25,7 +25,13 @@ from app.db.models import (
 )
 from app.models.usuario import Permiso, Rol, Usuario
 from app.models.valores import error_de_campo
+from app.repositories.impl.catalogo_repository import (
+    columnas_de_disponibilidad,
+    condiciones_de_disponibilidad,
+    condiciones_de_libros,
+)
 from app.repositories.impl.prestamo_repository import SqlAlchemyParametroRepository
+from app.repositories.interfaces.catalogo_repository import FiltroLibros
 from app.services.reports.resultados import (
     ActivosYEnTransito,
     DisponibilidadLibroSede,
@@ -43,11 +49,13 @@ from app.services.reports.resultados import (
     VencidosYMultas,
 )
 from app.utils.reloj import Reloj
+from app.utils.texto import normalizar
 
 RECIBIDOS = ("RECIBIDO", "DANADO", "DESTRUIDO", "INCOMPLETO")
 CERRADOS = (*RECIBIDOS, "EXTRAVIADO")
 REMITOS_ABIERTOS = ("GENERADO", "EMPAQUETADO", "DESPACHADO", "EN_TRANSITO")
 PRESTAMOS_AFUERA = ("ACTIVO", "VENCIDO")
+FALTANTE = "FALTANTE"
 SEGUNDOS_POR_DIA = 86400
 
 
@@ -70,18 +78,27 @@ class ReporteService:
         desde: date | None = None,
         hasta: date | None = None,
         sede_id: int | None = None,
+        sede_origen_id: int | None = None,
+        sede_destino_id: int | None = None,
+        motivo: str | None = None,
     ) -> MovimientoEntreSedes:
         """Por ruta origen → destino: envíos, ejemplares y tránsito promedio (RF-REP-01).
 
         Solo cuentan los remitos que llegaron (con o sin incidencias): los que siguen en camino
-        no entran en el promedio (CA-REP-02). El tránsito es recepción − despacho.
+        no entran en el promedio (CA-REP-02). El tránsito es recepción − despacho. Los
+        ejemplares son los que llegaron: los faltantes no cuentan como movidos (CA-REP-17).
+        ``sede_id`` es la sede que interviene (origen o destino); ``sede_origen_id``,
+        ``sede_destino_id`` y ``motivo`` acotan la ruta (CA-REP-16).
         """
         actor.exigir(Permiso.REPORTE_SEDE)
         self._validar_periodo(desde, hasta)
         sede_id = self._alcance(actor, sede_id)
         origen, destino = aliased(SedeORM), aliased(SedeORM)
+        llegados = func.count(
+            case((DetalleRemitoORM.resultado.is_distinct_from(FALTANTE), DetalleRemitoORM.id))
+        )
         lineas = (
-            select(DetalleRemitoORM.remito_id, func.count(DetalleRemitoORM.id).label("n"))
+            select(DetalleRemitoORM.remito_id, llegados.label("n"))
             .group_by(DetalleRemitoORM.remito_id)
             .subquery()
         )
@@ -94,6 +111,12 @@ class ReporteService:
         ]
         if sede_id is not None:
             condiciones.append(_interviene(RemitoORM, sede_id))
+        if sede_origen_id is not None:
+            condiciones.append(RemitoORM.sede_origen_id == sede_origen_id)
+        if sede_destino_id is not None:
+            condiciones.append(RemitoORM.sede_destino_id == sede_destino_id)
+        if motivo is not None:
+            condiciones.append(RemitoORM.motivo == motivo)
         filas: Sequence[Any] = self._sesion.execute(
             select(
                 origen.id,
@@ -140,7 +163,7 @@ class ReporteService:
         hasta: date | None = None,
         sede_id: int | None = None,
     ) -> EnviosEIncidencias:
-        """Tasa de envíos exitosos e incidencias, total y por sede origen (RF-REP-02).
+        """Tasa de envíos exitosos e incidencias, total y por sede origen y destino (RF-REP-02).
 
         Cuenta los remitos cerrados despachados en el período; los anulados y los que siguen
         abiertos no entran (CA-REP-05).
@@ -162,18 +185,23 @@ class ReporteService:
             _contar(RemitoORM.estado == "INCOMPLETO"),
         )
         total = self._sesion.execute(select(*conteos).where(*condiciones)).one()
-        por_sede = self._sesion.execute(
-            select(SedeORM.id, SedeORM.nombre, *conteos)
-            .join(SedeORM, SedeORM.id == RemitoORM.sede_origen_id)
-            .where(*condiciones)
-            .group_by(SedeORM.id, SedeORM.nombre)
-            .order_by(SedeORM.nombre)
-        ).all()
+
+        def por(columna_sede: Any) -> list[EnviosDeSede]:
+            filas = self._sesion.execute(
+                select(SedeORM.id, SedeORM.nombre, *conteos)
+                .join(SedeORM, SedeORM.id == columna_sede)
+                .where(*condiciones)
+                .group_by(SedeORM.id, SedeORM.nombre)
+                .order_by(SedeORM.nombre)
+            ).all()
+            return [EnviosDeSede(**_conteo(f[2:]), sede_id=f[0], sede=f[1]) for f in filas]
+
         return EnviosEIncidencias(
             **_conteo(total),
             desde=desde,
             hasta=hasta,
-            por_sede=[EnviosDeSede(**_conteo(f[2:]), sede_id=f[0], sede=f[1]) for f in por_sede],
+            por_sede=por(RemitoORM.sede_origen_id),
+            por_destino=por(RemitoORM.sede_destino_id),
         )
 
     # --- R3 -------------------------------------------------------------------------------
@@ -185,8 +213,13 @@ class ReporteService:
         hasta: date | None = None,
         categoria_id: int | None = None,
         limite: int = 10,
+        sede_id: int | None = None,
     ) -> LibrosMasSolicitados:
-        """Ranking por préstamos interbibliotecarios no cancelados (RF-REP-03, CA-REP-06/07)."""
+        """Ranking por préstamos interbibliotecarios no cancelados (RF-REP-03, CA-REP-06/07).
+
+        ``sede_id`` deja los préstamos en los que la sede interviene, como origen o destino
+        (CA-REP-16).
+        """
         actor.exigir(Permiso.REPORTE_RED)
         self._validar_periodo(desde, hasta)
         condiciones = [
@@ -196,6 +229,8 @@ class ReporteService:
         ]
         if categoria_id is not None:
             condiciones.append(LibroORM.categoria_id == categoria_id)
+        if sede_id is not None:
+            condiciones.append(_interviene(PrestamoORM, sede_id))
 
         def base(*columnas: Any) -> Any:
             return (
@@ -259,28 +294,49 @@ class ReporteService:
         estado_multa: str | None = None,
         desde: date | None = None,
         hasta: date | None = None,
+        atraso_min: int | None = None,
+        atraso_max: int | None = None,
     ) -> VencidosYMultas:
         """Préstamos vencidos con su multa acumulada a hoy y las multas generadas (RF-REP-04).
 
         La multa acumulada usa el monto por día y el tope vigentes (la definitiva se fija al
-        devolver). El
-        período filtra las multas por su fecha de generación.
+        devolver). La sede y el socio definen el alcance; la sede interviene como origen o
+        destino del préstamo, igual que en R6 (CA-REP-19). El estado de la multa, el período
+        (fecha de generación de la multa) y el rango de atraso solo acotan las listas: los
+        totales son siempre la deuda real del alcance (CA-REP-18).
         """
         actor.exigir(Permiso.REPORTE_SEDE)
         self._validar_periodo(desde, hasta)
+        if atraso_min is not None and atraso_max is not None and atraso_max < atraso_min:
+            raise error_de_campo("atraso_max", "El atraso máximo no puede ser menor que el mínimo.")
         sede_id = self._alcance(actor, sede_id)
         hoy = self._reloj.hoy()
         parametros = SqlAlchemyParametroRepository(self._sesion).vigentes()
-        monto, politica = parametros.multa_por_dia, parametros.politica_multa()
-        sede = aliased(SedeORM)
-        condiciones: list[ColumnElement[bool]] = [
+        todos = self._vencidos(sede_id, socio_id, hoy, parametros.politica_multa())
+        vencidos = [v for v in todos if _en_rango(v.dias_atraso, atraso_min, atraso_max)]
+        multas = self._multas(sede_id, socio_id, estado_multa, desde, hasta, atraso_min, atraso_max)
+        acumulado = sum((v.multa_acumulada for v in todos), Decimal("0.00"))
+        pendientes = self._deuda_en_multas(sede_id, socio_id)
+        return VencidosYMultas(
+            fecha=hoy,
+            monto_por_dia=parametros.multa_por_dia,
+            vencidos=vencidos,
+            multas=multas,
+            cantidad_vencidos=len(todos),
+            total_acumulado_vencidos=acumulado,
+            total_multas_pendientes=pendientes,
+            total_adeudado=acumulado + pendientes,
+        )
+
+    def _vencidos(
+        self, sede_id: int | None, socio_id: int | None, hoy: date, politica: Any
+    ) -> list[PrestamoVencido]:
+        origen, destino = aliased(SedeORM), aliased(SedeORM)
+        condiciones = [
             PrestamoORM.estado.in_(PRESTAMOS_AFUERA),
             PrestamoORM.fecha_vencimiento < hoy,
+            *_alcance_de_prestamos(sede_id, socio_id),
         ]
-        if sede_id is not None:
-            condiciones.append(PrestamoORM.sede_destino_id == sede_id)
-        if socio_id is not None:
-            condiciones.append(PrestamoORM.socio_id == socio_id)
         filas: Sequence[Any] = self._sesion.execute(
             select(
                 PrestamoORM.id,
@@ -290,20 +346,21 @@ class ReporteService:
                 SocioORM.apellido,
                 SocioORM.numero_socio,
                 LibroORM.titulo,
-                sede.nombre,
+                destino.nombre,
+                origen.nombre,
                 PrestamoORM.fecha_vencimiento,
             )
             .join(SocioORM, SocioORM.id == PrestamoORM.socio_id)
             .join(EjemplarORM, EjemplarORM.id == PrestamoORM.ejemplar_id)
             .join(LibroORM, LibroORM.id == EjemplarORM.libro_id)
-            .join(sede, sede.id == PrestamoORM.sede_destino_id)
+            .join(destino, destino.id == PrestamoORM.sede_destino_id)
+            .join(origen, origen.id == PrestamoORM.sede_origen_id)
             .where(*condiciones)
             .order_by(PrestamoORM.fecha_vencimiento, PrestamoORM.numero)
         ).all()
         vencidos = []
         for f in filas:
-            vence: date = f[8]
-            dias = (hoy - vence).days
+            dias = (hoy - f[9]).days
             vencidos.append(
                 PrestamoVencido(
                     prestamo_id=f[0],
@@ -313,25 +370,22 @@ class ReporteService:
                     numero_socio=f[5],
                     libro=f[6],
                     sede=f[7],
-                    fecha_vencimiento=f[8],
+                    sede_origen=f[8],
+                    fecha_vencimiento=f[9],
                     dias_atraso=dias,
                     multa_acumulada=politica.calcular(dias),
                 )
             )
-        multas = self._multas(sede_id, socio_id, estado_multa, desde, hasta)
-        acumulado = sum((v.multa_acumulada for v in vencidos), Decimal("0.00"))
-        pendientes = sum(
-            (m.monto_total for m in multas if m.estado == "PENDIENTE"), Decimal("0.00")
+        return vencidos
+
+    def _deuda_en_multas(self, sede_id: int | None, socio_id: int | None) -> Decimal:
+        """Suma de las multas pendientes del alcance, sin los filtros de la lista."""
+        total = self._sesion.scalar(
+            select(func.coalesce(func.sum(MultaORM.monto_total), 0))
+            .join(PrestamoORM, PrestamoORM.id == MultaORM.prestamo_id)
+            .where(MultaORM.estado == "PENDIENTE", *_alcance_de_prestamos(sede_id, socio_id))
         )
-        return VencidosYMultas(
-            fecha=hoy,
-            monto_por_dia=monto,
-            vencidos=vencidos,
-            multas=multas,
-            total_acumulado_vencidos=acumulado,
-            total_multas_pendientes=pendientes,
-            total_adeudado=acumulado + pendientes,
-        )
+        return Decimal(total or 0).quantize(Decimal("0.01"))
 
     def _multas(
         self,
@@ -340,14 +394,19 @@ class ReporteService:
         estado: str | None,
         desde: date | None,
         hasta: date | None,
+        atraso_min: int | None,
+        atraso_max: int | None,
     ) -> list[MultaDelReporte]:
-        condiciones = list(self._en_periodo(MultaORM.fecha_generacion, desde, hasta))
-        if sede_id is not None:
-            condiciones.append(PrestamoORM.sede_destino_id == sede_id)
-        if socio_id is not None:
-            condiciones.append(MultaORM.socio_id == socio_id)
+        condiciones = [
+            *self._en_periodo(MultaORM.fecha_generacion, desde, hasta),
+            *_alcance_de_prestamos(sede_id, socio_id),
+        ]
         if estado is not None:
             condiciones.append(MultaORM.estado == estado)
+        if atraso_min is not None:
+            condiciones.append(MultaORM.dias_atraso >= atraso_min)
+        if atraso_max is not None:
+            condiciones.append(MultaORM.dias_atraso <= atraso_max)
         filas: Sequence[Any] = self._sesion.execute(
             select(
                 MultaORM.id,
@@ -395,29 +454,26 @@ class ReporteService:
         categoria_id: int | None = None,
         page: int = 1,
         size: int = 50,
+        texto: str | None = None,
     ) -> DisponibilidadPorSede:
-        """Ejemplares activos por libro y sede propietaria, según su estado (RF-REP-05)."""
+        """Ejemplares activos por libro y sede propietaria, según su estado (RF-REP-05).
+
+        Cuenta igual que la ficha del libro (CA-REP-20). ``texto`` busca en el título, los
+        autores y el ISBN, como el catálogo (CA-REP-16).
+        """
         actor.exigir(Permiso.CATALOGO_LEER)
-        condiciones: list[ColumnElement[bool]] = [
-            EjemplarORM.estado != "BAJA",
-            SedeORM.estado == "ACTIVA",
-        ]
+        filtro = FiltroLibros(
+            texto=normalizar(texto) if texto and texto.strip() else None,
+            categoria_id=categoria_id,
+        )
+        condiciones = [*condiciones_de_disponibilidad(), *condiciones_de_libros(filtro)]
         if sede_id is not None:
             condiciones.append(EjemplarORM.sede_propietaria_id == sede_id)
         if libro_id is not None:
             condiciones.append(EjemplarORM.libro_id == libro_id)
-        if categoria_id is not None:
-            condiciones.append(LibroORM.categoria_id == categoria_id)
         grupos = (LibroORM.id, LibroORM.titulo, SedeORM.id, SedeORM.nombre)
         consulta = (
-            select(
-                *grupos,
-                func.count(EjemplarORM.id),
-                _contar(EjemplarORM.estado == "DISPONIBLE"),
-                _contar(EjemplarORM.estado == "PRESTADO"),
-                _contar(EjemplarORM.estado.in_(("RESERVADO", "APARTADO"))),
-                _contar(EjemplarORM.estado == "EN_TRANSITO"),
-            )
+            select(*grupos, *columnas_de_disponibilidad())
             .join(LibroORM, LibroORM.id == EjemplarORM.libro_id)
             .join(SedeORM, SedeORM.id == EjemplarORM.sede_propietaria_id)
             .where(*condiciones)
@@ -447,9 +503,19 @@ class ReporteService:
     # --- R6 -------------------------------------------------------------------------------
 
     def activos_y_en_transito(
-        self, actor: Usuario, sede_id: int | None = None
+        self,
+        actor: Usuario,
+        sede_id: int | None = None,
+        estado: str | None = None,
+        tipo: str | None = None,
+        estado_remito: str | None = None,
     ) -> ActivosYEnTransito:
-        """Préstamos en manos de socios y remitos abiertos con su antigüedad (RF-REP-06)."""
+        """Préstamos en manos de socios y remitos abiertos con su antigüedad (RF-REP-06).
+
+        ``estado`` separa los préstamos al día (``ACTIVO``) de los vencidos (``VENCIDO``) por su
+        fecha de vencimiento, igual que R4, aunque la tarea diaria todavía no los haya marcado.
+        ``tipo`` filtra los préstamos y ``estado_remito``, los remitos (CA-REP-16).
+        """
         actor.exigir(Permiso.REPORTE_SEDE)
         sede_id = self._alcance(actor, sede_id)
         hoy = self._reloj.hoy()
@@ -457,6 +523,12 @@ class ReporteService:
         condiciones: list[ColumnElement[bool]] = [PrestamoORM.estado.in_(PRESTAMOS_AFUERA)]
         if sede_id is not None:
             condiciones.append(_interviene(PrestamoORM, sede_id))
+        if estado == "VENCIDO":
+            condiciones.append(PrestamoORM.fecha_vencimiento < hoy)
+        elif estado == "ACTIVO":
+            condiciones.append(PrestamoORM.fecha_vencimiento >= hoy)
+        if tipo is not None:
+            condiciones.append(PrestamoORM.tipo == tipo)
         prestamos: Sequence[Any] = self._sesion.execute(
             select(
                 PrestamoORM.id,
@@ -478,7 +550,7 @@ class ReporteService:
             .where(*condiciones)
             .order_by(PrestamoORM.fecha_vencimiento, PrestamoORM.numero)
         ).all()
-        remitos = self._remitos_abiertos(sede_id, hoy)
+        remitos = self._remitos_abiertos(sede_id, hoy, estado_remito)
         return ActivosYEnTransito(
             fecha=hoy,
             prestamos=[
@@ -499,11 +571,15 @@ class ReporteService:
             remitos=remitos,
         )
 
-    def _remitos_abiertos(self, sede_id: int | None, hoy: date) -> list[RemitoAbierto]:
+    def _remitos_abiertos(
+        self, sede_id: int | None, hoy: date, estado: str | None
+    ) -> list[RemitoAbierto]:
         origen, destino = aliased(SedeORM), aliased(SedeORM)
         condiciones: list[ColumnElement[bool]] = [RemitoORM.estado.in_(REMITOS_ABIERTOS)]
         if sede_id is not None:
             condiciones.append(_interviene(RemitoORM, sede_id))
+        if estado is not None:
+            condiciones.append(RemitoORM.estado == estado)
         lineas = func.count(DetalleRemitoORM.id)
         filas: Sequence[Any] = self._sesion.execute(
             select(
@@ -572,3 +648,17 @@ def _conteo(fila: Sequence[Any]) -> dict[str, int]:
 
 def _interviene(modelo: Any, sede_id: int) -> ColumnElement[bool]:
     return or_(modelo.sede_origen_id == sede_id, modelo.sede_destino_id == sede_id)
+
+
+def _alcance_de_prestamos(sede_id: int | None, socio_id: int | None) -> list[ColumnElement[bool]]:
+    """Préstamos de la sede (como origen o destino) y del socio, si se indican."""
+    condiciones = []
+    if sede_id is not None:
+        condiciones.append(_interviene(PrestamoORM, sede_id))
+    if socio_id is not None:
+        condiciones.append(PrestamoORM.socio_id == socio_id)
+    return condiciones
+
+
+def _en_rango(valor: int, minimo: int | None, maximo: int | None) -> bool:
+    return (minimo is None or valor >= minimo) and (maximo is None or valor <= maximo)

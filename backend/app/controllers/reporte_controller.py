@@ -19,11 +19,14 @@ Autenticado = Annotated[Usuario, Depends(usuario_actual)]
 _ERRORES = {
     401: {"description": "No autenticado (`TOKEN_INVALIDO`)"},
     403: {"description": "El rol no puede emitir este reporte (`FORBIDDEN`)"},
-    422: {"description": "Rango de fechas inválido (`VALIDACION`)"},
+    422: {"description": "Rango de fechas o de atraso inválido (`VALIDACION`)"},
 }
 Desde = Annotated[date | None, Query(description="Desde (inclusive), aaaa-mm-dd")]
 Hasta = Annotated[date | None, Query(description="Hasta (inclusive), aaaa-mm-dd")]
 SedeId = Annotated[int | None, Query(description="Sede (el bibliotecario siempre ve la suya)")]
+SedeInterviene = Annotated[
+    int | None, Query(description="Sede que interviene, como origen o destino")
+]
 
 
 class _Modelo(BaseModel):
@@ -63,12 +66,19 @@ def movimiento_entre_sedes(
     desde: Desde = None,
     hasta: Hasta = None,
     sede_id: SedeId = None,
+    sede_origen_id: int | None = None,
+    sede_destino_id: int | None = None,
+    motivo: Literal["ENVIO", "RETORNO", "TRASLADO"] | None = None,
 ) -> MovimientoResponse:
-    """Por ruta origen → destino: envíos, ejemplares y tiempo promedio de tránsito.
+    """Por ruta origen → destino: envíos, ejemplares que llegaron y tiempo promedio de tránsito.
 
-    Solo cuentan los remitos recibidos (con o sin incidencias) en el período.
+    Solo cuentan los remitos recibidos (con o sin incidencias) en el período; los ejemplares
+    faltantes no cuentan como movidos. `sede_id` es la sede que interviene; `sede_origen_id`,
+    `sede_destino_id` y `motivo` acotan la ruta.
     """
-    resultado = servicio.movimiento_entre_sedes(actor, desde, hasta, sede_id)
+    resultado = servicio.movimiento_entre_sedes(
+        actor, desde, hasta, sede_id, sede_origen_id, sede_destino_id, motivo
+    )
     return MovimientoResponse.model_validate(resultado)
 
 
@@ -95,6 +105,7 @@ class EnviosResponse(_Conteo):
     desde: date | None
     hasta: date | None
     por_sede: list[EnviosDeSedeResponse]
+    por_destino: list[EnviosDeSedeResponse]
 
 
 @router.get(
@@ -113,7 +124,8 @@ def envios_e_incidencias(
     """Tasa de remitos recibidos sin problemas frente a extraviados, dañados, destruidos e
     incompletos (recibidos con faltantes).
 
-    Solo el administrador. Excluye los anulados y los que siguen abiertos.
+    Solo el administrador. Excluye los anulados y los que siguen abiertos. El detalle va por
+    sede origen (`por_sede`) y por sede destino (`por_destino`).
     """
     return EnviosResponse.model_validate(
         servicio.envios_e_incidencias(actor, desde, hasta, sede_id)
@@ -151,10 +163,11 @@ def libros_mas_solicitados(
     hasta: Hasta = None,
     categoria_id: int | None = None,
     limite: Annotated[int, Query(ge=1, le=100)] = 10,
+    sede_id: SedeInterviene = None,
 ) -> LibrosSolicitadosResponse:
     """Ranking por préstamos interbibliotecarios no cancelados. Solo el administrador."""
     return LibrosSolicitadosResponse.model_validate(
-        servicio.libros_mas_solicitados(actor, desde, hasta, categoria_id, limite)
+        servicio.libros_mas_solicitados(actor, desde, hasta, categoria_id, limite, sede_id)
     )
 
 
@@ -169,6 +182,7 @@ class VencidoResponse(_Modelo):
     numero_socio: str
     libro: str
     sede: str
+    sede_origen: str
     fecha_vencimiento: date
     dias_atraso: int
     multa_acumulada: Decimal
@@ -192,6 +206,7 @@ class VencidosResponse(_Modelo):
     monto_por_dia: Decimal
     vencidos: list[VencidoResponse]
     multas: list[MultaReporteResponse]
+    cantidad_vencidos: int
     total_acumulado_vencidos: Decimal
     total_multas_pendientes: Decimal
     total_adeudado: Decimal
@@ -211,13 +226,19 @@ def vencidos_y_multas(
     estado_multa: Literal["PENDIENTE", "SALDADA"] | None = None,
     desde: Desde = None,
     hasta: Hasta = None,
+    atraso_min: Annotated[int | None, Query(ge=0, description="Días de atraso, desde")] = None,
+    atraso_max: Annotated[int | None, Query(ge=0, description="Días de atraso, hasta")] = None,
 ) -> VencidosResponse:
     """Vencidos con días de atraso y multa acumulada a hoy, más las multas generadas.
 
-    El período (`desde`, `hasta`) filtra las multas por su fecha de generación.
+    La sede (como origen o destino del préstamo) y el socio definen el alcance. El estado de la
+    multa, el período (fecha de generación de la multa) y el rango de atraso acotan las listas;
+    los totales (`cantidad_vencidos`, `total_*`) son siempre la deuda real del alcance.
     """
     return VencidosResponse.model_validate(
-        servicio.vencidos_y_multas(actor, sede_id, socio_id, estado_multa, desde, hasta)
+        servicio.vencidos_y_multas(
+            actor, sede_id, socio_id, estado_multa, desde, hasta, atraso_min, atraso_max
+        )
     )
 
 
@@ -258,11 +279,12 @@ def disponibilidad_por_sede(
     categoria_id: int | None = None,
     page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=200)] = 50,
+    q: Annotated[str | None, Query(max_length=100, description="Título, autor o ISBN")] = None,
 ) -> PaginaDisponibilidadResponse:
     """Ejemplares activos por libro y sede: totales, disponibles, prestados, reservados y en
-    tránsito. Lo pueden emitir todos los roles."""
+    tránsito (cuenta igual que la ficha del libro). Lo pueden emitir todos los roles."""
     return PaginaDisponibilidadResponse.model_validate(
-        servicio.disponibilidad_por_sede(actor, sede_id, libro_id, categoria_id, page, size)
+        servicio.disponibilidad_por_sede(actor, sede_id, libro_id, categoria_id, page, size, q)
     )
 
 
@@ -307,7 +329,17 @@ class ActivosResponse(_Modelo):
     responses=_ERRORES,
 )
 def activos_y_en_transito(
-    servicio: Servicio, actor: Autenticado, sede_id: SedeId = None
+    servicio: Servicio,
+    actor: Autenticado,
+    sede_id: SedeId = None,
+    estado: Annotated[
+        Literal["ACTIVO", "VENCIDO"] | None,
+        Query(description="Préstamos al día o vencidos, según su fecha de vencimiento"),
+    ] = None,
+    tipo: Literal["LOCAL", "INTERBIBLIOTECARIO"] | None = None,
+    estado_remito: Literal["GENERADO", "EMPAQUETADO", "DESPACHADO", "EN_TRANSITO"] | None = None,
 ) -> ActivosResponse:
     """Préstamos en manos de socios con su vencimiento y remitos abiertos con su antigüedad."""
-    return ActivosResponse.model_validate(servicio.activos_y_en_transito(actor, sede_id))
+    return ActivosResponse.model_validate(
+        servicio.activos_y_en_transito(actor, sede_id, estado, tipo, estado_remito)
+    )

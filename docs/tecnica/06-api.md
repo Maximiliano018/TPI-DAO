@@ -223,7 +223,18 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 | `GET /reportes/disponibilidad-por-sede` | A, B, S | R5 | RF-REP-05 |
 | `GET /reportes/prestamos-activos-y-en-transito` | A, B | R6 | RF-REP-06 |
 
-Todos aceptan `?desde=`, `?hasta=` (días completos, inclusive) y `?sede_id=` donde corresponda; un bibliotecario queda limitado a su sede aunque pida otra (CU-REP-01, A4). Un rango con `hasta` anterior a `desde` responde `422 VALIDACION`; sin datos, la respuesta es `200` con listas vacías. R3 acepta además `?categoria_id=` y `?limite=` (10 por defecto); R4, `?socio_id=` y `?estado_multa=`; R5, `?libro_id=`, `?categoria_id=` y paginación. La exportación a CSV (opcional, RF-REP-10) la arma el frontend con el mismo resultado.
+R1 a R4 aceptan `?desde=` y `?hasta=` (días completos, inclusive) y todos aceptan `?sede_id=`; un bibliotecario queda limitado a su sede aunque pida otra (CU-REP-01, A4). Un rango con `hasta` anterior a `desde` responde `422 VALIDACION`; sin datos, la respuesta es `200` con listas vacías. Filtros propios (RF-REP-07):
+
+| Reporte | Filtros además de `sede_id` |
+|---------|-----------------------------|
+| R1 | `desde`, `hasta`, `sede_origen_id`, `sede_destino_id`, `motivo` (`ENVIO`, `RETORNO`, `TRASLADO`) |
+| R2 | `desde`, `hasta` |
+| R3 | `desde`, `hasta`, `categoria_id`, `limite` (10 por defecto, hasta 100); `sede_id` es la sede que interviene, como origen o destino |
+| R4 | `desde`, `hasta` (fecha de la multa), `socio_id`, `estado_multa`, `atraso_min`, `atraso_max` (días; invertidos → `422`) |
+| R5 | `q` (título, autor o ISBN), `libro_id`, `categoria_id`, `page`, `size` (hasta 200) |
+| R6 | `estado` (`ACTIVO` al día o `VENCIDO`, por la fecha de vencimiento), `tipo`, `estado_remito` |
+
+La exportación a CSV (opcional, RF-REP-10) la arma el frontend con el mismo resultado; en R5 pide todas las páginas (de a 200), y a las celdas que empiezan con `=`, `+`, `-` o `@` les antepone un apóstrofo para que la planilla no las ejecute.
 
 Permisos: `REPORTE_SEDE` (administrador y bibliotecario) para R1, R4 y R6; `REPORTE_RED` (solo administrador) para R2 y R3; R5 solo exige `CATALOGO_LEER` (todos los roles).
 
@@ -852,7 +863,7 @@ Response `200`:
 }
 ```
 
-Cuentan los remitos que llegaron en el período (recibidos, con o sin incidencias); el tránsito es `fecha_recepcion − fecha_despacho`. Los que siguen en camino no entran.
+Cuentan los remitos que llegaron en el período (recibidos, con o sin incidencias); el tránsito es `fecha_recepcion − fecha_despacho`. Los que siguen en camino no entran, y `ejemplares` son los que llegaron (sin los faltantes).
 
 ### `GET /reportes/envios-e-incidencias` (R2)
 
@@ -865,13 +876,15 @@ Response `200`:
   "extraviados": 1,
   "danados": 1,
   "destruidos": 0,
+  "incompletos": 0,
   "tasa_exito": 0.8,
   "tasa_incidencias": 0.2,
-  "por_sede": [{ "sede_id": 1, "sede": "Central", "total_envios": 10, "recibidos": 8, "tasa_exito": 0.8 }]
+  "por_sede": [{ "sede_id": 1, "sede": "Central", "total_envios": 10, "recibidos": 8, "tasa_exito": 0.8 }],
+  "por_destino": [{ "sede_id": 2, "sede": "Norte", "total_envios": 10, "recibidos": 8, "tasa_exito": 0.8 }]
 }
 ```
 
-Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`) despachados en el período, agrupados por sede origen; los anulados y los abiertos no entran. Sin envíos, las tasas son `null`.
+Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`, `INCOMPLETO`) despachados en el período; `por_sede` los agrupa por sede origen y `por_destino`, por sede destino. Los anulados y los abiertos no entran. Sin envíos, las tasas son `null`.
 
 ### `GET /reportes/vencidos-y-multas` (R4)
 
@@ -879,15 +892,16 @@ Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`) de
 {
   "fecha": "2026-11-12",
   "monto_por_dia": "200.00",
-  "vencidos": [{ "numero": "P-2026-000118", "socio": "Lucía Pérez", "dias_atraso": 4, "multa_acumulada": "800.00" }],
+  "vencidos": [{ "numero": "P-2026-000118", "socio": "Lucía Pérez", "sede_origen": "Central", "sede": "Norte", "dias_atraso": 4, "multa_acumulada": "800.00" }],
   "multas": [{ "numero_prestamo": "P-2026-000090", "estado": "PENDIENTE", "monto_total": "1000.00" }],
+  "cantidad_vencidos": 1,
   "total_acumulado_vencidos": "800.00",
   "total_multas_pendientes": "1000.00",
   "total_adeudado": "1800.00"
 }
 ```
 
-La multa acumulada de un vencido usa el monto por día y el tope vigentes; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada).
+La multa acumulada de un vencido usa el monto por día y el tope vigentes; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada). La sede (como origen o destino del préstamo, igual que R6) y el socio definen el alcance; `estado_multa`, el período y el rango de atraso solo acotan `vencidos` y `multas`. `cantidad_vencidos` y los `total_*` son siempre la deuda real del alcance.
 
 ## Documentación de endpoints en el código
 

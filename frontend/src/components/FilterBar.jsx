@@ -56,6 +56,24 @@ export function FiltroFecha({ etiqueta, valor, onCambiar }) {
   );
 }
 
+/** Campo numérico entero (no negativo) para un filtro; vacío es «sin filtro». */
+export function FiltroNumero({ etiqueta, valor, onCambiar, min = 0 }) {
+  return (
+    <label className={estilos.campo}>
+      <span className={estilos.etiqueta}>{etiqueta}</span>
+      <input
+        type="number"
+        inputMode="numeric"
+        min={min}
+        step={1}
+        className={estilos.control}
+        value={valor ?? ''}
+        onChange={(e) => onCambiar(e.target.value)}
+      />
+    </label>
+  );
+}
+
 /** Contenedor de filtros con el botón «Limpiar». */
 export default function FilterBar({ etiqueta, onLimpiar, hayFiltros = true, children }) {
   return (

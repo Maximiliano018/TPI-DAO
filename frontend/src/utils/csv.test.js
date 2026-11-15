@@ -18,4 +18,19 @@ describe('aCsv', () => {
       '"El ""Aleph""; cuentos";',
     ]);
   });
+
+  it('antepone un apóstrofo a lo que una planilla ejecutaría como fórmula', () => {
+    const columnas = [{ titulo: 'Valor', valor: (f) => f }];
+    const texto = aCsv(columnas, ['=1+1', '+5 días', '-x', '@SUMA(A1)', '-3', '4,5', 'Rayuela']);
+
+    expect(texto.split('\r\n').slice(1)).toEqual([
+      "'=1+1",
+      "'+5 días",
+      "'-x",
+      "'@SUMA(A1)",
+      '-3',
+      '4,5',
+      'Rayuela',
+    ]);
+  });
 });
