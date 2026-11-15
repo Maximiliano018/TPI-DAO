@@ -1,0 +1,16 @@
+/* Ficha del libro: la tapa al lado de los datos; en pantallas angostas, la tapa arriba */
+.ficha {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-6);
+}
+@media (max-width: 640px) {
+  .ficha {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+  .ficha > :last-child {
+    width: 100%;
+  }
+}
