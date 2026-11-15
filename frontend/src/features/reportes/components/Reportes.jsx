@@ -507,6 +507,7 @@ export function DisponibilidadPorSede() {
       <FiltrosConPeriodo etiqueta="Filtros de disponibilidad" control={control} conPeriodo={false}>
         <BusquedaConEspera
           etiqueta="Buscar por título, autor o ISBN"
+          ejemplo="Rayuela, Cortázar o 9789500705783"
           valor={filtros.q ?? ''}
           onBuscar={(q) => control.cambiar({ q, page: '' })}
         />

@@ -81,6 +81,7 @@ export default function RemitosPage() {
       <FilterBar etiqueta="Filtros de remitos" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por número"
+          ejemplo="R-2026-000051"
           valor={filtros.numero ?? ''}
           onBuscar={(numero) => cambiar({ numero })}
         />

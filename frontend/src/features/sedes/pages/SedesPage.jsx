@@ -112,7 +112,8 @@ export default function SedesPage() {
           </FiltroSelect>
         )}
         <BusquedaConEspera
-          etiqueta="Buscar"
+          etiqueta="Buscar por nombre, código, calle o localidad"
+          ejemplo="Central, CEN o Colón"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />

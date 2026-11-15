@@ -37,6 +37,7 @@ export default function ElegirSocio({ elegido, onElegir }) {
     <>
       <BusquedaConEspera
         etiqueta="Buscar socio por número, documento o nombre"
+        ejemplo="00045, 30111222 o Soto"
         valor={q}
         onBuscar={setQ}
       />
