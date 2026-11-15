@@ -364,8 +364,8 @@ CREATE UNIQUE INDEX uq_reserva_activa
 
 | Tabla | Columnas clave | Restricciones |
 |-------|----------------|---------------|
-| devolucion | prestamo_id, sede_id, fecha_hora, estado_fisico_recibido, dias_atraso, observaciones, registrada_por_id | `prestamo_id` UNIQUE |
-| multa | prestamo_id, socio_id, dias_atraso, monto_por_dia, monto_total, estado (`PENDIENTE`, `SALDADA`), fecha_saldada | `prestamo_id` UNIQUE; `monto_total >= 0` |
+| devolucion | prestamo_id, sede_id, fecha_hora, estado_fisico_recibido, dias_atraso, observaciones, registrada_por_id (NOT NULL), registrada_en, motivo_fecha | `prestamo_id` UNIQUE; `ck_devolucion_retroactiva_con_motivo`: una fecha más de un día anterior al registro exige `motivo_fecha` |
+| multa | prestamo_id, socio_id, dias_atraso, monto_por_dia, monto_total, estado (`PENDIENTE`, `SALDADA`), fecha_saldada, saldada_por_id | `prestamo_id` UNIQUE; `monto_total >= 0`; `dias_atraso > 0`; `monto_total <= dias_atraso × monto_por_dia` (menor si hay tope) |
 | incidencia | tipo (`EXTRAVIO`, `DANIO`, `DESTRUCCION`), origen (`DEVOLUCION`, `REMITO`), ejemplar_id, socio_id, prestamo_id, remito_id, sede_responsable_id, descripcion, fecha, usuario_id, resuelta_en, resuelta_por_id, resolucion | descripción NOT NULL. Responsable según el origen (`CHECK`): una de **remito** tiene `remito_id` y `sede_responsable_id` (la sede origen) y **no** tiene socio; una de **devolución** tiene préstamo y socio y no tiene sede responsable. Solo un extravío se resuelve, y la resolución va completa (fecha y texto) |
 | parametro | clave (PK), valor, descripcion | ver abajo |
 
@@ -384,6 +384,7 @@ Parámetros iniciales (`parametro`):
 | `vigencia_retiro_prestamo_dias` | 3 |
 | `despacho_maximo_dias` | 3 |
 | `multa_por_dia` | 200.00 |
+| `multa_tope_por_prestamo` | 0.00 (sin tope) |
 | `transito_maximo_dias` | 7 |
 
 ## Índices
@@ -442,6 +443,7 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 | `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
 | `0012_autogestion_de_prestamos` | `prestamo.fecha_limite_retiro`, el parámetro `vigencia_retiro_prestamo_dias` y los `CHECK` de fechas según el estado. Los préstamos que esperaban retiro reciben 3 días desde la migración |
 | `0013_remitos_incidencias_y_plazos` | `incidencia.sede_responsable_id` (las de remito pasan de socio a la sede origen) y la resolución de extravíos; estado `INCOMPLETO` y resultado `FALTANTE`; parámetro `despacho_maximo_dias`; `CHECK` de fechas del remito, del detalle y del responsable de la incidencia |
+| `0015_devoluciones_retroactivas_y_tope` | `devolucion.registrada_en` y `motivo_fecha` (las devoluciones existentes cargadas más de un día después de su fecha reciben un motivo aclaratorio), `registrada_por_id` NOT NULL, `CHECK` de la devolución retroactiva y de la coherencia de la multa, y el parámetro `multa_tope_por_prestamo` |
 | `0014_trazabilidad_de_reservas` | `movimiento_reserva` (solo inserción, con el historial inicial de las reservas existentes) y `CHECK` `ck_reserva_datos_segun_estado`, que reemplaza a `ck_reserva_disponible_con_ejemplar` |
 
 ### Seed de demostración

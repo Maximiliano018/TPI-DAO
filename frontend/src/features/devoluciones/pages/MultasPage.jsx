@@ -4,6 +4,7 @@ import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
   Button,
+  Card,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -22,6 +23,8 @@ import { ESTADOS } from '../../../utils/estados.js';
 import { formatearFecha, formatearMonto } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
+import ElegirSocio from '../../socios/components/ElegirSocio.jsx';
+import { useSocio } from '../../socios/hooks/useSocios.js';
 import { useMultas, useSaldarMulta } from '../hooks/useDevoluciones.js';
 
 function Saldar({ multa, onCerrar }) {
@@ -50,7 +53,24 @@ function Saldar({ multa, onCerrar }) {
   );
 }
 
-/** Multas por atraso: el personal ve las de la red y las salda; el socio ve las propias. */
+/** El personal busca al socio para ver y saldar sus multas (CU-DEV-05). */
+function FiltroSocio({ socioId, onCambiar }) {
+  const socio = useSocio(socioId, { enabled: Boolean(socioId) });
+  if (socioId && socio.isPending) return <Skeleton alto={32} />;
+  return (
+    <Card titulo="Socio">
+      <ElegirSocio
+        elegido={socioId ? socio.data : null}
+        onElegir={(elegido) => onCambiar(elegido ? elegido.id : '')}
+      />
+    </Card>
+  );
+}
+
+/**
+ * Multas por atraso: el personal ve las de la red (o las de un socio) y las salda; el socio ve
+ * las propias.
+ */
 export default function MultasPage() {
   const { tienePermiso } = useSesion();
   const esPersonal = tienePermiso(PERMISOS.MULTA_LEER);
@@ -141,6 +161,12 @@ export default function MultasPage() {
           Mientras tenga multas pendientes no puede pedir préstamos ni reservas. Acérquese a
           cualquier sede para saldarlas.
         </Alert>
+      )}
+      {esPersonal && (
+        <FiltroSocio
+          socioId={filtros.socio_id}
+          onCambiar={(socioId) => cambiar({ socio_id: socioId })}
+        />
       )}
       <FilterBar etiqueta="Filtros de multas" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <FiltroSelect

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
@@ -24,14 +24,21 @@ import HistorialSocio from '../components/HistorialSocio.jsx';
 import { SolicitarReactivacionDialog } from '../components/SocioDialogs.jsx';
 import { useSocio } from '../hooks/useSocios.js';
 
-function Situacion({ situacion }) {
+function Situacion({ situacion, multasDe }) {
   return (
-    <div className={inicio.tarjetas}>
-      <StatCard etiqueta="Préstamos en curso" valor={situacion.prestamos_activos} />
-      <StatCard etiqueta="Préstamos vencidos" valor={situacion.prestamos_vencidos} />
-      <StatCard etiqueta="Multas pendientes" valor={situacion.multas_pendientes} />
-      <StatCard etiqueta="Reservas activas" valor={situacion.reservas_activas} />
-    </div>
+    <>
+      <div className={inicio.tarjetas}>
+        <StatCard etiqueta="Préstamos en curso" valor={situacion.prestamos_activos} />
+        <StatCard etiqueta="Préstamos vencidos" valor={situacion.prestamos_vencidos} />
+        <StatCard etiqueta="Multas pendientes" valor={situacion.multas_pendientes} />
+        <StatCard etiqueta="Reservas activas" valor={situacion.reservas_activas} />
+      </div>
+      {multasDe && (
+        <p style={{ margin: 0 }}>
+          <Link to={`/multas?socio_id=${multasDe}`}>Ver las multas del socio</Link>
+        </p>
+      )}
+    </>
   );
 }
 
@@ -192,7 +199,10 @@ export default function SocioDetallePage({ socioId }) {
               <div className={inicio.pagina}>
                 <AvisoDeEstado socio={socio} propio={propio && !esPersonal} />
                 {propio && !esPersonal && <PedirReactivacion socio={socio} />}
-                <Situacion situacion={socio.situacion} />
+                <Situacion
+                  situacion={socio.situacion}
+                  multasDe={tienePermiso(PERMISOS.MULTA_LEER) ? socio.id : null}
+                />
                 <Datos socio={socio} />
                 {!esPersonal && (
                   <p className={inicio.detalle}>

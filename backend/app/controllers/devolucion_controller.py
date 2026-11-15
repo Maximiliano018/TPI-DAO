@@ -1,25 +1,20 @@
 """Endpoints de devoluciones y multas."""
 
-from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, status
-from pydantic import BaseModel, ConfigDict, Field
 
 from app.controllers.dependencies import get_devolucion_service, requiere, usuario_actual
+from app.dtos.request.devolucion_request import DevolucionRequest
 from app.dtos.response.devolucion_response import (
-    DevolucionResponse,
     MultaResponse,
     PaginaMultasResponse,
+    multa_a_response,
 )
-from app.dtos.response.prestamo_response import (
-    PrestamoResponse,
-    RemitoResumenResponse,
-    prestamo_a_response,
-)
-from app.models.devolucion import EstadoMulta, EstadoRecibido
+from app.dtos.response.resultado_devolucion_response import ResultadoDevolucionResponse
+from app.models.devolucion import EstadoMulta
 from app.models.usuario import Permiso, Usuario
-from app.services.devolucion_service import DevolucionService, ResultadoDevolucion
+from app.services.devolucion_service import DevolucionService
 
 router = APIRouter(prefix="/api/v1", tags=["Devoluciones y multas"])
 
@@ -32,57 +27,6 @@ _401 = {"description": "No autenticado (`TOKEN_INVALIDO`)"}
 _403 = {"description": "Sin permiso o préstamo de otra sede (`FORBIDDEN`)"}
 
 
-class DevolucionRequest(BaseModel):
-    """Si no se indica ``fecha_hora`` se toma el momento actual."""
-
-    model_config = ConfigDict(
-        json_schema_extra={"example": {"estado_fisico": "BUENO", "observaciones": "Sin novedades"}}
-    )
-
-    estado_fisico: EstadoRecibido
-    observaciones: str | None = Field(default=None, max_length=300)
-    fecha_hora: datetime | None = None
-
-
-class SocioEstadoResponse(BaseModel):
-    id: int
-    estado: str
-    motivo: str | None
-
-
-class ResultadoDevolucionResponse(BaseModel):
-    """Lo que cambió con la devolución: préstamo, multa, remito de retorno y socio."""
-
-    prestamo: PrestamoResponse
-    devolucion: DevolucionResponse
-    multa: MultaResponse | None
-    remito_retorno: RemitoResumenResponse | None
-    reserva_asignada: str | None
-    socio: SocioEstadoResponse | None
-
-    @classmethod
-    def desde(cls, r: ResultadoDevolucion, actor: Usuario) -> "ResultadoDevolucionResponse":
-        return cls(
-            prestamo=prestamo_a_response(r.prestamo, actor),
-            devolucion=DevolucionResponse.desde(r.devolucion),
-            multa=MultaResponse.desde(r.multa) if r.multa else None,
-            remito_retorno=(
-                RemitoResumenResponse.desde(r.remito_retorno) if r.remito_retorno else None
-            ),
-            reserva_asignada=r.reserva_asignada.numero if r.reserva_asignada else None,
-            socio=_socio(r),
-        )
-
-
-def _socio(r: ResultadoDevolucion) -> SocioEstadoResponse | None:
-    if r.socio is None or r.socio.id is None:
-        return None
-    motivo = r.socio.motivo_inhabilitacion
-    return SocioEstadoResponse(
-        id=r.socio.id, estado=r.socio.estado.value, motivo=motivo.value if motivo else None
-    )
-
-
 @router.post(
     "/prestamos/{prestamo_id}/devolucion",
     response_model=ResultadoDevolucionResponse,
@@ -93,7 +37,10 @@ def _socio(r: ResultadoDevolucion) -> SocioEstadoResponse | None:
         403: _403,
         404: {"description": "`PRESTAMO_NO_ENCONTRADO`"},
         409: {"description": "El préstamo no está activo ni vencido (`TRANSICION_INVALIDA`)"},
-        422: {"description": "Fecha futura o anterior a la entrega, u observaciones faltantes"},
+        422: {
+            "description": "Fecha futura o anterior a la entrega, observaciones faltantes, o "
+            "fecha anterior a hoy sin `motivo_fecha`"
+        },
     },
 )
 def registrar_devolucion(
@@ -105,7 +52,12 @@ def registrar_devolucion(
     su sede con un remito de retorno, pasa a revisión o se da de baja.
     """
     resultado = servicio.registrar(
-        actor, prestamo_id, datos.estado_fisico, datos.observaciones, datos.fecha_hora
+        actor,
+        prestamo_id,
+        datos.estado_fisico,
+        datos.observaciones,
+        datos.fecha_hora,
+        datos.motivo_fecha,
     )
     return ResultadoDevolucionResponse.desde(resultado, actor)
 
@@ -125,7 +77,9 @@ def listar_multas(
     size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PaginaMultasResponse:
     """El personal ve las de la red (filtrables por socio); el socio, solo las propias."""
-    return PaginaMultasResponse.desde(servicio.listar_multas(actor, socio_id, estado, page, size))
+    return PaginaMultasResponse.desde(
+        servicio.listar_multas(actor, socio_id, estado, page, size), actor
+    )
 
 
 @router.post(
@@ -141,4 +95,4 @@ def listar_multas(
 )
 def saldar_multa(multa_id: int, servicio: Servicio, actor: Personal) -> MultaResponse:
     """El cobro queda fuera del sistema; al saldarla se reevalúa la habilitación del socio."""
-    return MultaResponse.desde(servicio.saldar_multa(actor, multa_id))
+    return multa_a_response(servicio.saldar_multa(actor, multa_id), actor)

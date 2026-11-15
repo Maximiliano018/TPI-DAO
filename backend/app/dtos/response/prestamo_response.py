@@ -14,7 +14,12 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.dtos.response.autoria import autor_visible
-from app.dtos.response.devolucion_response import DevolucionResponse, MultaResponse
+from app.dtos.response.devolucion_response import (
+    DevolucionResponse,
+    MultaResponse,
+    devolucion_a_response,
+    multa_a_response,
+)
 from app.dtos.response.sede_response import UsuarioRefResponse
 from app.models.incidencia import Incidencia
 from app.models.paginacion import Pagina
@@ -267,8 +272,8 @@ def detalle_a_response(d: DetallePrestamo, lector: Usuario) -> PrestamoDetalleRe
     detalle: dict[str, Any] = {
         "historial": [MovimientoPrestamoResponse.desde(m, lector) for m in d.historial],
         "remitos": [RemitoResumenResponse.desde(r) for r in d.remitos],
-        "devolucion": DevolucionResponse.desde(d.devolucion) if d.devolucion else None,
-        "multa": MultaResponse.desde(d.multa) if d.multa else None,
+        "devolucion": devolucion_a_response(d.devolucion, lector) if d.devolucion else None,
+        "multa": multa_a_response(d.multa, lector) if d.multa else None,
     }
     if not _es_personal(lector):
         return PrestamoDetallePropioResponse(**_campos(d.prestamo), **detalle)

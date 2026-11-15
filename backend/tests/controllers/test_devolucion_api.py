@@ -181,10 +181,90 @@ def test_si_lo_devolvio_a_tiempo_pero_se_registra_despues_no_hay_multa(cliente, 
     _vencidos(cliente, mundo)
 
     a_tiempo = datetime.combine(vence, time(18), ZONA).isoformat()
-    cuerpo = _devolver(cliente, mundo["h_b"], p, fecha_hora=a_tiempo).json()
+    cuerpo = _devolver(
+        cliente, mundo["h_b"], p, fecha_hora=a_tiempo, motivo_fecha="Lo dejó en el buzón"
+    ).json()
 
     assert (cuerpo["devolucion"]["dias_atraso"], cuerpo["multa"]) == (0, None)
     assert cuerpo["socio"]["estado"] == "HABILITADO"
+
+
+# --- fecha retroactiva, tope y lo que ve el socio ---------------------------------------------
+
+
+@pytest.mark.ca("CA-DEV-17")
+def test_una_fecha_anterior_a_hoy_exige_motivo_y_queda_en_el_historial(cliente, mundo, sesion):  # noqa: F811
+    vence = HOY - timedelta(days=10)
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=vence)
+    a_tiempo = datetime.combine(vence, time(18), ZONA).isoformat()
+
+    sin_motivo = _devolver(cliente, mundo["h_b"], p, fecha_hora=a_tiempo)
+    assert _error(sin_motivo, 422, "VALIDACION")["detalles"][0]["campo"] == "motivo_fecha"
+
+    r = _devolver(cliente, mundo["h_b"], p, fecha_hora=a_tiempo, motivo_fecha="Lo dejó en el buzón")
+
+    assert r.status_code == 201, r.json()
+    devolucion = r.json()["devolucion"]
+    assert (devolucion["motivo_fecha"], devolucion["dias_atraso"]) == ("Lo dejó en el buzón", 0)
+    assert devolucion["registrada_en"] > devolucion["fecha_hora"]
+    detalle = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_b"]).json()
+    assert detalle["historial"][-1]["observacion"] == (
+        f"Devuelto el {vence:%d/%m/%Y} (registrado el {HOY:%d/%m/%Y}): Lo dejó en el buzón"
+    )
+
+
+@pytest.mark.ca("CA-DEV-17")
+def test_una_hora_anterior_del_mismo_dia_no_pide_motivo(cliente, mundo, sesion):  # noqa: F811
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
+    temprano = datetime.combine(HOY, time(0, 5), ZONA).isoformat()
+
+    r = _devolver(cliente, mundo["h_b"], p, fecha_hora=temprano)
+
+    assert r.status_code == 201, r.json()
+    assert r.json()["devolucion"]["motivo_fecha"] is None
+
+
+@pytest.mark.ca("CA-DEV-18")
+def test_la_multa_respeta_el_tope_configurado(cliente, mundo, sesion):  # noqa: F811
+    p = _entregado(
+        cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(5)
+    )
+    r = cliente.put(
+        f"{API}/parametros/multa_tope_por_prestamo",
+        json={"valor": "5000"},
+        headers=mundo["h_admin"],
+    )
+    assert r.status_code == 200, r.json()
+    cliente.put(
+        f"{API}/parametros/multa_tope_por_prestamo", json={"valor": "500"}, headers=mundo["h_admin"]
+    )
+
+    multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
+
+    assert (multa["dias_atraso"], multa["monto_por_dia"], multa["monto_total"]) == (
+        5,
+        "200.00",
+        "500.00",
+    )
+
+
+@pytest.mark.ca("CA-DEV-19")
+def test_el_socio_no_ve_quien_registro_la_devolucion_ni_quien_saldo(cliente, mundo, sesion):  # noqa: F811
+    p = _entregado(
+        cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(2)
+    )
+    multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
+    cliente.post(f"{API}/multas/{multa['id']}/saldar", headers=mundo["h_b"])
+
+    propia = cliente.get(f"{API}/multas", headers=mundo["h_lucia"]).json()["items"][0]
+    detalle = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_lucia"]).json()
+    personal = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_b"]).json()
+
+    assert propia["estado"] == "SALDADA" and "saldada_por" not in propia
+    assert "registrada_por" not in detalle["devolucion"]
+    assert "saldada_por" not in detalle["multa"]
+    assert personal["devolucion"]["registrada_por"]["nombre"] == "Beto B"
+    assert personal["multa"]["saldada_por"]["nombre"] == "Beto B"
 
 
 @pytest.mark.ca("CA-DEV-07")

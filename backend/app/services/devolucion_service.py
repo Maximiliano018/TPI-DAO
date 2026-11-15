@@ -15,7 +15,6 @@ from app.models.devolucion import Devolucion, EstadoMulta, EstadoRecibido, Multa
 from app.models.ejemplar import Ejemplar, EstadoFisico
 from app.models.incidencia import Incidencia, OrigenIncidencia, TipoIncidencia
 from app.models.paginacion import Pagina
-from app.models.policies.multa import MultaFijaPorDia
 from app.models.prestamo import Prestamo
 from app.models.remito import Remito
 from app.models.reserva import Reserva
@@ -57,6 +56,7 @@ class DevolucionService:
         estado_recibido: EstadoRecibido,
         observaciones: str | None = None,
         fecha_hora: datetime | None = None,
+        motivo_fecha: str | None = None,
     ) -> ResultadoDevolucion:
         """Registra la devolución en la sede destino del préstamo (CU-DEV-01 a 04).
 
@@ -74,8 +74,9 @@ class DevolucionService:
         Raises:
             PermisoDenegado: No es la sede destino del préstamo (CA-DEV-03, CA-ACC-02).
             TransicionInvalida: El préstamo no está activo ni vencido (CA-DEV-02).
-            ErrorDeValidacion: Fecha futura o anterior a la entrega (CA-DEV-04), u observaciones
-                faltantes ante un daño o extravío.
+            ErrorDeValidacion: Fecha futura o anterior a la entrega (CA-DEV-04), observaciones
+                faltantes ante un daño o extravío, o una fecha anterior a hoy sin motivo
+                (CA-DEV-17).
         """
         actor.exigir(Permiso.DEVOLUCION_REGISTRAR)
         with self._transaccion():
@@ -93,17 +94,20 @@ class DevolucionService:
             zona = self._reloj.ahora_local().tzinfo
             parametros = self._uow.parametros.vigentes()
             yo = _ref(actor)
+            fecha = momento.astimezone(zona).date()
             devolucion, multa = Devolucion.registrar(
                 prestamo=prestamo,
                 fecha_hora=momento,
-                fecha=momento.astimezone(zona).date(),
+                fecha=fecha,
                 hoy=hoy,
                 estado_recibido=estado_recibido,
                 observaciones=observaciones,
-                politica=MultaFijaPorDia(parametros.multa_por_dia),
+                politica=parametros.politica_multa(),
                 actor=yo,
+                ahora=ahora,
+                motivo_fecha=motivo_fecha,
             )
-            prestamo.devolver(momento, yo, ahora)
+            prestamo.devolver(momento, yo, ahora, devolucion.texto_del_historial(fecha, hoy))
             self._uow.prestamos.guardar(prestamo)
             self._uow.devoluciones.agregar(devolucion)
             if multa is not None:

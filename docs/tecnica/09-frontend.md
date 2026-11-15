@@ -245,7 +245,7 @@ Detalles de implementación:
 1. **Registrar un préstamo.** Buscar socio → buscar libro → elegir ejemplar (mostrando disponibilidad por sede) → el sistema indica si es local o interbibliotecario → confirmar. Si el socio está inhabilitado se informa antes de avanzar.
 2. **Detalle de remito.** Línea de tiempo con cada movimiento (estado, fecha y hora, responsable) y botones que aparecen solo para las acciones válidas en ese estado y para el rol y la sede del usuario.
 3. **Recepción de remito.** Lista de ejemplares con estado físico por línea y observación obligatoria si hay daño.
-4. **Devolución.** Resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio.
+4. **Devolución.** Antes de confirmar avisa los días de atraso (se genera la multa). Una fecha anterior a hoy pide el motivo. Al registrar, resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio. La página de multas permite elegir un socio, y su ficha enlaza «Ver las multas del socio».
 5. **Baja de sede.** Si el backend responde `SEDE_CON_ACTIVIDAD_PENDIENTE`, muestra la lista de elementos que lo impiden con enlace a cada uno.
 6. **Reservas.** La ficha del libro ofrece «Reservar» solo si no hay ejemplares disponibles en la red (si hay, corresponde pedir un préstamo) y muestra al personal la **cola de reservas** en orden de llegada. El listado filtra por sede de retiro (el bibliotecario ve por defecto la suya) y cada reserva tiene su ficha (`/reservas/:id`) con el historial: autor y motivo de cada cambio («Sistema» para lo automático). «Cancelar» (con motivo opcional) aparece para el socio en las propias y para el bibliotecario de la sede de retiro; el administrador solo consulta.
 

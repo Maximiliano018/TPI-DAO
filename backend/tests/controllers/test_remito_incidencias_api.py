@@ -5,6 +5,8 @@ Usa el mundo de ``test_prestamo_api``: Lucía y Juan son socios de la sede B; lo
 tienen ejemplares en A y en B, y los libros 2 a 4 solo en A.
 """
 
+from datetime import timedelta
+
 import pytest
 from sqlalchemy import text
 
@@ -17,6 +19,7 @@ from tests.controllers.test_prestamo_api import (
     mundo,  # noqa: F401  (fixture compartido)
 )
 from tests.controllers.test_sede_api import _error
+from tests.fakes.reloj import RELOJ_DE_PRUEBAS
 
 
 def _envio(cliente, m, *pares):
@@ -66,8 +69,8 @@ def test_la_incidencia_de_un_envio_es_de_la_sede_origen_y_no_del_socio(cliente, 
 def test_un_extravio_en_transito_tampoco_se_asocia_al_socio(cliente, mundo, sesion):  # noqa: F811
     remito, _ = _envio(cliente, mundo, (mundo["lucia"], mundo["ej_a"][0]))
     sesion.execute(
-        text("UPDATE remito SET fecha_despacho = now() - interval '8 days' WHERE id = :id"),
-        {"id": remito["id"]},
+        text("UPDATE remito SET fecha_despacho = :f WHERE id = :id"),
+        {"f": RELOJ_DE_PRUEBAS.ahora() - timedelta(days=8), "id": remito["id"]},
     )
     sesion.commit()
 
@@ -180,8 +183,8 @@ def test_un_remito_sin_despachar_pasado_el_plazo_figura_atrasado(cliente, mundo,
     ).json()
     assert (nuevo["atrasado"], nuevo["despachar_hasta"] is not None) == (False, True)
     sesion.execute(
-        text("UPDATE remito SET fecha_generacion = now() - interval '5 days' WHERE id = :id"),
-        {"id": viejo["id"]},
+        text("UPDATE remito SET fecha_generacion = :f WHERE id = :id"),
+        {"f": RELOJ_DE_PRUEBAS.ahora() - timedelta(days=5), "id": viejo["id"]},
     )
     sesion.commit()
 

@@ -69,8 +69,8 @@ def _prestamo_sql(sesion, m, numero, ejemplar, estado, tipo="INTERBIBLIOTECARIO"
             "sede_destino_id, estado, fecha_solicitud, renovaciones, fecha_inicio, "
             "fecha_vencimiento, fecha_devolucion) "
             "VALUES (:n, :s, :e, :t, :o, :d, :estado, now(), 0, "
-            "CASE WHEN :entregado THEN current_date END, "
-            "CASE WHEN :entregado THEN current_date + 14 END, "
+            "CASE WHEN :entregado THEN CAST(:hoy AS date) END, "
+            "CASE WHEN :entregado THEN CAST(:hoy AS date) + 14 END, "
             "CASE WHEN :devuelto THEN now() END)"
         ),
         {
@@ -83,6 +83,7 @@ def _prestamo_sql(sesion, m, numero, ejemplar, estado, tipo="INTERBIBLIOTECARIO"
             "estado": estado,
             "entregado": entregado,
             "devuelto": estado == "DEVUELTO",
+            "hoy": HOY,
         },
     )
 

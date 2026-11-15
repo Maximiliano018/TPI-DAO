@@ -186,11 +186,13 @@ class Prestamo:
         self._transicion(self.estado.marcar_vencido(), None, ahora, "Venció el plazo")
         return True
 
-    def devolver(self, fecha: datetime, actor: UsuarioRef, ahora: datetime) -> None:
-        """El socio devolvió el ejemplar."""
+    def devolver(
+        self, fecha: datetime, actor: UsuarioRef, ahora: datetime, observacion: str = "Devuelto"
+    ) -> None:
+        """El socio devolvió el ejemplar. ``observacion`` explica una fecha retroactiva."""
         nuevo = self.estado.devolver()
         self.fecha_devolucion = fecha
-        self._transicion(nuevo, actor, ahora, "Devuelto")
+        self._transicion(nuevo, actor, ahora, observacion)
 
     def cancelar(self, motivo: str, actor: UsuarioRef | None, ahora: datetime) -> None:
         """Anula el préstamo antes de entregarlo (RF-PRE-13)."""
