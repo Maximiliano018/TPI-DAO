@@ -12,8 +12,8 @@
 }
 .tabla th,
 .tabla td {
-  padding: var(--space-3) var(--space-4);
-  text-align: left;
+  padding: var(--space-3);
+  text-align: center;
   vertical-align: middle;
 }
 .tabla thead th {
@@ -84,10 +84,23 @@
   .tabla td {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: var(--space-3);
     padding: var(--space-2) var(--space-4);
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .tabla td:empty {
+    display: none;
+  }
+  /* Un valor con varias piezas (texto y botón) se alinea a la derecha, como los demás. */
+  .tabla td > div {
+    justify-content: flex-end;
   }
   .tabla td::before {
+    flex: none;
+    max-width: 50%;
+    text-align: left;
     content: attr(data-label);
     font-family: var(--font-serif);
     font-weight: 700;

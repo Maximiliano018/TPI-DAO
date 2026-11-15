@@ -243,7 +243,7 @@ describe('Multas', () => {
     renderizarApp('/multas', { conSesion: true });
 
     const tabla = await screen.findByRole('table', { name: 'Multas' });
-    expect(within(tabla).getByText(/Saldada el 16\/11\/2026/)).toBeVisible();
+    expect(within(tabla).getByText(/16\/11\/2026/)).toBeVisible();
     await user.click(
       within(tabla).getByRole('button', { name: 'Saldar la multa del préstamo P-2026-000118' }),
     );

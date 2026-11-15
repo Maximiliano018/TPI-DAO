@@ -1,0 +1,4 @@
+/* Separa el filtro por socio de la barra de filtros que le sigue. */
+.filtro {
+  margin-bottom: var(--space-4);
+}
