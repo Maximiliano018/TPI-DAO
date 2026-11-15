@@ -358,19 +358,19 @@ export default function PrestamoDetallePage() {
               </ul>
             </Card>
           )}
-          <Card titulo="Historial">
-            <Timeline
-              etiqueta="Historial del préstamo"
-              items={[...prestamo.historial].reverse().map((m, i) => ({
-                id: i,
-                titulo: estadoDe('prestamo', m.estado_nuevo).texto,
-                // El socio ve «Vos», «Personal de la biblioteca» o «Sistema» (lo resuelve la API).
-                meta: `${m.autor} · ${formatearFechaHora(m.fecha_hora)}`,
-                contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
-              }))}
-            />
-          </Card>
         </div>
+        <Card titulo="Historial">
+          <Timeline
+            etiqueta="Historial del préstamo"
+            items={[...prestamo.historial].reverse().map((m, i) => ({
+              id: i,
+              titulo: estadoDe('prestamo', m.estado_nuevo).texto,
+              // El socio ve «Vos», «Personal de la biblioteca» o «Sistema» (lo resuelve la API).
+              meta: `${m.autor} · ${formatearFechaHora(m.fecha_hora)}`,
+              contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
+            }))}
+          />
+        </Card>
       </div>
     </>
   );

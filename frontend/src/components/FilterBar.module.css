@@ -45,3 +45,9 @@ select.control {
   border-width: 2px;
   outline-offset: 1px;
 }
+@media (max-width: 639px) {
+  .campo {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+}
