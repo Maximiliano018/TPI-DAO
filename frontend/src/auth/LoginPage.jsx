@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { Alert, Button, Input, Logo } from '../components/index.js';
+import { Alert, Button, Input, InputClave, Logo } from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
@@ -19,7 +19,6 @@ export default function LoginPage() {
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const [error, setError] = useState(null);
-  const [verClave, setVerClave] = useState(false);
   const {
     register,
     handleSubmit,
@@ -66,16 +65,12 @@ export default function LoginPage() {
           error={errors.username?.message}
           {...register('username')}
         />
-        <Input
+        <InputClave
           etiqueta="Contraseña"
-          type={verClave ? 'text' : 'password'}
           autoComplete="current-password"
           error={errors.password?.message}
           {...register('password')}
         />
-        <Button variante="link" onClick={() => setVerClave((v) => !v)} aria-pressed={verClave}>
-          {verClave ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-        </Button>
         <Button type="submit" cargando={isSubmitting}>
           Ingresar
         </Button>
