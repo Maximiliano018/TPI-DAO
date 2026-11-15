@@ -1,8 +1,8 @@
-import { useRef } from 'react';
+import { useId, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSesion } from '../auth/SesionContext.jsx';
 import { useAtraparFoco } from '../hooks/useAtraparFoco.js';
-import { ITEMS_DE_MENU } from './navegacion.js';
+import { SECCIONES_DE_MENU } from './navegacion.js';
 import estilos from './Sidebar.module.css';
 
 // Estantes decorativos bajo la pila: libros de pie (color, alto, ancho, inclinación en grados).
@@ -37,16 +37,50 @@ const ESTANTES = [
   ],
 ];
 
+/** Una sección del menú: cartela de latón, su pila de libros (todos del mismo ancho) y la tabla. */
+function Seccion({ titulo, items, onCerrar }) {
+  const id = useId();
+  return (
+    <div className={estilos.seccion}>
+      {titulo && (
+        <span id={id} className={estilos.cartela}>
+          {titulo}
+        </span>
+      )}
+      <ul className={estilos.pila} aria-labelledby={titulo ? id : undefined}>
+        {items.map((item) => (
+          <li key={item.texto} className={estilos.libro}>
+            <NavLink
+              to={item.to}
+              end={item.fin}
+              className={({ isActive }) => `${estilos.lomo} ${isActive ? estilos.activo : ''}`}
+              onClick={onCerrar}
+            >
+              <span className={estilos.titulo}>{item.texto}</span>
+              <span className={estilos.paginas} aria-hidden="true" />
+            </NavLink>
+          </li>
+        ))}
+      </ul>
+      <div className={estilos.tabla} aria-hidden="true" />
+    </div>
+  );
+}
+
 /**
- * Menú lateral con forma de estantería: cada ítem es un libro apilado sobre una tabla de madera.
- * El libro de la página actual sobresale y lleva un marcador (no depende solo del color).
+ * Menú lateral con forma de estantería: cada sección es una pila de libros sobre su tabla de
+ * madera, con una cartela de latón que la nombra. El libro de la página actual sobresale y lleva
+ * un marcador (no depende solo del color).
  * Fijo desde 1024 px; por debajo es un panel que atrapa el foco y cierra con Escape.
  */
 export default function Sidebar({ abierto, onCerrar }) {
   const { tienePermiso } = useSesion();
   const ref = useRef(null);
   useAtraparFoco(ref, abierto, onCerrar);
-  const items = ITEMS_DE_MENU.filter((item) => !item.permiso || tienePermiso(item.permiso));
+  const secciones = SECCIONES_DE_MENU.map((seccion) => ({
+    ...seccion,
+    items: seccion.items.filter((item) => !item.permiso || tienePermiso(item.permiso)),
+  })).filter((seccion) => seccion.items.length > 0);
 
   return (
     <>
@@ -57,22 +91,14 @@ export default function Sidebar({ abierto, onCerrar }) {
         aria-label="Navegación principal"
         className={`${estilos.menu} ${abierto ? estilos.abierto : ''}`}
       >
-        <ul className={estilos.pila}>
-          {items.map((item) => (
-            <li key={item.texto} className={estilos.libro}>
-              <NavLink
-                to={item.to}
-                end={item.fin}
-                className={({ isActive }) => `${estilos.lomo} ${isActive ? estilos.activo : ''}`}
-                onClick={onCerrar}
-              >
-                <span className={estilos.titulo}>{item.texto}</span>
-                <span className={estilos.paginas} aria-hidden="true" />
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-        <div className={estilos.tabla} aria-hidden="true" />
+        {secciones.map((seccion) => (
+          <Seccion
+            key={seccion.titulo ?? 'inicio'}
+            titulo={seccion.titulo}
+            items={seccion.items}
+            onCerrar={onCerrar}
+          />
+        ))}
         <div className={estilos.estantes} aria-hidden="true">
           {ESTANTES.map((libros, fila) => (
             <div key={fila} className={estilos.estante}>

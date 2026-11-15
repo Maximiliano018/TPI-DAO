@@ -15,7 +15,7 @@ export {
   FiltroSelect,
 } from './FilterBar.jsx';
 export { default as FormField } from './FormField.jsx';
-export { Checkbox, Input, Select, Textarea } from './controles.jsx';
+export { Checkbox, Input, InputClave, Select, Textarea } from './controles.jsx';
 export { EstanteriaVacia } from './Ilustraciones.jsx';
 export { default as Logo } from './Logo.jsx';
 export { default as Modal } from './Modal.jsx';

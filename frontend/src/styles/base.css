@@ -38,6 +38,10 @@ code,
 .mono {
   font-family: var(--font-mono);
 }
+/* Números de préstamo, reserva, remito o socio: siempre en un renglón. */
+.mono {
+  white-space: nowrap;
+}
 
 /* Anillo de foco visible sobre cualquier fondo; nunca se quita sin reemplazarlo. */
 :focus-visible {

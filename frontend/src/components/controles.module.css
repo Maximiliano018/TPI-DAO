@@ -59,3 +59,38 @@ textarea.control {
   height: 20px;
   accent-color: var(--color-primary-700);
 }
+
+/* Campo con un botón adentro (el ojo de la contraseña) */
+.conBoton {
+  position: relative;
+}
+.conBoton .control {
+  padding-right: 48px;
+}
+.botonOjo {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.botonOjo:hover {
+  color: var(--color-primary-700);
+  background: var(--color-neutral-100);
+}
+.botonOjo:focus-visible {
+  outline: 3px solid var(--color-primary-700);
+  outline-offset: 1px;
+}
+.botonOjo[aria-pressed='true'] {
+  color: var(--color-primary-700);
+}
