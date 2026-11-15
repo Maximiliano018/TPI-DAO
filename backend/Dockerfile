@@ -1,6 +1,6 @@
 # Imagen del backend (FastAPI). Al arrancar aplica las migraciones y, si CARGAR_SEED=1, carga
 # los datos de demostración (solo con ENTORNO=desarrollo o test).
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
