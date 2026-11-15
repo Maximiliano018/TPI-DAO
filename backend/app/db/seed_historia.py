@@ -44,6 +44,7 @@ from app.db.models import (
     ReservaORM,
     UsuarioORM,
 )
+from app.db.portadas_demo import portada_de
 from app.db.seed_demo import Demo
 from app.models.devolucion import EstadoRecibido
 from app.models.ejemplar import EstadoFisico
@@ -377,17 +378,6 @@ LIBROS = [
         TipoMaterial.OBRA_DE_REFERENCIA,
     ),
     LibroDemo(
-        "RVN100",
-        None,
-        "Revista Ñ: número 1000",
-        ["Redacción de Ñ"],
-        "Clarín",
-        2023,
-        "Arte y música",
-        {"NORTE": 1},
-        TipoMaterial.REVISTA,
-    ),
-    LibroDemo(
         "498381",
         "9789878498386",
         "El principito",
@@ -543,6 +533,7 @@ class Historia:
             "isbn": libro.isbn,
             "editorial": libro.editorial,
             "anio_edicion": libro.anio,
+            "portada_url": portada_de(libro.titulo),
         }
         return DatosLibroNuevo(**(valores | cambios))
 

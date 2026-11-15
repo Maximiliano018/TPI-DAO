@@ -38,6 +38,7 @@ from app.db.models import (
     ReservaORM,
     SocioORM,
 )
+from app.db.portadas_demo import portada_de
 from app.exceptions import ErrorDeNegocio
 from app.models.devolucion import EstadoRecibido
 from app.models.ejemplar import EstadoFisico
@@ -117,7 +118,6 @@ LIBROS_VOLUMEN = [
     _l("La pregunta de sus ojos", "Eduardo Sacheri", "Galerna", 2005, LIT_AR),
     _l("Papeles en el viento", "Eduardo Sacheri", "Alfaguara", 2011, LIT_AR),
     _l("Las aventuras de la China Iron", "Gabriela Cabezón Cámara", "Random House", 2017, LIT_AR),
-    _l("Árbol de Diana", "Alejandra Pizarnik", "Lumen", 2016, LIT_AR),
     _l("Don Segundo Sombra", "Ricardo Güiraldes", "Losada", 2005, LIT_AR),
     _l("Adán Buenosayres", "Leopoldo Marechal", "Sudamericana", 2013, LIT_AR),
     # --- literatura latinoamericana ---
@@ -127,7 +127,6 @@ LIBROS_VOLUMEN = [
     _l("La casa de los espíritus", "Isabel Allende", "Sudamericana", 2012, LIT_LA),
     _l("Pedro Páramo", "Juan Rulfo", "RM", 2005, LIT_LA),
     _l("Veinte poemas de amor y una canción desesperada", "Pablo Neruda", "Seix Barral", 2009, LIT_LA),
-    _l("Los detectives salvajes", "Roberto Bolaño", "Anagrama", 1998, LIT_LA),
     _l("2666", "Roberto Bolaño", "Anagrama", 2004, LIT_LA),
     _l("La tregua", "Mario Benedetti", "Sudamericana", 2015, LIT_LA),
     _l("Como agua para chocolate", "Laura Esquivel", "Debolsillo", 2016, LIT_LA),
@@ -150,7 +149,6 @@ LIBROS_VOLUMEN = [
     _l("Madame Bovary", "Gustave Flaubert", "Cátedra", 2012, LIT_UNI),
     _l("Los miserables", "Victor Hugo", "Alianza", 2013, LIT_UNI),
     _l("La metamorfosis", "Franz Kafka", "Alianza", 2011, LIT_UNI, popular=True),
-    _l("El extranjero", "Albert Camus", "Alianza", 2012, LIT_UNI),
     _l("Cumbres borrascosas", "Emily Brontë", "Alba", 2014, LIT_UNI),
     _l("Ana Karenina", "León Tolstói", "Alba", 2010, LIT_UNI),
     _l("El retrato de Dorian Gray", "Oscar Wilde", "Austral", 2013, LIT_UNI),
@@ -159,7 +157,6 @@ LIBROS_VOLUMEN = [
     _l("El hobbit", "J. R. R. Tolkien", "Minotauro", 2012, LIT_UNI),
     _l("Matar a un ruiseñor", "Harper Lee", "HarperCollins", 2015, LIT_UNI),
     _l("El diario de Ana Frank", "Ana Frank", "Debolsillo", 2013, LIT_UNI),
-    _l("El nombre de la rosa", "Umberto Eco", "Lumen", 2016, LIT_UNI),
     _l("Ensayo sobre la ceguera", "José Saramago", "Alfaguara", 2010, LIT_UNI),
     _l("El alquimista", "Paulo Coelho", "Planeta", 2012, LIT_UNI),
     _l("El código Da Vinci", "Dan Brown", "Planeta", 2003, LIT_UNI),
@@ -178,10 +175,7 @@ LIBROS_VOLUMEN = [
     _l("Socorro (12 cuentos para caerse de miedo)", "Elsa Bornemann", "Alfaguara", 2017, INFANTIL),
     _l("Cuentos de la selva", "Horacio Quiroga", "Losada", 2004, INFANTIL),
     _l("Mujercitas", "Louisa May Alcott", "Alba", 2014, INFANTIL),
-    _l("Billiken: edición aniversario", "Redacción de Billiken", "Atlántida", 2019, INFANTIL, REVISTA),
     # --- ciencias sociales y desarrollo personal ---
-    _l("La felicidad", "Gabriel Rolón", "Planeta", 2023, SOCIALES, popular=True),
-    _l("Historias de diván", "Gabriel Rolón", "Planeta", 2007, SOCIALES),
     _l("Hábitos atómicos", "James Clear", "Paidós", 2020, SOCIALES, popular=True),
     _l("Este dolor no es mío", "Mark Wolynn", "Gaia", 2017, SOCIALES, popular=True),
     _l("Pensar rápido, pensar despacio", "Daniel Kahneman", "Debate", 2012, SOCIALES),
@@ -190,18 +184,13 @@ LIBROS_VOLUMEN = [
     _l("Los mitos de la historia argentina", "Felipe Pigna", "Planeta", 2004, HISTORIA),
     _l("Breve historia de la Argentina", "José Luis Romero", "Fondo de Cultura Económica", 2013, HISTORIA),
     _l("Historia contemporánea de América Latina", "Tulio Halperín Donghi", "Alianza", 2005, HISTORIA),
-    _l("La era de los extremos", "Eric Hobsbawm", "Crítica", 2012, HISTORIA),
     _l("Homo Deus", "Yuval Noah Harari", "Debate", 2016, HISTORIA),
-    _l("Memoria del fuego I. Los nacimientos", "Eduardo Galeano", "Siglo XXI", 2010, HISTORIA),
     # --- ciencias naturales ---
     _l("Breve historia del tiempo", "Stephen Hawking", "Crítica", 2011, NATURALES, popular=True),
-    _l("El universo en una cáscara de nuez", "Stephen Hawking", "Crítica", 2002, NATURALES),
     _l("El origen de las especies", "Charles Darwin", "Austral", 2010, NATURALES),
     _l("El gen egoísta", "Richard Dawkins", "Salvat", 2014, NATURALES),
     _l("Una breve historia de casi todo", "Bill Bryson", "RBA", 2005, NATURALES),
-    _l("National Geographic en español: enero 2025", "Redacción de National Geographic", "Televisa", 2025, NATURALES, REVISTA),
     # --- filosofía ---
-    _l("El hombre en busca de sentido", "Viktor Frankl", "Herder", 2015, FILOSOFIA, popular=True),
     _l("El mundo de Sofía", "Jostein Gaarder", "Siruela", 2012, FILOSOFIA),
     _l("Meditaciones", "Marco Aurelio", "Gredos", 2010, FILOSOFIA),
     _l("La República", "Platón", "Gredos", 2011, FILOSOFIA),
@@ -217,7 +206,6 @@ LIBROS_VOLUMEN = [
     _l("Patterns of Enterprise Application Architecture", "Martin Fowler", "Addison-Wesley", 2002, TECNO),
     _l("Head First Design Patterns", "Eric Freeman; Elisabeth Robson", "O'Reilly", 2020, TECNO),
     _l("Introduction to Algorithms", "Thomas H. Cormen; Charles E. Leiserson; Ronald L. Rivest; Clifford Stein", "MIT Press", 2022, TECNO),
-    _l("Sistemas operativos modernos", "Andrew S. Tanenbaum", "Pearson", 2009, TECNO),
     _l("Redes de computadoras", "Andrew S. Tanenbaum; David J. Wetherall", "Pearson", 2012, TECNO),
     _l("Fundamentos de bases de datos", "Abraham Silberschatz; Henry F. Korth; S. Sudarshan", "McGraw-Hill", 2014, TECNO),
     _l("Python Crash Course", "Eric Matthes", "No Starch Press", 2023, TECNO),
@@ -225,7 +213,6 @@ LIBROS_VOLUMEN = [
     _l("Eloquent JavaScript", "Marijn Haverbeke", "No Starch Press", 2018, TECNO),
     _l("El mítico hombre-mes", "Frederick P. Brooks", "Addison-Wesley", 1995, TECNO),
     # --- obras de referencia ---
-    _l("Atlas geográfico de la República Argentina", "Instituto Geográfico Nacional", "IGN", 2019, REFERENCIA, OBRA_REF),
     _l("Diccionario panhispánico de dudas", "Real Academia Española", "Santillana", 2005, REFERENCIA, OBRA_REF),
 ]  # fmt: skip
 
@@ -337,6 +324,7 @@ class Volumen:
                     isbn=None if libro.tipo == REVISTA else isbn_de_demostracion(i + 1),
                     editorial=libro.editorial,
                     anio_edicion=libro.anio,
+                    portada_url=portada_de(libro.titulo),
                 ),
             )
             assert creado.id is not None
