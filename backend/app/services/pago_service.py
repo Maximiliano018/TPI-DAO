@@ -107,10 +107,14 @@ class PagoService:
         """
         actor.exigir(Permiso.MULTA_PAGAR_PROPIA)
         with self._transaccion():
-            pago = self._uow.pagos.obtener_para_modificar(pago_id)
-            if pago is None or not self._es_del_socio(actor, pago):
+            visto = self._uow.pagos.obtener(pago_id)
+            if visto is None or not self._es_del_socio(actor, visto):
                 raise PagoNoEncontrado("El pago solicitado no existe.")
-            multa = self._multa_para_modificar(pago.multa_id)
+            # Mismo orden de bloqueo que el cobro en el mostrador (multa y después pago), para
+            # que un pago en línea y un cobro simultáneos se esperen en lugar de trabarse.
+            multa = self._multa_para_modificar(visto.multa_id)
+            pago = self._uow.pagos.obtener_para_modificar(pago_id)
+            assert pago is not None
             ahora = self._reloj.ahora()
             aprobado = pago.pagar_en_linea(forma, tarjeta_ultimos4, ahora)
             self._uow.pagos.guardar(pago)
