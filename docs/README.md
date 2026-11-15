@@ -8,9 +8,10 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 
 | Carpeta | Contenido | Estado |
 |---------|-----------|--------|
-| [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada |
-| [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación | Confirmada |
-| [`tecnica/`](tecnica/) | Stack, arquitectura, modelo de clases y de datos, máquinas de estado, patrones, API, testing, frontend y guía de estilos | En definición |
+| [`negocio/`](negocio/) | Dominio, actores, reglas, parámetros, procesos y reportes | Confirmada e implementada |
+| [`funcional/`](funcional/) | Requerimientos funcionales, casos de uso (flujos normal y alternativos) y criterios de aceptación, cada uno con su prueba | Confirmada e implementada |
+| [`tecnica/`](tecnica/) | Stack, arquitectura, modelo de clases y de datos, máquinas de estado, [patrones de diseño](tecnica/05-patrones-de-diseno.md), API, testing, frontend y guía de estilos | Refleja la implementación |
+| [`../database/`](../database/README.md) | Base de datos: diagrama entidad-relación, [diccionario de datos](../database/diccionario-de-datos.md) generado desde la base, integridad, migraciones, datos de demostración y operación | Refleja la implementación |
 
 ## Documentos de negocio
 
@@ -28,9 +29,6 @@ Contexto de origen: [`enunciado.md`](../enunciado.md) y [`analisis-enunciado.md`
 
 ## Cómo leer las definiciones
 
-Cada documento responde las preguntas de su proceso. Los puntos que siguen abiertos están marcados así:
+Cada documento de negocio responde las preguntas de su proceso. Todo lo que el enunciado no fijaba ya está decidido e implementado: no quedan puntos abiertos con la cátedra. Los requerimientos funcionales se trazan a sus criterios de aceptación, y cada criterio a las pruebas que lo verifican (ver [funcional](funcional/README.md)).
 
-- **Definido:** surge del enunciado o ya está acordado.
-- **A consultar:** el enunciado no alcanza y conviene preguntar a la cátedra; sigue abierto. Hoy hay un único punto: si el socio puede pedir el préstamo directamente.
-
-Todos los valores numéricos (plazos, montos, límites) son **parámetros configurables**, no constantes del código.
+Los plazos, montos y límites del negocio (ver [parámetros](negocio/00-contexto-y-actores.md#parámetros-globales-configurables)) son **parámetros configurables** que el administrador cambia sin tocar el código. Los límites técnicos (por ejemplo, la duración de la sesión) se configuran por entorno.

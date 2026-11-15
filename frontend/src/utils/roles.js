@@ -40,3 +40,10 @@ export const PERMISOS = {
   REPORTE_SEDE: 'REPORTE_SEDE',
   REPORTE_RED: 'REPORTE_RED',
 };
+
+/**
+ * Si el personal opera en una sede: el bibliotecario solo en la suya; el administrador, que tiene
+ * los permisos completos, en cualquiera. Es la misma regla que `Usuario.opera_en` del backend.
+ */
+export const operaEn = (usuario, sedeId) =>
+  usuario?.rol === ROLES.ADMIN || (usuario?.sede_id != null && usuario.sede_id === sedeId);

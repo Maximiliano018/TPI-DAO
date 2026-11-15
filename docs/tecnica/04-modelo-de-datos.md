@@ -4,42 +4,12 @@ Esquema relacional para PostgreSQL 16, gestionado con Alembic. Los nombres de ta
 
 ## Diagrama entidad-relación
 
-```mermaid
-erDiagram
-    PROVINCIA ||--o{ LOCALIDAD : contiene
-    LOCALIDAD ||--o{ SEDE : "ubica"
-    SEDE ||--o{ HORARIO_SEDE : tiene
-    SEDE ||--o{ EXCEPCION_HORARIO_SEDE : "cierra por fecha"
-    SEDE ||--o{ HISTORIAL_SEDE : "registra eventos"
-    USUARIO ||--o{ HISTORIAL_SEDE : "realiza"
-    SEDE ||--o{ USUARIO : emplea
-    SEDE ||--o{ EJEMPLAR : "es propietaria"
-    SEDE ||--o{ SOCIO : "alta en"
-    SOCIO |o--o| USUARIO : "tiene cuenta"
-    CATEGORIA ||--o{ LIBRO : clasifica
-    LIBRO ||--o{ LIBRO_AUTOR : tiene
-    AUTOR ||--o{ LIBRO_AUTOR : escribe
-    LIBRO ||--o{ EJEMPLAR : "tiene copias"
-    EJEMPLAR ||--o{ MOVIMIENTO_EJEMPLAR : historial
-    SOCIO ||--o{ PRESTAMO : solicita
-    EJEMPLAR ||--o{ PRESTAMO : "se presta en"
-    SEDE ||--o{ PRESTAMO : "origen y destino"
-    PRESTAMO ||--o{ MOVIMIENTO_PRESTAMO : historial
-    PRESTAMO ||--o| DEVOLUCION : "se cierra con"
-    PRESTAMO ||--o| MULTA : genera
-    SOCIO ||--o{ MULTA : adeuda
-    REMITO ||--|{ DETALLE_REMITO : contiene
-    REMITO ||--o{ MOVIMIENTO_REMITO : historial
-    SEDE ||--o{ REMITO : "origen y destino"
-    EJEMPLAR ||--o{ DETALLE_REMITO : viaja
-    PRESTAMO ||--o{ DETALLE_REMITO : "se envia por"
-    SOCIO ||--o{ RESERVA : reserva
-    LIBRO ||--o{ RESERVA : "se reserva"
-    SEDE ||--o{ RESERVA : "retiro en"
-    EJEMPLAR |o--o{ RESERVA : "asignado a"
-    RESERVA ||--o{ MOVIMIENTO_RESERVA : historial
-    EJEMPLAR ||--o{ INCIDENCIA : sufre
-```
+Los diagramas están junto al resto de la documentación de la base:
+
+- **Conceptual** (todas las tablas y sus relaciones, con las cardinalidades explicadas): [database/README.md](../../database/README.md#diagrama-entidad-relación).
+- **Por módulo, con todas las columnas**, más el detalle de cada tabla (claves, `CHECK`, índices y disparadores tal como están en la base): [database/diccionario-de-datos.md](../../database/diccionario-de-datos.md). Se genera desde la base con `backend/scripts/generar_diccionario_datos.py`, así nunca queda desactualizado respecto de las migraciones.
+
+Este documento explica el **diseño**: qué guarda cada tabla, qué regla de negocio garantiza cada restricción y en qué migración nació.
 
 ## Tablas
 
@@ -369,6 +339,7 @@ CREATE UNIQUE INDEX uq_reserva_activa
 | pago | multa_id, medio (`EFECTIVO`, `DEBITO`, `CREDITO`, `TRANSFERENCIA`, `EN_LINEA`, `NO_REGISTRADO`), estado (`PENDIENTE`, `APROBADO`, `RECHAZADO`, `CANCELADO`), monto, comprobante, motivo, forma_en_linea (`TARJETA_CREDITO`, `TARJETA_DEBITO`, `DINERO_EN_CUENTA`), tarjeta_ultimos4, registrado_por_id, fecha, acreditado_en | `monto > 0`; la forma solo en un pago `EN_LINEA`, y `tarjeta_ultimos4` (4 dígitos) si y solo si se pagó con tarjeta; un pago de mostrador nace `APROBADO` y con quien lo registró; `acreditado_en` si y solo si está `APROBADO`; índices únicos parciales: un solo `APROBADO` y un solo `PENDIENTE` por multa (ver [técnica/12](12-pago-de-multas.md)) |
 | incidencia | tipo (`EXTRAVIO`, `DANIO`, `DESTRUCCION`), origen (`DEVOLUCION`, `REMITO`), ejemplar_id, socio_id, prestamo_id, remito_id, sede_responsable_id, descripcion, fecha, usuario_id, resuelta_en, resuelta_por_id, resolucion | descripción NOT NULL. Responsable según el origen (`CHECK`): una de **remito** tiene `remito_id` y `sede_responsable_id` (la sede origen) y **no** tiene socio; una de **devolución** tiene préstamo y socio y no tiene sede responsable. Solo un extravío se resuelve, y la resolución va completa (fecha y texto) |
 | parametro | clave (PK), valor, descripcion | ver abajo |
+| historial_parametro | clave (FK parametro), valor_anterior, valor_nuevo, usuario_id (NOT NULL), fecha_hora | Auditoría de los cambios de parámetros (`RF-ACC-07`): solo inserción (disparador `historial_solo_insercion`), `CHECK (valor_anterior <> valor_nuevo)`, índices `(clave, fecha_hora)` y `(fecha_hora)`. El último cambio de cada clave se muestra en `GET /parametros` |
 
 `multa` guarda el `monto_por_dia` vigente al generarla: un cambio posterior de la configuración no altera multas ya emitidas.
 
@@ -392,17 +363,20 @@ Parámetros iniciales (`parametro`):
 
 ## Índices
 
-Además de claves primarias, únicas y los índices parciales anteriores:
+Además de claves primarias, únicas y los índices parciales anteriores (la lista completa, con su definición, está en el [diccionario de datos](../../database/diccionario-de-datos.md)):
 
 | Índice | Para qué |
 |--------|----------|
-| `ejemplar (libro_id, sede_actual_id, estado)` | Disponibilidad por libro y sede (R5) |
+| `ejemplar (libro_id, sede_actual_id, estado)` | Ejemplares disponibles para prestar en una sede |
+| `ejemplar (sede_propietaria_id, estado)` | Disponibilidad por sede propietaria (R5 y ficha del libro) |
 | `prestamo (socio_id, estado)` | Préstamos abiertos del socio y límite de 3 |
 | `prestamo (estado, fecha_vencimiento)` | Detección de vencidos (R4) |
 | `prestamo (tipo, fecha_solicitud)` | Libros más pedidos entre sedes (R3) |
 | `reserva (libro_id, estado, fecha_reserva)` | Cola FIFO por libro |
 | `remito (estado, sede_origen_id, sede_destino_id)` | Remitos abiertos por sede (R6) |
-| `movimiento_remito (remito_id, fecha_hora)` | Trazabilidad y tiempos de tránsito (R1, R2) |
+| `movimiento_remito (remito_id, fecha_hora)` | Trazabilidad del remito |
+| `movimiento_reserva (reserva_id, fecha_hora)` | Historial de la reserva |
+| `multa (socio_id, estado)` | Multas pendientes del socio (inhabilitación y R4) |
 | `socio (apellido, nombre)` | Búsqueda por apellido |
 | `sede (estado, nombre)` | Listado de sedes filtrado por estado |
 | `sede (direccion_normalizada)` | Advertencia de dirección repetida |
@@ -417,7 +391,7 @@ Además de claves primarias, únicas y los índices parciales anteriores:
 | Reporte | Fuente principal |
 |---------|------------------|
 | R1 Movimiento y tiempo de tránsito | `remito` (`fecha_despacho` y `fecha_recepcion`, coherentes con el estado por `ck_remito_*_segun_estado`), `detalle_remito` (sin los faltantes) |
-| R2 Envíos exitosos e incidencias | `remito` (estado final), `incidencia` |
+| R2 Envíos exitosos e incidencias | `remito` (estado final y fecha de despacho) |
 | R3 Libros más solicitados entre sedes | `prestamo` (tipo interbibliotecario) → `ejemplar` → `libro` |
 | R4 Vencidos y multas | `prestamo`, `multa`, `parametro` |
 | R5 Disponibilidad por sede | `ejemplar` agrupado por libro, sede y estado (mismos conteos que la ficha del libro) |
@@ -430,39 +404,52 @@ Los reportes son consultas de solo lectura en `services/reports/`, con SQL agreg
 - Alembic genera una migración por cambio de modelo; se revisan en el PR. Nunca se edita una migración mergeada.
 - La extensión `btree_gist` se habilita en `database/init/01-extensiones.sql` para el entorno local; **además**, la primera migración ejecuta `CREATE EXTENSION IF NOT EXISTS btree_gist` para que CI y cualquier base vacía funcionen sin el script de `init`.
 
-### Migraciones de esta iteración
+### Historial de migraciones
+
+Orden de aplicación (`alembic upgrade head`). Las que transforman datos existentes se probaron sobre una copia de la base sembrada con el código de `main` antes de mergearlas.
 
 | Migración | Contenido |
 |-----------|-----------|
+| `0000_base` | Revisión base vacía (infraestructura de migraciones) |
 | `0001_catalogos_geograficos` | `btree_gist`, `provincia`, `localidad` |
 | `0002_sedes_y_acceso` | `usuario`, `socio` (solo estructura; su módulo llega después), `sede`, `horario_sede`, `excepcion_horario_sede`, `historial_sede` con sus restricciones, exclusiones, índices y disparador de solo inserción. Las claves foráneas circulares (`usuario.sede_id` ↔ `sede.creado_por_id`) se resuelven creando las tablas y agregando las claves en la misma migración |
 | `0003_seed_localidades` (datos) | Provincia de Córdoba y su lista de localidades |
-| `0007_reservas` | `reserva` (índice único parcial de reserva activa por socio y libro, cola por `(libro_id, estado, fecha_reserva)`), su secuencia, y `prestamo.registrado_por_id` admite NULL: el sistema genera el préstamo entre sedes al asignar una reserva |
-| `0006_prestamos_y_remitos` | `parametro` (con los valores iniciales), `prestamo` (índice único parcial por ejemplar abierto), `remito`, `detalle_remito` (con `resultado` de la recepción: `RECIBIDO`, `DANADO`, `DESTRUIDO`), `movimiento_prestamo` y `movimiento_remito` (solo inserción), `incidencia` y las secuencias de números de préstamo y remito |
-| `0005_catalogo` | `categoria` (con las categorías iniciales), `autor`, `libro`, `libro_autor`, `ejemplar` y `movimiento_ejemplar` con su disparador de solo inserción |
 | `0004_socios` | Completa `socio`: estado `BAJA`, causas y motivo de inhabilitación, motivo de baja, auditoría, índice `(apellido, nombre)` y la secuencia `socio_numero_seq` |
+| `0005_catalogo` | `categoria` (con las categorías iniciales), `autor`, `libro`, `libro_autor`, `ejemplar` y `movimiento_ejemplar` con su disparador de solo inserción |
+| `0006_prestamos_y_remitos` | `parametro` (con los valores iniciales), `prestamo` (índice único parcial por ejemplar abierto), `remito`, `detalle_remito` (con `resultado` de la recepción: `RECIBIDO`, `DANADO`, `DESTRUIDO`), `movimiento_prestamo` y `movimiento_remito` (solo inserción), `incidencia` y las secuencias de números de préstamo y remito |
+| `0007_reservas` | `reserva` (índice único parcial de reserva activa por socio y libro, cola por `(libro_id, estado, fecha_reserva)`), su secuencia, y `prestamo.registrado_por_id` admite NULL: el sistema genera el préstamo entre sedes al asignar una reserva |
+| `0008_devoluciones_y_multas` | `devolucion` (una por préstamo) y `multa` (entonces una por préstamo y solo por atraso, con el monto por día vigente al generarse; desde `0017`, una por tipo), con sus `CHECK` de estado y el índice `(socio_id, estado)` |
 | `0009_causas_de_inhabilitacion` | `socio.causa_prestamo_vencido` y `causa_multa_impaga` (todas las causas automáticas, no solo la principal), completadas con los préstamos y multas reales |
 | `0010_bajas_y_historial_de_socios` | `socio.tipo_baja` y la solicitud de reactivación; restricciones para conservar la inhabilitación administrativa en la baja; `historial_socio` con su disparador de solo inserción. Las bajas existentes quedan como `A_PEDIDO` |
 | `0011_trazabilidad_del_catalogo` | `movimiento_ejemplar.cambios` (estado físico, observaciones y sedes en el historial del ejemplar) y `libro.version` (concurrencia optimista) |
 | `0012_autogestion_de_prestamos` | `prestamo.fecha_limite_retiro`, el parámetro `vigencia_retiro_prestamo_dias` y los `CHECK` de fechas según el estado. Los préstamos que esperaban retiro reciben 3 días desde la migración |
 | `0013_remitos_incidencias_y_plazos` | `incidencia.sede_responsable_id` (las de remito pasan de socio a la sede origen) y la resolución de extravíos; estado `INCOMPLETO` y resultado `FALTANTE`; parámetro `despacho_maximo_dias`; `CHECK` de fechas del remito, del detalle y del responsable de la incidencia |
-| `0017_multas_por_danio_y_extravio` | `multa.tipo` (las existentes, `ATRASO`), `dias_atraso` y `monto_por_dia` opcionales con `ck_multa_atraso_segun_tipo`, `uq_multa_prestamo_id` pasa a `uq_multa_prestamo_id_tipo`, y los parámetros `multa_por_danio` y `multa_por_extravio` (0). El downgrade borra las multas por daño o extravío y sus pagos |
+| `0014_trazabilidad_de_reservas` | `movimiento_reserva` (solo inserción, con el historial inicial de las reservas existentes) y `CHECK` `ck_reserva_datos_segun_estado`, que reemplaza a `ck_reserva_disponible_con_ejemplar` |
 | `0015_devoluciones_retroactivas_y_tope` | `devolucion.registrada_en` y `motivo_fecha` (las devoluciones existentes cargadas más de un día después de su fecha reciben un motivo aclaratorio), `registrada_por_id` NOT NULL, `CHECK` de la devolución retroactiva y de la coherencia de la multa, y el parámetro `multa_tope_por_prestamo` |
 | `0016_pagos_de_multas` | Tabla `pago` con sus restricciones e índices únicos parciales; las multas ya saldadas reciben su pago aprobado con medio `NO_REGISTRADO` |
-| `0014_trazabilidad_de_reservas` | `movimiento_reserva` (solo inserción, con el historial inicial de las reservas existentes) y `CHECK` `ck_reserva_datos_segun_estado`, que reemplaza a `ck_reserva_disponible_con_ejemplar` |
+| `0017_multas_por_danio_y_extravio` | `multa.tipo` (las existentes, `ATRASO`), `dias_atraso` y `monto_por_dia` opcionales con `ck_multa_atraso_segun_tipo`, `uq_multa_prestamo_id` pasa a `uq_multa_prestamo_id_tipo`, y los parámetros `multa_por_danio` y `multa_por_extravio` (0). El downgrade borra las multas por daño o extravío y sus pagos |
+| `0018_auditoria_de_parametros` | `historial_parametro` con su disparador de solo inserción; los parámetros existentes no reciben historial (sus valores vienen de las migraciones) |
 
 ### Seed de demostración
 
-Un comando (`python -m app.db.seed`) carga datos de ejemplo de forma **idempotente** (se puede ejecutar varias veces). Solo corre con `ENTORNO=desarrollo` o `test`; en cualquier otro valor se niega, para que nadie cargue usuarios con contraseñas conocidas en producción.
+Un comando (`python -m app.db.seed`) carga la red de demostración con **90 días de historia**. Solo corre con `ENTORNO=desarrollo` o `test` (en cualquier otro valor se niega, para que nadie cargue usuarios con contraseñas conocidas en producción) y solo si la base todavía no tiene sedes: una segunda ejecución no hace nada.
 
-| Dato | Contenido |
-|------|-----------|
-| Provincia y localidades | Provincia de Córdoba con la ciudad de Córdoba (capital) y las principales localidades de la provincia. La carga completa del catálogo oficial es una migración de datos posterior |
-| Sedes | 4: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto (activas) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA`, con motivo, para mostrar el estado) |
-| Usuarios | `admin` (administrador), `bibliotecario.cen`, `bibliotecario.norte` y `bibliotecario.rc` (uno por sede activa) y `socio.demo` (socio) |
-| Catálogo | Ocho libros (con ISBN) y 14 ejemplares repartidos entre `CEN`, `NORTE` y `SUR_RC` |
-| Socios | Siete: Carla Soto (enlazada con `socio.demo`, sede `CEN`), Martín Ríos (`NORTE`), Sofía Herrera (inhabilitada por decisión administrativa), Diego Luna (dado de baja), Julián Ortiz (`SUR_RC`), Valentina Paz (`NORTE`) y Camila Ferreyra (`CEN`) |
-| Actividad | 45 días de historia generada con los casos de uso reales (`app/db/seed_actividad.py`) y un reloj que avanza hasta hoy: préstamos locales y entre sedes, remitos de envío, retorno y traslado (uno recibido dañado y otro extraviado), devoluciones en término y tardías, una multa saldada y otra pendiente, un préstamo vencido y una reserva en espera. Así los reportes R1 a R6 tienen datos. Solo se carga si todavía no hay préstamos |
-| Contraseña | La define `SEED_PASSWORD` en `.env` (sin valor por defecto en el repositorio; `.env.example` tiene un marcador) |
+**Cómo se carga.** Nada se inserta a mano: todo pasa por los **casos de uso reales** (los mismos servicios que usa la API) con un reloj de demostración que viaja desde hace 90 días hasta hoy (`app/db/seed_demo.py` y `app/db/seed_historia.py`). Así cada dato nace con su historial (`movimiento_*`, `historial_sede`, `historial_socio`), su auditoría (quién y cuándo, `historial_parametro`) y sus reglas aplicadas (vencimientos, multas, colas de reservas, inhabilitaciones automáticas). El único dato que se crea directamente es el primer administrador, porque no hay quién lo dé de alta.
+
+| Módulo | Qué carga |
+|--------|-----------|
+| Sedes | 5: `CEN` Sede Central y `NORTE` Sede Norte (Córdoba capital), `SUR_RC` Sede Río Cuarto, `VMARIA` Sede Villa María (se da de baja por mudanza y se reactiva) y `OESTE_VCP` Sede Villa Carlos Paz (en `BAJA` por obras). Central cambia su teléfono; hay cierres por fecha totales y parciales, y uno que se agrega y se quita |
+| Personal | `admin` y `admin.operaciones` (administradores); `bibliotecario.cen`, `bibliotecario.norte`, `bibliotecario.rc` y `bibliotecario.vm` (uno por sede activa); `bibliotecario.suplente`, que se reasigna de Central a Norte y hoy se da de baja |
+| Parámetros | Cambios auditados: multa por daño ($3.000) y por extravío ($15.000), tope por préstamo ($5.000) y renovaciones máximas (de 1 a 2 y de vuelta a 1, por dos administradores) |
+| Socios | 14, con cuentas `socio.demo` (Carla Soto), `martin.rios`, `camila.ferreyra`, `tomas.vera`, `diego.luna` y `ana.quiroga`. Hay una modificación de datos, una inhabilitación administrativa vigente (Sofía) y otra levantada (Lucas), inhabilitaciones automáticas por préstamo vencido (Julián, Gonzalo) y por multa impaga (Rocío), bajas a pedido, administrativa (Pedro, reactivado) y por fallecimiento, una solicitud de reactivación pendiente (Diego) y una rechazada (Ana) |
+| Catálogo | 15 títulos: libros con uno o varios autores, una obra de referencia y una revista sin ISBN (clave natural). Unos 30 ejemplares en cinco sedes, un libro corregido (nueva versión), un cambio de estado físico, una baja manual, dos reparaciones y dos recuperaciones de extraviados |
+| Préstamos | Locales y entre sedes, en el mostrador (también uno del administrador) y por autogestión del socio, en los seis estados: solicitado, en envío, activo (uno renovado), vencido, devuelto y cancelado (por el socio, por retiro vencido y por un envío dañado) |
+| Remitos | Envíos, retornos y traslados en los **diez estados**: generado, empaquetado, despachado, en tránsito, recibido, dañado, destruido, incompleto (con un faltante que después aparece), extraviado y anulado, con sus incidencias a cargo de la sede origen |
+| Reservas | En los cinco estados: pendiente, disponible para retiro, cumplida (local y entre sedes, con el préstamo que genera el sistema), cancelada (por el socio y por el administrador) y vencida |
+| Devoluciones | En término, tardías, retroactiva (con motivo), dañadas (local y entre sedes) y extraviada |
+| Multas y pagos | Por atraso, daño y extravío; cobradas en el mostrador (débito, efectivo, transferencia) y en línea (un rechazo con la tarjeta de prueba, un pago aprobado y uno en curso que se cancela al cobrar en el mostrador). Queda una multa por extravío pendiente |
+| Contraseña | La de todos los usuarios es `SEED_PASSWORD` del `.env` (de 10 a 128 caracteres, con al menos una letra y un número; el seed la valida antes de cargar) |
+
+Así las seis pantallas de reportes (R1 a R6), los historiales de cada ficha y la auditoría de parámetros tienen datos desde el primer arranque.
 
 Los datos del seed son distintos de los fixtures de los tests y los tests no los usan.

@@ -3,12 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import {
+  ADMIN,
   BIBLIOTECARIO,
   SOCIO,
   ejemplar,
   libro,
   pagina,
   prestamo,
+  sedePublica,
   socio,
 } from '../../../../tests/datos.js';
 import { error, registrar, responder, sesionDe } from '../../../../tests/handlers.js';
@@ -133,5 +135,48 @@ describe('Préstamos', () => {
 
     expect(await screen.findByText(/Préstamo P-2026-000118 registrado/)).toBeVisible();
     expect(llamadas[0].cuerpo).toEqual({ socio_id: 45, ejemplar_id: 305 });
+  });
+
+  it('CA-ACC-17: el administrador elige la sede de retiro y la envía con el préstamo', async () => {
+    sesionDe(ADMIN);
+    responder('get', '/sedes', pagina([sedePublica({ id: 2, nombre: 'Sede Norte' })]));
+    responder('get', '/socios', pagina([socio()]));
+    responder('get', '/libros', pagina([libro()]));
+    responder(
+      'get',
+      '/ejemplares',
+      pagina([
+        ejemplar({
+          id: 305,
+          codigo_inventario: 'NOR-1',
+          sede_propietaria_id: 2,
+          sede_propietaria: 'Sede Norte',
+        }),
+      ]),
+    );
+    const llamadas = registrar('post', '/prestamos', prestamo({ id: 119 }), 201);
+    responder('get', '/prestamos/119', prestamo({ id: 119 }));
+    const user = userEvent.setup();
+    renderizarApp('/prestamos/nuevo', { conSesion: true });
+
+    expect(await screen.findByText('Primero elija la sede de retiro.')).toBeVisible();
+    await user.selectOptions(
+      await screen.findByLabelText(/Sede donde el socio retira el libro/),
+      '2',
+    );
+    expect(screen.getByText(/El socio retira y devuelve en Sede Norte/)).toBeVisible();
+    await user.type(
+      await screen.findByLabelText('Buscar socio por número, documento o nombre'),
+      'socia',
+    );
+    await user.click(await screen.findByRole('button', { name: 'Elegir' }));
+    await user.type(await screen.findByRole('combobox', { name: /Libro/ }), 'Rayu');
+    await user.click(await screen.findByRole('option', { name: /Rayuela/ }));
+    const tabla = await screen.findByRole('table', { name: 'Ejemplares disponibles' });
+    await user.click(within(tabla).getByRole('button', { name: 'Elegir' }));
+    await user.click(screen.getByRole('button', { name: 'Registrar préstamo' }));
+
+    expect(await screen.findByText(/Préstamo P-2026-000118 registrado/)).toBeVisible();
+    expect(llamadas[0].cuerpo).toEqual({ socio_id: 45, ejemplar_id: 305, sede_destino_id: 2 });
   });
 });

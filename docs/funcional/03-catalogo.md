@@ -18,7 +18,9 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | RF-CAT-10 | La consulta de catálogo debe incluir las sedes activas de toda la red; los ejemplares de sedes en `Baja` no se ofrecen. | Obligatorio |
 | RF-CAT-11 | El sistema debe permitir trasladar un ejemplar a otra sede (cambio de sede propietaria) mediante remito de traslado. | Obligatorio |
 | RF-CAT-12 | Cada rol debe ver del catálogo solo lo que le corresponde: la auditoría del libro (quién lo cargó y lo modificó) solo el administrador; el estado físico, el historial y la gestión de ejemplares, solo el personal. | Obligatorio |
-| RF-CAT-13 | El sistema debe permitir a la sede propietaria recuperar un ejemplar dado de baja por extravío que apareció: vuelve a `Disponible` en su sede (o a `En revisión` si llegó dañado) y la incidencia queda resuelta. Una baja por destrucción o daño irreparable es definitiva. | Obligatorio |
+| RF-CAT-13 | El sistema debe permitir a la sede propietaria recuperar un ejemplar dado de baja por un extravío sin resolver (faltante o extravío de un remito, o extravío informado por el socio en una devolución) que apareció: vuelve a `Disponible` en su sede (o a `En revisión` si llegó dañado) y la incidencia queda resuelta. Una baja por destrucción o daño irreparable es definitiva. Deriva de la revisión de recepción, proceso opcional del enunciado. | Opcional |
+| RF-CAT-14 | El administrador debe poder eliminar un libro cargado por error si no tiene ningún ejemplar (aun dados de baja). Junto con las excepciones de horario de hoy o futuras, es la única eliminación física del sistema. | Obligatorio |
+| RF-CAT-15 | El sistema debe permitir a la sede propietaria (o al administrador) marcar como reparado un ejemplar `En revisión`: vuelve a `Disponible` con estado físico `Regular`, queda en su historial y se ofrece a la cola de reservas. | Obligatorio |
 
 ## Casos de uso
 
@@ -31,6 +33,7 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
   - **A2:** sin ISBN y con la misma combinación título, autor, editorial y año; rechaza.
   - **A3:** ISBN con formato inválido; rechaza.
   - **A4:** falta título o autor; rechaza.
+  - **A5:** la categoría no existe en el catálogo cerrado; rechaza.
 
 ### CU-CAT-02. Dar de alta un ejemplar
 
@@ -38,13 +41,14 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 - **Precondición:** el libro existe.
 - **Flujo normal:**
   1. Selecciona el libro e ingresa código de inventario y estado físico.
-  2. El sistema asigna la sede del bibliotecario como propietaria y actual.
-  3. Crea el ejemplar `Disponible` y registra el primer movimiento en su historial.
+  2. El sistema asigna como propietaria y actual la sede del bibliotecario; el administrador la indica.
+  3. Crea el ejemplar `Disponible`, registra el primer movimiento en su historial y lo ofrece a la cola de reservas del libro (RF-RES-13).
 - **Flujos alternativos:**
   - **A1 (paso 1): código ya existente en la red.** Rechaza.
   - **A2 (paso 2): sede propietaria en `Baja`.** Rechaza.
   - **A3 (paso 1): libro inexistente.** El libro se busca en todo el catálogo (título, autor o ISBN); si no está, el sistema ofrece crearlo (si es administrador).
   - **A4 (paso 2): bibliotecario intenta cargar para otra sede.** Rechaza.
+  - **A5 (paso 2): administrador sin sede indicada.** Rechaza.
 
 ### CU-CAT-03. Modificar un ejemplar
 
@@ -63,12 +67,13 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 - **Flujos alternativos:**
   - **A1:** está `Prestado`, `Apartado`, `En tránsito` o `Reservado`; bloquea la baja e indica el motivo.
   - **A2:** la baja por extravío o destrucción se genera como resultado del cierre de un envío o una devolución (ver [Remitos](05-remitos.md) y [Devoluciones](07-devoluciones.md)).
+  - **A3:** otra persona lo modificó mientras tanto (otra versión); rechaza y pide recargar.
 
 ### CU-CAT-05. Consultar disponibilidad
 
 - **Actores:** todos los roles.
 - **Flujo normal:**
-  1. Ingresa un criterio (título, autor, ISBN o categoría).
+  1. Ingresa un criterio (título, autor, ISBN, categoría o tipo de material).
   2. El sistema lista los libros coincidentes.
   3. Al abrir un libro, muestra por sede activa: ejemplares totales, disponibles, prestados, reservados y en tránsito.
 - **Flujos alternativos:**
@@ -79,8 +84,8 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 
 ### CU-CAT-06. Trasladar un ejemplar a otra sede
 
-- **Actor:** Bibliotecario de la sede origen, Administrador.
-- **Flujo normal:** selecciona el ejemplar y la sede destino; el sistema genera un remito de traslado (ver [Remitos](05-remitos.md)); al recibirse, cambia la sede propietaria.
+- **Actor:** Bibliotecario de la sede origen, o el administrador indicando la sede origen (RF-ACC-13).
+- **Flujo normal:** selecciona el ejemplar y la sede destino; el sistema genera un remito de traslado (ver [Remitos](05-remitos.md)) y el ejemplar queda `Apartado` hasta el despacho; al recibirse, cambia la sede propietaria.
 - **Flujos alternativos:**
   - **A1:** ejemplar no `Disponible`; rechaza.
   - **A2:** sede destino en `Baja`; rechaza.
@@ -94,6 +99,24 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
   - **A1:** llegó dañado; queda `En revisión`.
   - **A2:** la baja no fue por extravío (destrucción, daño irreparable, depuración); rechaza.
   - **A3:** los préstamos cancelados por el extravío no se reabren.
+  - **A4:** otra persona lo modificó mientras tanto (otra versión); rechaza y pide recargar.
+
+### CU-CAT-08. Marcar reparado un ejemplar
+
+- **Actor:** Bibliotecario de la sede propietaria, Administrador.
+- **Precondición:** el ejemplar está `En revisión` (llegó o se devolvió dañado).
+- **Flujo normal:** confirma la reparación; el ejemplar vuelve a `Disponible` con estado físico `Regular`, queda en su historial y se ofrece a la cola de reservas del libro.
+- **Flujos alternativos:**
+  - **A1:** el ejemplar no está `En revisión`; rechaza.
+  - **A2:** un bibliotecario de otra sede; rechaza.
+  - **A3:** otra persona lo modificó mientras tanto (otra versión); rechaza y pide recargar.
+  - **A4:** el daño es irreparable; en lugar de repararlo se da de baja (CU-CAT-04).
+
+### CU-CAT-09. Eliminar un libro cargado por error
+
+- **Actor:** Administrador.
+- **Flujo normal:** abre el libro y lo elimina; el sistema verifica que no tenga ejemplares y lo borra.
+- **Flujo alternativo A1:** tiene ejemplares (aunque estén dados de baja); rechaza: los ejemplares son historial.
 
 ## Criterios de aceptación
 
@@ -120,3 +143,4 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | CA-CAT-19 | RF-CAT-01 | **Dado** un libro modificado por otra persona, **cuando** se guarda con una versión anterior, **entonces** se rechaza con conflicto de versión. |
 | CA-CAT-20 | RF-CAT-13 | **Dado** un ejemplar dado de baja por faltante en un remito, **cuando** la sede propietaria lo recupera, **entonces** queda `Disponible` en su sede, sin datos de baja, con el movimiento «Recuperado» y la incidencia resuelta; otra sede no puede hacerlo. |
 | CA-CAT-21 | RF-CAT-13 | **Dado** un ejemplar dado de baja por destrucción, **cuando** se intenta recuperar, **entonces** se rechaza. |
+| CA-CAT-22 | RF-CAT-13 | **Dado** un ejemplar que el socio informó `Extraviado` en una devolución, **cuando** aparece y la sede propietaria lo recupera, **entonces** vuelve a `Disponible` y la incidencia queda resuelta. |

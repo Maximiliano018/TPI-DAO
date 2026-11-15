@@ -45,6 +45,26 @@ class ParametroORM(Base):
     descripcion: Mapped[str] = mapped_column(String(200), nullable=False)
 
 
+class HistorialParametroORM(Base):
+    """Auditoría de los parámetros (solo inserción): quién cambió qué valor, cuándo y desde cuál."""
+
+    __tablename__ = "historial_parametro"
+    __table_args__ = (
+        CheckConstraint("valor_anterior <> valor_nuevo", name="valor_distinto"),
+        Index("ix_historial_parametro_clave_fecha_hora", "clave", "fecha_hora"),
+        Index("ix_historial_parametro_fecha_hora", "fecha_hora"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    clave: Mapped[str] = mapped_column(ForeignKey("parametro.clave"), nullable=False)
+    valor_anterior: Mapped[str] = mapped_column(String(40), nullable=False)
+    valor_nuevo: Mapped[str] = mapped_column(String(40), nullable=False)
+    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id"), nullable=False)
+    fecha_hora: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class PrestamoORM(ConAuditoriaDeTiempo, Base):
     __tablename__ = "prestamo"
     __table_args__ = (

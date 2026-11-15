@@ -6,15 +6,19 @@ import {
   ErrorState,
   Input,
   PageHeader,
+  Pagination,
   Skeleton,
+  Table,
   useToast,
 } from '../../../components/index.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { mensajeDeError } from '../../../utils/errores.js';
+import { formatearFechaHora } from '../../../utils/formato.js';
 import inicio from '../../inicio/components/Inicio.module.css';
 import {
   useActualizarParametro,
   useDetectarVencidos,
+  useHistorialParametros,
   useParametros,
 } from '../../prestamos/hooks/usePrestamos.js';
 import { useVencerReservas } from '../../reservas/hooks/useReservas.js';
@@ -32,6 +36,11 @@ function Parametro({ parametro }) {
           value={valor}
           inputMode="decimal"
           error={fallo ? mensajeDeError(fallo) : undefined}
+          ayuda={
+            parametro.actualizado_por
+              ? `Modificado por ${parametro.actualizado_por.nombre} el ${formatearFechaHora(parametro.actualizado_en)}`
+              : 'Valor inicial, sin cambios registrados'
+          }
           onChange={(e) => setValor(e.target.value)}
         />
       </div>
@@ -52,6 +61,43 @@ function Parametro({ parametro }) {
         Guardar
       </Button>
     </li>
+  );
+}
+
+const COLUMNAS_HISTORIAL = [
+  { clave: 'fecha', titulo: 'Fecha', render: (c) => formatearFechaHora(c.fecha_hora) },
+  { clave: 'parametro', titulo: 'Parámetro', render: (c) => c.descripcion },
+  {
+    clave: 'cambio',
+    titulo: 'Cambio',
+    render: (c) => (
+      <span className="mono">
+        {c.valor_anterior} → {c.valor_nuevo}
+      </span>
+    ),
+  },
+  { clave: 'usuario', titulo: 'Usuario', render: (c) => c.usuario.nombre },
+];
+
+/** Auditoría: quién cambió cada parámetro, cuándo y de qué valor a cuál (RF-ACC-07). */
+function HistorialDeCambios() {
+  const [page, setPage] = useState(1);
+  const { data, isPending, error, refetch } = useHistorialParametros({ page, size: 10 });
+  if (isPending) return <Skeleton alto={120} />;
+  if (error) return <ErrorState error={error} onReintentar={refetch} />;
+  if (data.items.length === 0) {
+    return <p style={{ margin: 0 }}>Todavía no se cambió ningún parámetro.</p>;
+  }
+  return (
+    <>
+      <Table
+        etiqueta="Historial de cambios de parámetros"
+        columnas={COLUMNAS_HISTORIAL}
+        filas={data.items}
+        idDe={(c) => `${c.clave}-${c.fecha_hora}`}
+      />
+      <Pagination page={data.page} size={data.size} total={data.total} onPage={setPage} />
+    </>
   );
 }
 
@@ -80,6 +126,9 @@ export default function ParametrosPage() {
               ))}
             </ul>
           )}
+        </Card>
+        <Card titulo="Historial de cambios">
+          <HistorialDeCambios />
         </Card>
         <Card titulo="Tareas del sistema">
           <p style={{ marginTop: 0 }}>

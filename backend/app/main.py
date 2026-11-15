@@ -21,12 +21,15 @@ from app.controllers import (
 )
 from app.controllers.manejo_errores import registrar_manejadores
 from app.tareas import iniciar_programador
+from app.utils.registro import configurar_registro, registrar_solicitud
 
 
 def crear_app() -> FastAPI:
-    """Crea la aplicación, registra routers, CORS y manejadores de error."""
+    """Crea la aplicación: registro, routers, CORS, manejadores de error y el middleware que da
+    a cada solicitud su identificador (``X-Request-ID``) y una línea de log."""
     settings = get_settings()
     settings.validar_clave_secreta()
+    configurar_registro(settings.log_level)
 
     @asynccontextmanager
     async def ciclo_de_vida(_: FastAPI) -> AsyncIterator[None]:
@@ -43,6 +46,7 @@ def crear_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.middleware("http")(registrar_solicitud)
     registrar_manejadores(app)
     app.include_router(version_controller.router)
     app.include_router(auth_controller.router)

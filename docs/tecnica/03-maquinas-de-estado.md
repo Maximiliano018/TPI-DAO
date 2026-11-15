@@ -17,7 +17,7 @@ Guarda de `dar_de_baja`: la baja se rechaza con `SedeConActividadPendiente` si a
 
 Efectos: `dar_de_baja` registra fecha, motivo y usuario y escribe el evento `BAJA`; `reactivar` no tiene guarda, limpia esos datos y escribe `REACTIVACION`. Ambas transiciones bloquean la fila (`FOR UPDATE`) y la repetición de la misma transición se rechaza con `SEDE_YA_EN_BAJA` o `SEDE_YA_ACTIVA`. En `Baja` toda operación de modificación (datos, horarios, excepciones) se rechaza con `SEDE_EN_BAJA`.
 
-Implementación: un enum (`EstadoSede`) con guardas en la entidad, sin patrón State, porque son dos estados que solo habilitan o bloquean operaciones ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)). La guarda de la baja usa Strategy + Composite ([detalle](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede)).
+Implementación: un enum (`EstadoSede`) con guardas en la entidad, sin patrón State, porque son dos estados que solo habilitan o bloquean operaciones ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)). La guarda de la baja usa Strategy + Composite ([detalle](05-patrones-de-diseno.md#4-strategy--composite-verificación-de-baja-de-sede)).
 
 ## Socio
 
@@ -45,7 +45,7 @@ En `Baja` el socio puede pedir la reactivación desde su cuenta (salvo fallecimi
 
 ## Ejemplar
 
-Estados de disponibilidad. Los de negocio son `Disponible`, `Reservado`, `Prestado`, `En tránsito` y `Baja`. Se proponen dos más (**T4**):
+Estados de disponibilidad. Los de negocio son `Disponible`, `Reservado`, `Prestado`, `En tránsito` y `Baja`. Se agregaron dos (**T4**, implementados):
 
 - **`Apartado`**: retenido para un movimiento pendiente (préstamo solicitado antes de entregarse, o ejemplar devuelto en una sede distinta de la propietaria esperando el retorno). Sin este estado habría que marcarlo `Reservado`, que significa otra cosa.
 - **`En revisión`**: devuelto o recibido dañado, a la espera de decidir reparación o baja. Negocio ya menciona «pasa a revisión» sin darle estado.
@@ -113,9 +113,10 @@ stateDiagram-v2
     Solicitado --> Cancelado : cancelar (personal o el propio socio)<br/>o plazo de retiro vencido (local)
     EnEnvio --> Activo : recepción y entrega al socio
     EnEnvio --> Cancelado : remito anulado, extraviado, dañado o destruido<br/>o plazo de retiro vencido
+    Activo --> Activo : renovar (sin reservas pendientes, hasta el máximo)
     Activo --> Vencido : pasó la fecha de vencimiento
     Activo --> Devuelto : devolución
-    Vencido --> Devuelto : devolución (con multa)
+    Vencido --> Devuelto : devolución (con multa por atraso)
 ```
 
 | Transición | Guardas | Efectos |
@@ -123,8 +124,9 @@ stateDiagram-v2
 | `Solicitado → Activo` | Ejemplar `Apartado` en la sede | Calcula vencimiento, ejemplar `Prestado` |
 | `EnEnvio → Activo` | Remito `Recibido` en la sede destino | Vencimiento desde la entrega al socio |
 | `Activo → Vencido` | `hoy > fecha_vencimiento` | Socio `Inhabilitado` por préstamo vencido |
-| `Activo → Devuelto` | Devolución en la sede destino | Ejemplar según estado recibido; reevalúa socio y reservas |
-| `Vencido → Devuelto` | Ídem | Genera multa por los días de atraso |
+| `Activo → Activo` (renovar) | En la sede destino, sin reservas pendientes del libro y sin superar `renovaciones_maximas` | Extiende el vencimiento un plazo completo desde el vencimiento vigente |
+| `Activo → Devuelto` | Devolución en la sede destino | Ejemplar según estado recibido; reevalúa socio y reservas; multa por daño o extravío si llegó `Dañado` o `Extraviado` y el monto está configurado |
+| `Vencido → Devuelto` | Ídem | Genera la multa por los días de atraso (y la de daño o extravío, si corresponde) |
 
 El día de vencimiento es el último día válido: `Vencido` solo se alcanza al día siguiente.
 
@@ -170,7 +172,7 @@ stateDiagram-v2
 | `Recibido` | Sede destino | Ejemplares `Apartado` hasta la entrega al socio (envío) o `Disponible` (retorno o traslado); en traslado cambia la sede propietaria |
 | `Anulado` | Sede origen, solo antes del despacho | Ejemplares `Disponible`, préstamos `Cancelado` |
 | `Extraviado` | Origen, destino o administrador, plazo vencido (7 días) | Ejemplares `Baja` con incidencia, préstamos `Cancelado` |
-| `Danado` | Sede destino | Ejemplar `EnRevision`, incidencia, préstamo `Cancelado` |
+| `Danado` | Sede destino | Incidencia a cargo de la sede origen. En un **envío**: préstamo `Cancelado`, ejemplar `Apartado` y remito de retorno a su sede. En un **retorno o traslado**: ejemplar `EnRevision` (en un retorno de un ejemplar que el socio ya devolvió dañado, sin otra incidencia) |
 | `Destruido` | Sede destino | Ejemplar `Baja`, incidencia, préstamo `Cancelado` |
 | `Incompleto` | Sede destino | Cada faltante en `Baja` por extravío con incidencia y su préstamo `Cancelado`; el resto se recibe normalmente |
 
@@ -183,7 +185,7 @@ La recepción desde `Despachado` se admite completando el estado `EnTransito` en
 **Críticas al ciclo (la cátedra lo evaluará):**
 
 - `Despachado` y `EnTransito` se distinguen porque permiten medir el tiempo entre «sale de la sede» y «está viajando».
-- `Recibido`, `Danado`, `Destruido` e `Incompleto` son resultados de la revisión de recepción; el daño o la falta parcial (una línea sí, otra no) se registra por línea en `DetalleRemito` y el estado del remito sigue la peor condición (faltante, destruido, dañado). Si no llegó ningún ejemplar no se recibe: el remito sigue en tránsito hasta que pueda marcarse `Extraviado`.
+- `Recibido`, `Danado`, `Destruido` e `Incompleto` son resultados de la revisión de recepción; el daño o la falta parcial (una línea sí, otra no) se registra por línea en `LineaRemito` (tabla `detalle_remito`) y el estado del remito sigue la peor condición (faltante, destruido, dañado). Si no llegó ningún ejemplar no se recibe: el remito sigue en tránsito hasta que pueda marcarse `Extraviado`.
 - `Despachado` y `EnTransito` se mantienen separados (decisión confirmada en la revisión del módulo).
 - No existe `Devuelto` ni retroceso: un remito extraviado que aparece después no se reabre, se corrige con un ajuste administrativo.
 
@@ -208,9 +210,11 @@ Cada transición agrega un movimiento a `movimiento_reserva` (estado anterior y 
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Pendiente : devolución fuera de término
-    Pendiente --> Saldada : saldar
+    [*] --> Pendiente : devolución tardía (ATRASO) o Dañado / Extraviado (DANIO, EXTRAVIO)
+    Pendiente --> Saldada : pago aprobado (cobro en el mostrador o pago en línea)
 ```
+
+Un préstamo tiene a lo sumo una multa de cada tipo. La de atraso guarda los días y el monto por día vigentes (con el tope por préstamo, si hay); la de daño o extravío, el monto fijo configurado (`multa_por_danio`, `multa_por_extravio`; con 0 no se genera). Mientras haya una multa `Pendiente`, el socio queda `Inhabilitado`; al saldarse se reevalúa.
 
 
 ## Pago de una multa
@@ -236,9 +240,9 @@ El pago en línea es simulado. Ver [12. Pago de multas](12-pago-de-multas.md).
 | Recibir y entregar | | | → Prestado | → Activo | → Recibido | |
 | Vence el plazo | | → Inhabilitado | | → Vencido | | |
 | Devolver | | reevalúa | → Disponible / Apartado / EnRevision / Baja | → Devuelto | retorno: → Generado | asigna a la primera |
-| Saldar multa | | reevalúa | | | | |
+| Saldar multa (pago aprobado) | | reevalúa | | | | |
 | Baja de sede | → Baja (si no hay pendientes) | | | | | |
 
 ## Implementación
 
-El patrón State se aplica a remito, préstamo, ejemplar y reserva (la sede no lo usa, ver [Sede](#sede)): cada estado es una clase que define qué operaciones admite; una operación no permitida lanza `TransicionInvalida`. Los efectos entre entidades los orquesta el servicio de aplicación, no los estados, para que cada máquina siga siendo simple. Detalle en [Patrones de diseño](05-patrones-de-diseno.md#1-state-estado).
+El patrón State se aplica a remito, préstamo, ejemplar y reserva (la sede no lo usa, ver [Sede](#sede)): cada estado es una clase que define qué operaciones admite; una operación no permitida lanza `TransicionInvalida`. Los efectos entre entidades los orquesta el servicio de aplicación, no los estados, para que cada máquina siga siendo simple. Detalle en [Patrones de diseño](05-patrones-de-diseno.md#1-state).

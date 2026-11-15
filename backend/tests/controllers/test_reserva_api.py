@@ -342,15 +342,17 @@ def test_la_reasignacion_la_hace_el_sistema_y_no_quien_libero(cliente, mundo, oc
     ]
 
 
-@pytest.mark.ca("CA-RES-17")
-def test_cancela_el_socio_o_el_bibliotecario_de_la_sede_de_retiro(cliente, mundo, ocupado):  # noqa: F811
+@pytest.mark.ca("CA-RES-17", "CA-ACC-19")
+def test_cancela_el_socio_o_el_personal_de_la_sede_de_retiro(cliente, mundo, ocupado):  # noqa: F811
     reserva = _reservar(cliente, mundo["h_lucia"], mundo).json()  # retiro en B
     otro = _socio(cliente, mundo, "50111222", "Otro")
     ajena = _reservar(cliente, mundo["h_b"], mundo, socio=otro).json()
     url = f"{API}/reservas/{reserva['id']}/cancelar"
 
-    _error(cliente.post(url, headers=mundo["h_admin"]), 403, "FORBIDDEN")
-    _error(cliente.post(url, headers=mundo["h_a"]), 403, "FORBIDDEN")
+    _error(cliente.post(url, headers=mundo["h_a"]), 403, "FORBIDDEN")  # otra sede
+    # El administrador opera en cualquier sede: cancela la reserva de otro socio (CA-ACC-19).
+    admin = cliente.post(f"{API}/reservas/{ajena['id']}/cancelar", headers=mundo["h_admin"])
+    assert admin.json()["estado"] == "CANCELADA", admin.json()
     _error(  # un socio no ve ni cancela la de otro (CU-RES-05, A3)
         cliente.post(f"{API}/reservas/{ajena['id']}/cancelar", headers=mundo["h_lucia"]),
         404,

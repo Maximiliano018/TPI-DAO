@@ -13,3 +13,4 @@ export const detectarVencidos = () => api.post('/admin/tareas/detectar-vencidos'
 
 export const listarParametros = () => api.get('/parametros');
 export const actualizarParametro = (clave, valor) => api.put(`/parametros/${clave}`, { valor });
+export const historialParametros = (params) => api.get('/parametros/historial', params);

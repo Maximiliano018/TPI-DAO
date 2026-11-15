@@ -10,8 +10,9 @@ from app.services.remito_service import LineaNueva
 class PrestamoCrearRequest(BaseModel):
     """Préstamo registrado en mostrador. El tipo (local o entre sedes) se deduce de las sedes.
 
-    ``sede_destino_id`` es la sede del bibliotecario (puede omitirse); el origen es la sede
-    donde está el ejemplar.
+    ``sede_destino_id`` es la sede donde el socio lo retira: la del bibliotecario (puede omitirla)
+    o la que indique el administrador (obligatoria para él). El origen es la sede donde está el
+    ejemplar.
     """
 
     model_config = ConfigDict(
@@ -55,7 +56,8 @@ class LineaRemitoRequest(BaseModel):
 
 
 class RemitoCrearRequest(BaseModel):
-    """Remito desde la sede del bibliotecario: ``ENVIO`` (préstamos) o ``TRASLADO``."""
+    """Remito ``ENVIO`` (préstamos) o ``TRASLADO``: desde la sede del bibliotecario, o desde la
+    que indique el administrador en ``sede_origen_id`` (obligatoria para él)."""
 
     model_config = ConfigDict(
         json_schema_extra={
@@ -68,6 +70,7 @@ class RemitoCrearRequest(BaseModel):
     )
 
     sede_destino_id: int
+    sede_origen_id: int | None = None
     motivo: MotivoRemito
     lineas: list[LineaRemitoRequest] = Field(min_length=1, max_length=50)
     observaciones: str | None = Field(default=None, max_length=600)

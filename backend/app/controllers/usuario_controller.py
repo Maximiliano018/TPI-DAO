@@ -74,6 +74,8 @@ def listar_usuarios(
 def obtener_usuario(
     usuario_id: int, servicio: Servicio, actor: Administrador
 ) -> UsuarioPersonalResponse:
+    """Datos del usuario del personal (rol, sede, estado) con su auditoría. Solo el
+    administrador."""
     return UsuarioPersonalResponse.desde(servicio.obtener(actor, usuario_id))
 
 

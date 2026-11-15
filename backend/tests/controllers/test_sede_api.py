@@ -113,7 +113,7 @@ def _error(respuesta, estado: int, codigo: str) -> dict:
 # --- alta ------------------------------------------------------------------------------------
 
 
-@pytest.mark.ca("CA-SED-01", "CA-SED-26", "CA-SED-27", "CA-SED-28", "CA-SED-35")
+@pytest.mark.ca("CA-SED-01")
 def test_el_alta_responde_201_con_location_y_el_esquema_de_administrador(
     cliente, h_admin, localidad_id
 ):
@@ -152,7 +152,7 @@ def test_el_alta_responde_201_con_location_y_el_esquema_de_administrador(
         ({"responsable": "A"}, "responsable"),
     ],
 )
-@pytest.mark.ca("CA-SED-26", "CA-SED-27", "CA-SED-28", "CA-SED-29")
+@pytest.mark.ca("CA-SED-39", "CA-SED-40")
 def test_un_formato_invalido_responde_422_indicando_el_campo(
     cliente, h_admin, localidad_id, cambio, campo
 ):
@@ -175,7 +175,7 @@ def test_localidad_fuera_del_catalogo(cliente, h_admin):
     _error(_alta(cliente, h_admin, 999_999), 422, "LOCALIDAD_INVALIDA")
 
 
-@pytest.mark.ca("CA-SED-30", "CA-SED-31", "CA-SED-32")
+@pytest.mark.ca("CA-SED-04", "CA-SED-26", "CA-SED-28")
 @pytest.mark.parametrize(
     "horarios",
     [
@@ -218,7 +218,7 @@ def test_codigo_y_nombre_duplicados_responden_409_con_la_sede_existente(
     assert e1["detalles"][0]["sede"]["id"] == e2["detalles"][0]["sede"]["id"] == existente["id"]
 
 
-@pytest.mark.ca("CA-SED-03", "CA-SED-04")
+@pytest.mark.ca("CA-SED-03")
 def test_direccion_repetida_se_advierte_y_se_puede_confirmar(cliente, h_admin, localidad_id):
     _alta(cliente, h_admin, localidad_id)
     repetida = {"codigo": "SUR", "nombre": "Sede Sur", "calle": "AVENIDA Colon", "numero": "04500"}

@@ -1,5 +1,8 @@
 """Elección de la sede origen de un préstamo solicitado por libro (RF-PRE-16).
 
+Es una política de negocio en forma de función pura (Strategy sin interfaz: hoy hay una sola
+regla; si aparecieran otras, se convierte en una estrategia más).
+
 Cuando el socio pide un libro (y no un ejemplar), el sistema decide el tipo de préstamo:
 
 1. Si la sede destino tiene ejemplares disponibles, el préstamo es **local**.

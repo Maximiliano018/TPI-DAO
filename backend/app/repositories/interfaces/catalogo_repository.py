@@ -1,4 +1,4 @@
-"""Puertos de acceso al catálogo: categorías, libros y ejemplares."""
+"""Puertos de acceso al catálogo: categorías, libros y ejemplares (patrón Repository)."""
 
 from dataclasses import dataclass
 from typing import Protocol

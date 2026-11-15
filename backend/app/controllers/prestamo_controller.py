@@ -17,6 +17,8 @@ from app.dtos.request.prestamo_request import (
     SolicitudPrestamoRequest,
 )
 from app.dtos.response.prestamo_response import (
+    CambioParametroResponse,
+    PaginaCambiosParametroResponse,
     PaginaPrestamosResponse,
     ParametroResponse,
     PrestamoDetalleResponse,
@@ -268,7 +270,34 @@ def detectar_vencidos(
 def listar_parametros(
     actor: Administrador, servicio: Annotated[ParametroService, Depends(get_parametro_service)]
 ) -> list[ParametroResponse]:
+    """Plazos, límites y montos vigentes, cada uno con su último cambio (quién y cuándo; `null`
+    si conserva el valor inicial). Solo el administrador."""
     return [ParametroResponse.desde(p) for p in servicio.listar(actor)]
+
+
+@router.get(
+    "/parametros/historial",
+    response_model=PaginaCambiosParametroResponse,
+    summary="Auditoría de los parámetros",
+    tags=["Administración"],
+    responses={401: _401, 403: _403},
+)
+def historial_parametros(
+    actor: Administrador,
+    servicio: Annotated[ParametroService, Depends(get_parametro_service)],
+    clave: Annotated[str | None, Query(max_length=40)] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> PaginaCambiosParametroResponse:
+    """Cambios de parámetros, del más reciente al más antiguo: quién, cuándo, valor anterior y
+    nuevo. Con `clave`, solo los de ese parámetro."""
+    pagina = servicio.historial(actor, clave, page, size)
+    return PaginaCambiosParametroResponse(
+        items=[CambioParametroResponse.desde(c) for c in pagina.items],
+        total=pagina.total,
+        page=pagina.page,
+        size=pagina.size,
+    )
 
 
 @router.put(
@@ -284,5 +313,6 @@ def actualizar_parametro(
     actor: Administrador,
     servicio: Annotated[ParametroService, Depends(get_parametro_service)],
 ) -> ParametroResponse:
-    """Plazos, límites y montos; rige desde la siguiente operación."""
+    """Plazos, límites y montos; rige desde la siguiente operación. El cambio queda en la
+    auditoría (`GET /parametros/historial`); un valor igual al vigente responde 422."""
     return ParametroResponse.desde(servicio.actualizar(actor, clave, datos.valor))

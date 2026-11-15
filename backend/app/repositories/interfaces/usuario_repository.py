@@ -1,4 +1,4 @@
-"""Puerto de acceso a usuarios."""
+"""Puerto de acceso a usuarios (patrón Repository)."""
 
 from dataclasses import dataclass
 from typing import Protocol

@@ -1,4 +1,7 @@
-"""Objetos de valor de la sede: se validan al construirse y son inmutables."""
+"""Objetos de valor de la sede (patrón **Value Object**): se validan al construirse y son
+inmutables, así la regla vive en un solo lugar y el dominio nunca maneja cadenas sin validar.
+Ver ``docs/tecnica/05-patrones-de-diseno.md``, sección 10.
+"""
 
 import re
 from dataclasses import dataclass

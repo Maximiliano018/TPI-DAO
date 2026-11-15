@@ -85,16 +85,14 @@ class PrestamoService:
         plazo de retiro.
 
         Raises:
-            PermisoDenegado: No es bibliotecario o indica otra sede destino.
+            PermisoDenegado: Sin permiso, o el bibliotecario indica otra sede destino.
+            ErrorDeValidacion: El administrador no indica la sede destino.
             SocioNoEncontrado, EjemplarNoEncontrado, SedeNoEncontrada.
             Las reglas de ``PrestamoFactory.crear``.
         """
         actor.exigir(Permiso.PRESTAMO_REGISTRAR)
-        destino_id = sede_destino_id or actor.sede_id
-        if destino_id is None or not actor.opera_en(destino_id):
-            raise PermisoDenegado(
-                "El préstamo se registra en la sede donde el socio lo retira: la suya."
-            )
+        # El bibliotecario registra en su sede; el administrador indica la sede de retiro.
+        destino_id = actor.sede_de_operacion(sede_destino_id, "sede_destino_id")
         with self._transaccion():
             ejemplar = self._ejemplar(ejemplar_id)
             origen_id = ejemplar.sede_actual_id
@@ -543,10 +541,8 @@ class PrestamoService:
         prestamo = self._uow.prestamos.obtener_para_modificar(prestamo_id)
         if prestamo is None:
             raise PrestamoNoEncontrado("El préstamo solicitado no existe.")
-        permitido = (
-            actor.opera_en(prestamo.sede_destino_id)
-            if solo_destino
-            else prestamo.interviene(actor.sede_id)
+        permitido = actor.opera_en(prestamo.sede_destino_id) or (
+            not solo_destino and actor.opera_en(prestamo.sede_origen_id)
         )
         if not permitido:
             raise PermisoDenegado("El préstamo no es de su sede.")

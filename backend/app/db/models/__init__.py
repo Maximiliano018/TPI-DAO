@@ -12,6 +12,7 @@ from app.db.models.devolucion import DevolucionORM, MultaORM, PagoORM
 from app.db.models.geografia import LocalidadORM, ProvinciaORM
 from app.db.models.prestamo import (
     DetalleRemitoORM,
+    HistorialParametroORM,
     IncidenciaORM,
     MovimientoPrestamoORM,
     MovimientoRemitoORM,
@@ -39,6 +40,7 @@ __all__ = [
     "MovimientoPrestamoORM",
     "MovimientoRemitoORM",
     "MovimientoReservaORM",
+    "HistorialParametroORM",
     "ParametroORM",
     "PrestamoORM",
     "RemitoORM",

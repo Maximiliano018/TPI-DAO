@@ -26,5 +26,15 @@ export default defineConfig({
     testTimeout: 15000,
     setupFiles: ['./tests/setup.js'],
     include: ['src/**/*.test.{js,jsx}', 'tests/**/*.test.{js,jsx}'],
+    // `npm run test:coverage` (lo corre CI): falla si la cobertura baja de estos mínimos, fijados
+    // unos puntos por debajo de la medida (91 % de líneas y sentencias, 88 % de ramas, 84 % de
+    // funciones).
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{js,jsx}'],
+      exclude: ['src/**/*.test.{js,jsx}', 'src/main.jsx'],
+      reporter: ['text-summary', 'text'],
+      thresholds: { statements: 88, branches: 85, functions: 80, lines: 88 },
+    },
   },
 });

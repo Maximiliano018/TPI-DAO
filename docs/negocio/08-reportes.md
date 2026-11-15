@@ -2,7 +2,7 @@
 
 El enunciado exige **al menos 4 reportes no triviales**; se documentan los 6 sugeridos. Para cada uno se indica la información necesaria, los roles que acceden y su utilidad.
 
-Los reportes 1 y 2 dependen del **historial de estados del remito**, por eso ese historial se guarda desde el modelo (ver [Remitos](05-remitos.md)).
+Los reportes 1 y 2 dependen de las **fechas de despacho y recepción** y del estado final del remito, que el modelo completa con cada movimiento de su historial (ver [Remitos](05-remitos.md)). Todos se calculan sobre datos registrados, sin carga manual, y se pueden exportar a CSV.
 
 ## Resumen
 
@@ -17,29 +17,29 @@ Los reportes 1 y 2 dependen del **historial de estados del remito**, por eso ese
 
 Los socios acceden solo a la consulta de disponibilidad (R5) y a su propia información de préstamos y multas, que no es un reporte de gestión.
 
-**Selección:** implementar R1, R2, R3 y R4 como los cuatro no triviales obligatorios, y R5 y R6 como complemento.
+**Implementados:** los seis. R1, R2, R3 y R4 son los cuatro no triviales que exige el enunciado; R5 y R6 los complementan.
 
 ## R1. Movimiento de ejemplares entre sedes
 
 - **Propósito:** conocer el flujo logístico entre sedes y su eficiencia; detectar rutas lentas y sedes que reciben o envían más material.
 - **Contenido:** por par sede origen → sede destino: cantidad de envíos, cantidad de ejemplares recibidos y **tiempo promedio de tránsito**.
-- **Filtros:** rango de fechas, sede origen, sede destino, motivo (ida/retorno).
-- **Datos necesarios:** remitos (origen, destino, motivo), detalle (cantidad de ejemplares) y el historial de estados (fecha de `Despachado` y de `Recibido`). Tiempo de tránsito = fecha de recepción − fecha de despacho, sobre remitos `Recibido`.
-- **Regla:** solo cuentan remitos finalizados en `Recibido` (con o sin incidencias) para el promedio. Los ejemplares faltantes no cuentan como movidos.
+- **Filtros:** período (por **fecha de recepción**), sede que interviene (origen o destino), sede origen, sede destino y motivo (envío, retorno o traslado).
+- **Datos necesarios:** remitos (origen, destino, motivo, fechas de despacho y recepción) y su detalle (ejemplares y resultado de la recepción). Tiempo de tránsito = fecha de recepción − fecha de despacho.
+- **Regla:** solo cuentan los remitos recibidos (`Recibido`, `Dañado`, `Destruido` o `Incompleto`); los que siguen en camino no entran en el promedio. Los ejemplares faltantes no cuentan como movidos.
 
 ## R2. Tasa de envíos exitosos e incidencias
 
 - **Propósito:** medir la calidad del servicio logístico y detectar rutas con problemas.
 - **Contenido:** total de envíos, % `Recibido` sin incidencia, % `Extraviado`, `Dañado`, `Destruido` e `Incompleto` (recibido con faltantes); detalle por sede origen y por sede destino.
-- **Filtros:** rango de fechas, sede.
-- **Datos necesarios:** estado final del remito, historial de estados, resultado de la revisión de recepción.
+- **Filtros:** período (por **fecha de despacho**), sede (origen o destino).
+- **Datos necesarios:** estado final y fecha de despacho del remito.
 - **Regla:** tasa de éxito = remitos `Recibido` ÷ remitos con estado final. Se excluyen los `Anulado` y los que siguen abiertos.
 
 ## R3. Libros más solicitados en préstamos entre sedes
 
 - **Propósito:** decidir dónde conviene reforzar ejemplares y detectar demanda no cubierta localmente.
 - **Contenido:** ranking de libros por cantidad de préstamos interbibliotecarios, con sede origen y destino más frecuentes.
-- **Filtros:** rango de fechas, categoría, sede (como origen o destino del préstamo).
+- **Filtros:** período (por **fecha de solicitud**), categoría, sede (como origen o destino del préstamo) y cantidad del ranking (10 por defecto, hasta 100).
 - **Datos necesarios:** préstamos de tipo `Interbibliotecario`, ejemplar y libro asociados, sedes.
 - **Regla:** cuentan los préstamos no cancelados.
 
@@ -56,7 +56,7 @@ Los socios acceden solo a la consulta de disponibilidad (R5) y a su propia infor
 
 - **Propósito:** saber qué hay en cada sede y qué se puede pedir.
 - **Contenido:** por libro y sede: ejemplares totales, disponibles, prestados, reservados y en tránsito.
-- **Filtros:** sede, título, autor, categoría.
+- **Filtros:** sede, título, autor o ISBN (una búsqueda de texto), libro y categoría; paginado.
 - **Datos necesarios:** libros, ejemplares con sede y estado de disponibilidad.
 - **Regla:** se cuenta igual que en la ficha del libro. «Reservados» son los ejemplares retenidos para una reserva; los apartados para un préstamo solicitado o un retorno y los que están en revisión van en «otros».
 
@@ -72,7 +72,7 @@ Los socios acceden solo a la consulta de disponibilidad (R5) y a su propia infor
 | Dato | R1 | R2 | R3 | R4 | R5 | R6 |
 |------|:--:|:--:|:--:|:--:|:--:|:--:|
 | Remito y su detalle | ✔ | ✔ | | | | ✔ |
-| Historial de estados del remito | ✔ | ✔ | | | | |
+| Fechas de despacho y recepción del remito | ✔ | ✔ | | | | |
 | Préstamo (tipo, fechas, estado) | | | ✔ | ✔ | | ✔ |
 | Ejemplar y libro | | | ✔ | ✔ | ✔ | ✔ |
 | Multas y parámetro de multa | | | | ✔ | | |

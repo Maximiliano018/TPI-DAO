@@ -206,7 +206,7 @@ def test_r3_ordena_por_prestamos_entre_sedes_no_cancelados(cliente, mundo, sesio
 # --- R4 --------------------------------------------------------------------------------------
 
 
-@pytest.mark.ca("CA-REP-08", "CA-REP-09")
+@pytest.mark.ca("CA-REP-08", "CA-REP-09", "CA-REP-23")
 def test_r4_muestra_el_atraso_y_la_multa_acumulada(cliente, mundo, sesion):  # noqa: F811
     p = _entregado(
         cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(4)
@@ -236,7 +236,7 @@ def test_r4_muestra_el_atraso_y_la_multa_acumulada(cliente, mundo, sesion):  # n
 # --- R5 --------------------------------------------------------------------------------------
 
 
-@pytest.mark.ca("CA-REP-10")
+@pytest.mark.ca("CA-REP-10", "CA-REP-23")
 def test_r5_cuenta_los_ejemplares_por_estado_en_cada_sede(cliente, mundo, sesion):  # noqa: F811
     libro = mundo["libros"][0]
     cliente.post(
@@ -262,7 +262,7 @@ def test_r5_cuenta_los_ejemplares_por_estado_en_cada_sede(cliente, mundo, sesion
 # --- R6 --------------------------------------------------------------------------------------
 
 
-@pytest.mark.ca("CA-REP-11", "CA-REP-13")
+@pytest.mark.ca("CA-REP-11", "CA-REP-13", "CA-REP-23")
 def test_r6_lista_prestamos_activos_y_remitos_abiertos_de_la_sede(cliente, mundo, sesion):  # noqa: F811
     p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
     remito = _traslado(cliente, mundo, "c", mundo["ej_a"][1])

@@ -1,5 +1,7 @@
-# Entorno de desarrollo. Por ahora solo levanta PostgreSQL;
-# backend y frontend se agregan cuando existan sus Dockerfile.
+# Entorno completo: PostgreSQL, backend (FastAPI) y frontend (nginx con la SPA).
+#   docker compose up -d --build    # todo el sistema (frontend en http://localhost:8080)
+#   docker compose up -d db         # solo la base, para desarrollar backend y frontend localmente
+# Variables en .env (ver .env.example).
 services:
   db:
     image: postgres:16
@@ -20,6 +22,38 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  backend:
+    build: ./backend
+    container_name: tpi-dao-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Dentro de la red de compose la base se llama `db` (no localhost).
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-tpi_dao}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tpi_dao}
+      SECRET_KEY: ${SECRET_KEY:?Definir SECRET_KEY en el archivo .env}
+      ACCESS_TOKEN_MINUTES: ${ACCESS_TOKEN_MINUTES:-60}
+      CORS_ORIGINS: ${CORS_ORIGINS_DOCKER:-http://localhost:8080}
+      TZ_NEGOCIO: ${TZ_NEGOCIO:-America/Argentina/Cordoba}
+      ENTORNO: ${ENTORNO:-desarrollo}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      # 1: carga los datos de demostración al arrancar (idempotente; solo desarrollo y test).
+      CARGAR_SEED: ${CARGAR_SEED:-0}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build: ./frontend
+    container_name: tpi-dao-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
 
 volumes:
   db_data:

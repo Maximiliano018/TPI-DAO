@@ -123,7 +123,7 @@ function AvisoDeEstado({ socio, propio }) {
       {socio.motivo_administrativo && ` Motivo administrativo: ${socio.motivo_administrativo}`}
       {propio &&
         automaticas &&
-        ' Para habilitarte, devolvé el material vencido y saldá las multas en el mostrador de cualquier sede: el sistema te habilita solo.'}
+        ' Para habilitarte, devolvé el material vencido y pagá las multas (en línea desde «Mis multas» o en el mostrador de cualquier sede): el sistema te habilita solo.'}
     </Alert>
   );
 }

@@ -27,7 +27,7 @@ from app.models.prestamo import MovimientoPrestamo, Prestamo
 from app.models.remito import LineaRemito, MovimientoRemito, Remito
 from app.models.states.remito import EstadoRemitoEnum
 from app.models.usuario import Permiso, Usuario, UsuarioRef
-from app.repositories.interfaces.prestamo_repository import Parametro
+from app.repositories.interfaces.prestamo_repository import CambioParametro, Parametro
 from app.services.prestamo_service import DetallePrestamo, PropuestaPrestamo
 from app.services.remito_service import DetalleRemito
 
@@ -419,10 +419,51 @@ class TareaResponse(BaseModel):
 
 
 class ParametroResponse(BaseModel):
+    """Parámetro con su valor vigente y su último cambio (``null`` si nunca se cambió)."""
+
     clave: str
     valor: str
     descripcion: str
+    actualizado_en: datetime | None = None
+    actualizado_por: UsuarioRefResponse | None = None
 
     @classmethod
     def desde(cls, p: Parametro) -> "ParametroResponse":
-        return cls(clave=p.clave, valor=p.valor, descripcion=p.descripcion)
+        return cls(
+            clave=p.clave,
+            valor=p.valor,
+            descripcion=p.descripcion,
+            actualizado_en=p.actualizado_en,
+            actualizado_por=UsuarioRefResponse.desde(p.actualizado_por)
+            if p.actualizado_por
+            else None,
+        )
+
+
+class CambioParametroResponse(BaseModel):
+    """Un cambio registrado en la auditoría de parámetros."""
+
+    clave: str
+    descripcion: str
+    valor_anterior: str
+    valor_nuevo: str
+    usuario: UsuarioRefResponse
+    fecha_hora: datetime
+
+    @classmethod
+    def desde(cls, c: CambioParametro) -> "CambioParametroResponse":
+        return cls(
+            clave=c.clave,
+            descripcion=c.descripcion,
+            valor_anterior=c.valor_anterior,
+            valor_nuevo=c.valor_nuevo,
+            usuario=UsuarioRefResponse.desde(c.usuario),
+            fecha_hora=c.fecha_hora,
+        )
+
+
+class PaginaCambiosParametroResponse(BaseModel):
+    items: list[CambioParametroResponse]
+    total: int
+    page: int
+    size: int

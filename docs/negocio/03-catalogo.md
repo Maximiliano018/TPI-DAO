@@ -8,12 +8,12 @@ Proceso obligatorio 3 del enunciado.
 
 | Campo | Detalle |
 |-------|---------|
-| ISBN | Único |
+| ISBN | Opcional; si se carga, se valida (ISBN-10 o ISBN-13 con dígito verificador) y es único. Sin ISBN, el duplicado se detecta por título, primer autor, editorial y año |
 | Título | Obligatorio |
 | Autor(es) | Uno o más |
 | Editorial, año de edición | |
-| Categoría o género | Para búsquedas y recomendaciones futuras |
-| Tipo de material | Libro u otro material de consulta |
+| Categoría o género | De un catálogo cerrado; para búsquedas y reportes (R3, R5) |
+| Tipo de material | `Libro`, `Revista`, `Obra de referencia` u `Otro` |
 
 **Ejemplar** (la copia física):
 
@@ -67,6 +67,9 @@ Un ejemplar está disponible solo si su estado es `Disponible`. La disponibilida
 4. Baja de ejemplar.
 5. Consulta de disponibilidad por libro y por sede.
 6. Traslado definitivo de un ejemplar a otra sede (cambia la sede propietaria; requiere remito).
+7. Marcar reparado un ejemplar `En revisión`: la sede propietaria lo vuelve a `Disponible` (con estado físico `Regular`) y se ofrece a la cola de reservas.
+8. Recuperar un ejemplar extraviado que apareció (ver más abajo).
+9. Eliminar un libro cargado por error, solo si no tiene ningún ejemplar (ni siquiera dados de baja).
 
 ## Validaciones y reglas
 

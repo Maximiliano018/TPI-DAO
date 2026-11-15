@@ -19,7 +19,7 @@ import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { mensajeDeError } from '../../../utils/errores.js';
 import { ESTADOS_FISICOS, MOTIVOS_DE_REMITO, estadoDe } from '../../../utils/estados.js';
 import { formatearFecha, formatearFechaHora } from '../../../utils/formato.js';
-import { PERMISOS, ROLES } from '../../../utils/roles.js';
+import { PERMISOS, ROLES, operaEn } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
@@ -154,8 +154,8 @@ function Acciones({ remito }) {
   const anular = useAnularRemito();
   const extraviar = useMarcarExtraviado();
   const opera = tienePermiso(PERMISOS.REMITO_OPERAR);
-  const esOrigen = opera && usuario.sede_id === remito.sede_origen_id;
-  const esDestino = opera && usuario.sede_id === remito.sede_destino_id;
+  const esOrigen = opera && operaEn(usuario, remito.sede_origen_id);
+  const esDestino = opera && operaEn(usuario, remito.sede_destino_id);
   const enViaje = ['DESPACHADO', 'EN_TRANSITO'].includes(remito.estado);
   const puedeExtraviar =
     tienePermiso(PERMISOS.REMITO_EXTRAVIO) &&

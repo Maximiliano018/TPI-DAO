@@ -34,7 +34,7 @@ La decoración es siempre `aria-hidden` o CSS: no agrega ni quita información, 
 
 ## Tokens
 
-Se definen como variables CSS en `:root`. Los pares de color que siguen se verificaron con la fórmula de contraste de WCAG 2.1; la columna indica la relación obtenida (AA exige 4,5:1 para texto normal y 3:1 para componentes gráficos).
+Se definen como variables CSS en `:root` (`styles/tokens.css`).
 
 ### Color
 
@@ -134,7 +134,7 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | `FilterBar` | Filtros del listado: búsqueda con espera, selectores y botón «Limpiar» |
 | `Combobox` | Lista desplegable con búsqueda (por ejemplo, localidades); accesible con teclado y `aria-activedescendant` |
 | `WeekScheduleEditor` | Editor semanal de franjas horarias (una fila por día, agregar, quitar, copiar, cerrado) |
-| `DatePicker` y `TimeInput` | Fecha (`dd/mm/aaaa`) y hora (`HH:mm`) con teclado y etiquetas |
+| `FiltroFecha` y controles nativos | Fecha y hora con los controles nativos del navegador (`type="date"`, `type="time"`, `type="datetime-local"`), accesibles con teclado y con etiqueta; se muestran como `dd/mm/aaaa` y `HH:mm` |
 
 ## Mapa de estados a etiquetas
 
@@ -142,34 +142,49 @@ Una sola tabla de correspondencia (`utils/estados.js`) define cómo se muestra c
 
 | Entidad | Estado | Tono | Texto |
 |---------|--------|------|-------|
-| Sede | `ACTIVA` | éxito | Activa |
-| | `BAJA` | neutro | Baja |
-| Socio | `HABILITADO` | éxito | Habilitado |
-| | `INHABILITADO` | peligro | Inhabilitado |
-| Ejemplar | `DISPONIBLE` | éxito | Disponible |
-| | `RESERVADO`, `APARTADO` | información | Reservado, Apartado |
-| | `PRESTADO` | primario | Prestado |
-| | `EN_TRANSITO` | proceso | En tránsito |
-| | `EN_REVISION` | atención | En revisión |
-| | `BAJA` | neutro | Baja |
-| Préstamo | `SOLICITADO` | información | Solicitado |
-| | `EN_ENVIO` | proceso | En envío |
-| | `ACTIVO` | primario | Activo |
-| | `VENCIDO` | peligro | Vencido |
-| | `DEVUELTO` | éxito | Devuelto |
-| | `CANCELADO` | neutro | Cancelado |
-| Remito | `GENERADO`, `EMPAQUETADO` | información | Generado, Empaquetado |
-| | `DESPACHADO`, `EN_TRANSITO` | proceso | Despachado, En tránsito |
-| | `RECIBIDO` | éxito | Recibido |
-| | `EXTRAVIADO`, `DESTRUIDO` | peligro | Extraviado, Destruido |
-| | `DANADO` | atención | Dañado |
-| | `ANULADO` | neutro | Anulado |
-| Reserva | `PENDIENTE` | información | Pendiente |
-| | `DISPONIBLE_PARA_RETIRO` | atención | Para retirar |
-| | `CUMPLIDA` | éxito | Cumplida |
-| | `VENCIDA`, `CANCELADA` | neutro | Vencida, Cancelada |
-| Multa | `PENDIENTE` | peligro | Pendiente |
-| | `SALDADA` | éxito | Saldada |
+| Sede | `ACTIVA` | éxito (`success`) | Activa |
+|  | `BAJA` | neutro (`neutral`) | Baja |
+| Usuario | `ACTIVO` | éxito (`success`) | Activo |
+|  | `BAJA` | neutro (`neutral`) | Dado de baja |
+| Socio | `HABILITADO` | éxito (`success`) | Habilitado |
+|  | `INHABILITADO` | peligro (`danger`) | Inhabilitado |
+|  | `BAJA` | neutro (`neutral`) | Dado de baja |
+| Ejemplar | `DISPONIBLE` | éxito (`success`) | Disponible |
+|  | `APARTADO` | información (`info`) | Apartado |
+|  | `RESERVADO` | información (`info`) | Reservado |
+|  | `PRESTADO` | atención (`warning`) | Prestado |
+|  | `EN_TRANSITO` | información (`info`) | En tránsito |
+|  | `EN_REVISION` | peligro (`danger`) | En revisión |
+|  | `BAJA` | neutro (`neutral`) | Dado de baja |
+| Préstamo | `SOLICITADO` | información (`info`) | Solicitado |
+|  | `EN_ENVIO` | información (`info`) | En envío |
+|  | `ACTIVO` | éxito (`success`) | Activo |
+|  | `VENCIDO` | peligro (`danger`) | Vencido |
+|  | `DEVUELTO` | neutro (`neutral`) | Devuelto |
+|  | `CANCELADO` | neutro (`neutral`) | Cancelado |
+| Remito | `GENERADO` | información (`info`) | Generado |
+|  | `EMPAQUETADO` | información (`info`) | Empaquetado |
+|  | `DESPACHADO` | atención (`warning`) | Despachado |
+|  | `EN_TRANSITO` | atención (`warning`) | En tránsito |
+|  | `RECIBIDO` | éxito (`success`) | Recibido |
+|  | `EXTRAVIADO` | peligro (`danger`) | Extraviado |
+|  | `DANADO` | peligro (`danger`) | Recibido con daño |
+|  | `DESTRUIDO` | peligro (`danger`) | Recibido destruido |
+|  | `INCOMPLETO` | peligro (`danger`) | Recibido con faltantes |
+|  | `ANULADO` | neutro (`neutral`) | Anulado |
+| Reserva | `PENDIENTE` | información (`info`) | En espera |
+|  | `DISPONIBLE_PARA_RETIRO` | éxito (`success`) | Lista para retirar |
+|  | `CUMPLIDA` | neutro (`neutral`) | Cumplida |
+|  | `CANCELADA` | neutro (`neutral`) | Cancelada |
+|  | `VENCIDA` | atención (`warning`) | Vencida |
+| Multa | `PENDIENTE` | peligro (`danger`) | Pendiente |
+|  | `SALDADA` | éxito (`success`) | Saldada |
+| Pago | `PENDIENTE` | información (`info`) | En curso |
+|  | `APROBADO` | éxito (`success`) | Aprobado |
+|  | `RECHAZADO` | peligro (`danger`) | Rechazado |
+|  | `CANCELADO` | neutro (`neutral`) | Cancelado |
+
+Si se cambia un tono o un texto, se cambia en `utils/estados.js` y esta tabla se actualiza con él.
 
 ## Estructura de pantallas autenticadas
 

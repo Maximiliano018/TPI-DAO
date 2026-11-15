@@ -697,13 +697,14 @@ def test_el_bibliotecario_no_ve_prestamos_ajenos_a_su_sede(
     )
 
 
+def _parametro(cliente, m, clave):
+    lista = cliente.get(f"{API}/parametros", headers=m["h_admin"]).json()
+    return next(p for p in lista if p["clave"] == clave)
+
+
 def test_parametros_los_cambia_solo_el_administrador(cliente, mundo):
-    lista = cliente.get(f"{API}/parametros", headers=mundo["h_admin"]).json()
-    assert {"clave": "plazo_prestamo_local_dias", "valor": "14"} == {
-        k: v
-        for k, v in lista[[x["clave"] for x in lista].index("plazo_prestamo_local_dias")].items()
-        if k != "descripcion"
-    }
+    inicial = _parametro(cliente, mundo, "plazo_prestamo_local_dias")
+    assert (inicial["valor"], inicial["actualizado_por"]) == ("14", None)
 
     r = cliente.put(
         f"{API}/parametros/plazo_prestamo_local_dias",
@@ -724,3 +725,39 @@ def test_parametros_los_cambia_solo_el_administrador(cliente, mundo):
     p = _prestar(cliente, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0]).json()
     entregado = cliente.post(f"{API}/prestamos/{p['id']}/entregar", headers=mundo["h_b"]).json()
     assert entregado["fecha_vencimiento"] == str(HOY + timedelta(days=10))
+
+
+@pytest.mark.ca("CA-ACC-18", "CA-ACC-06")
+def test_cada_cambio_de_parametro_queda_auditado(cliente, mundo):
+    clave = "multa_por_dia"
+    for valor in ("250", "300"):
+        r = cliente.put(
+            f"{API}/parametros/{clave}", json={"valor": valor}, headers=mundo["h_admin"]
+        )
+        assert r.status_code == 200, r.json()
+
+    parametro = _parametro(cliente, mundo, clave)
+    assert (parametro["valor"], parametro["actualizado_por"]["nombre"]) == ("300.00", "Ana Admin")
+    assert parametro["actualizado_en"] is not None
+    historial = cliente.get(
+        f"{API}/parametros/historial", params={"clave": clave}, headers=mundo["h_admin"]
+    ).json()
+    assert [(c["valor_anterior"], c["valor_nuevo"]) for c in historial["items"]] == [
+        ("250.00", "300.00"),
+        ("200.00", "250.00"),
+    ]
+    assert (historial["total"], historial["items"][0]["usuario"]["nombre"]) == (2, "Ana Admin")
+    # Un valor igual al vigente no es un cambio: se rechaza y no se audita.
+    _error(
+        cliente.put(f"{API}/parametros/{clave}", json={"valor": "300"}, headers=mundo["h_admin"]),
+        422,
+        "VALIDACION",
+    )
+    todos = cliente.get(f"{API}/parametros/historial", headers=mundo["h_admin"]).json()
+    assert todos["total"] == 2
+    _error(cliente.get(f"{API}/parametros/historial", headers=mundo["h_b"]), 403, "FORBIDDEN")
+    _error(
+        cliente.put(f"{API}/parametros/no_existe", json={"valor": "1"}, headers=mundo["h_admin"]),
+        404,
+        "NOT_FOUND",
+    )

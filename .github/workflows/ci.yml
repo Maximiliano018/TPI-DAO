@@ -40,6 +40,7 @@ jobs:
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy app/models app/services
+      # Falla si la cobertura baja del mínimo de pyproject.toml ([tool.coverage.report]).
       - run: pytest --cov=app --cov-report=term-missing
       - name: Migraciones aplican sobre una base vacía y no quedan cambios sin migrar
         run: |
@@ -63,5 +64,6 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run format:check
-      - run: npm test
+      # Pruebas con cobertura: falla si baja de los mínimos de vite.config.js.
+      - run: npm run test:coverage
       - run: npm run build

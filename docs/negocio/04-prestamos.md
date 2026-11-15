@@ -41,9 +41,8 @@ Lo deciden los **permisos**, no el rol: dar un permiso a un rol habilita el cami
 |-------|---------|------|-------------------|
 | **Bibliotecario** | `PRESTAMO_REGISTRAR` | En el mostrador: elige el socio y el **ejemplar** (la copia que el socio tiene en la mano o una de otra sede). El socio retira en la sede del bibliotecario. | Cualquier socio |
 | **Socio** | `PRESTAMO_SOLICITAR_PROPIO` | Desde su cuenta: elige el **libro** y la sede donde lo retira; el sistema elige el ejemplar y el tipo. | **Solo él mismo**: el socio sale de su sesión; un pedido a nombre de otro se rechaza |
-| **Administrador** | ninguno | No registra préstamos: los consulta. | — |
+| **Administrador** | `PRESTAMO_REGISTRAR` | Como el bibliotecario, en el mostrador de **cualquier sede**: indica la sede donde el socio retira el libro. | Cualquier socio |
 
-Estas decisiones salen de una propuesta del equipo (rama `docs/decision-automatica-tipo-prestamo`), actualizada con lo que ya estaba implementado: la elección automática se usa en la autogestión, y el socio también puede pedir préstamos locales.
 
 ### Solicitud del socio: el sistema elige el tipo y el ejemplar
 
@@ -61,20 +60,20 @@ Estas decisiones salen de una propuesta del equipo (rama `docs/decision-automati
 
 ## Parámetros
 
-Ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configurables): plazo local, plazo interbibliotecario, renovaciones y máximo de préstamos por socio.
+Ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configurables): plazo local, plazo interbibliotecario, renovaciones, máximo de préstamos por socio y plazo de retiro.
 
 ## Préstamo local
 
 1. El socio pide un libro en una sede.
 2. El bibliotecario busca un ejemplar `Disponible` **de esa sede**.
-3. El sistema valida las reglas.
+3. El sistema valida las reglas y registra el préstamo `Solicitado`, con el ejemplar `Apartado` y el plazo de retiro corriendo.
 4. Se entrega el ejemplar: préstamo `Activo`, ejemplar `Prestado`, se calcula el vencimiento.
 
 ## Préstamo entre sedes
 
 1. El socio pide un libro que no tiene ejemplares disponibles en su sede, pero sí en otra (origen).
 2. El bibliotecario elige el ejemplar de la sede origen. Sede destino = sede donde está el socio.
-3. El sistema valida las reglas y crea el préstamo `Solicitado`; el ejemplar queda reservado para ese préstamo.
+3. El sistema valida las reglas y crea el préstamo `Solicitado`; el ejemplar queda `Apartado` para ese préstamo.
 4. La sede origen prepara el envío: se genera el remito (ver [Remitos](05-remitos.md)); el préstamo pasa a `En envío`.
 5. La sede destino recibe el ejemplar y lo entrega al socio: préstamo `Activo`, ejemplar `Prestado`.
 6. Al terminar, el socio devuelve en la sede destino y el ejemplar vuelve a la sede origen mediante un segundo remito (ver [Devoluciones](07-devoluciones.md)).
@@ -97,7 +96,13 @@ Solicitado ──▶ En envío ──▶ Activo ──▶ Devuelto
 | `Devuelto` | El socio lo devolvió (final) |
 | `Cancelado` | Anulado antes de entregarse (final) |
 
-El estado `Vencido` puede calcularse a partir de la fecha de vencimiento en lugar de guardarse.
+El estado `Vencido` se guarda: una tarea diaria (00:05, y al iniciar el sistema) marca `Vencido` los préstamos activos cuyo plazo terminó e inhabilita a sus socios (ver [procesos automáticos](00-contexto-y-actores.md#procesos-automáticos)). Los reportes calculan el atraso por la fecha, así que no dependen de que la tarea ya haya corrido.
+
+## Renovación
+
+- La renueva el **bibliotecario de la sede destino** (donde el socio retiró el libro); el socio no renueva desde su cuenta.
+- Solo un préstamo `Activo` que todavía no venció, sin reservas pendientes del libro y sin superar el máximo de renovaciones (parámetro, valor 1).
+- El vencimiento se extiende un plazo completo (14 o 21 días según el tipo) **desde el vencimiento vigente**, y queda en el historial.
 
 ## ¿Cómo verificamos el estado de un préstamo?
 
@@ -105,7 +110,7 @@ Consultando el préstamo, que expone su estado actual y su historial de cambios.
 
 ## ¿Se considera el caso de que el socio no devuelva?
 
-**Sí.** Pasada la fecha de vencimiento el préstamo queda `Vencido`, empieza a acumular multa por día y el socio se inhabilita. *No se contempla extravío por parte del socio como flujo propio* en esta etapa; si el material no vuelve, se registra como incidencia de extravío en la devolución (ver [Devoluciones](07-devoluciones.md)).
+**Sí.** Pasada la fecha de vencimiento el préstamo queda `Vencido`, empieza a acumular multa por día y el socio se inhabilita. Si el socio perdió el material, el bibliotecario registra la devolución como `Extraviado`: el préstamo se cierra, el ejemplar pasa a `Baja` con una incidencia del socio y, si el monto está configurado, se genera la multa por extravío (ver [Devoluciones](07-devoluciones.md)).
 
 ## Validaciones y reglas
 
@@ -118,7 +123,7 @@ Consultando el préstamo, que expone su estado actual y su historial de cambios.
 - Controlar la fecha de vencimiento. *(enunciado)*
 - No superar el máximo de préstamos simultáneos del socio.
 - En un préstamo local, origen y destino coinciden.
-- Un mismo socio no puede tener dos préstamos activos del mismo libro.
+- Un mismo socio no puede tener dos préstamos en curso (`Solicitado`, `En envío`, `Activo` o `Vencido`) del mismo libro.
 - No se renueva un préstamo vencido ni uno con reservas pendientes sobre el libro.
 
 ## Estados que se modelan

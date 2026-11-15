@@ -1,5 +1,10 @@
 """Generador mínimo de PDF de una página (texto y líneas), sin dependencias externas.
 
+Patrón **Builder**: ``DocumentoPdf`` se construye por partes (``texto``, ``linea``) y produce el
+archivo al final con ``a_bytes``, que arma objetos, fuentes, tabla ``xref`` y trailer. El director
+es ``app/services/comprobante_pago.py``, que decide qué va en el comprobante sin conocer el
+formato. Ver ``docs/tecnica/05-patrones-de-diseno.md``, sección 12.
+
 Alcanza para comprobantes: usa las fuentes estándar de PDF (Helvetica y Helvetica-Bold, que todo
 lector trae) con codificación WinAnsi, así que admite los acentos y la «ñ» del español. Las
 coordenadas son en puntos desde la esquina inferior izquierda de una hoja A4 (595 × 842).

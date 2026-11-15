@@ -48,7 +48,7 @@ class TipoExcepcion(StrEnum):
 
 @dataclass(frozen=True)
 class ExcepcionHorario:
-    """Cierre de la sede en una fecha: total o parcial (entre dos horas)."""
+    """Cierre de la sede en una fecha: total o parcial (entre dos horas). Objeto de valor."""
 
     fecha: date
     tipo: TipoExcepcion

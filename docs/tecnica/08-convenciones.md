@@ -10,7 +10,7 @@ Complementa `CONTRIBUTING.md` (ramas, commits y PR). Acá se fijan estilo de có
 | Nombres del dominio (clases, métodos y campos del negocio) | Español sin tildes ni eñe: `Prestamo`, `Ejemplar`, `sede_origen`, `dias_atraso` |
 | Términos técnicos | Inglés convencional: `Repository`, `Service`, `Factory`, `UnitOfWork` |
 
-Es la propuesta **T2**. El criterio es que quien lea el código y la documentación de negocio vea las mismas palabras.
+Es la decisión **T2**. El criterio es que quien lea el código y la documentación de negocio vea las mismas palabras.
 
 ## Python
 
@@ -81,7 +81,7 @@ Se documenta el **qué y el porqué**, no el cómo evidente. Los comentarios exp
 
 ## JavaScript y React
 
-- **Estilo:** ESLint (reglas de React, hooks y accesibilidad) + Prettier, aplicados en pre-commit.
+- **Estilo:** ESLint (reglas de React y hooks) + Prettier, controlados en CI (`npm run lint`, `npm run format:check`). La accesibilidad se prueba con jest-axe en las pruebas de componentes.
 - **Nombres:** componentes en `PascalCase`, hooks `useAlgo`, funciones y variables en `camelCase`, constantes en `MAYUSCULAS`.
 - **Componentes:** funcionales, pequeños y con una responsabilidad; la lógica de datos va en hooks, no dentro del JSX.
 - **Archivos:** un componente por archivo, con su prueba y estilos al lado.
@@ -110,4 +110,4 @@ Rige `CONTRIBUTING.md`: ramas con prefijo, commits convencionales en español, u
 - Entradas validadas con Pydantic; nada de `eval` ni deserialización insegura.
 - Ningún secreto en el repositorio; `.env.example` sin valores reales.
 - Registros sin contraseñas, tokens ni datos personales innecesarios.
-- Dependencias actualizadas con Dependabot (ya configurado).
+- Dependencias: Dependabot (`.github/dependabot.yml`) propone cada semana las actualizaciones de `pip`, `npm`, las imágenes de los `Dockerfile` y las GitHub Actions; las menores y los parches llegan agrupados. Cada PR de Dependabot pasa por CI como cualquier otro.

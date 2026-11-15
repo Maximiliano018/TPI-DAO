@@ -1,4 +1,10 @@
-"""Unit of Work: una transacción por caso de uso."""
+"""Patrón **Unit of Work**: una transacción por caso de uso.
+
+Agrupa los repositorios de una misma sesión y expone ``commit`` y ``rollback``. Cada servicio
+envuelve su caso de uso en ``_transaccion()``: si algo falla, se revierte todo (por ejemplo, una
+devolución no queda a medias si falla la asignación a una reserva).
+Ver ``docs/tecnica/05-patrones-de-diseno.md``, sección 6.
+"""
 
 from typing import Protocol
 

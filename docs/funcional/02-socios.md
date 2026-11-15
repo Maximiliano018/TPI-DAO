@@ -7,11 +7,11 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
 | RF-SOC-01 | El sistema debe permitir al personal registrar un socio con documento, nombre, apellido, contacto (al menos correo o teléfono) y, opcionalmente, fecha de nacimiento y domicilio, asignando un número de socio único y estado `Habilitado`. | Obligatorio |
-| RF-SOC-02 | El sistema debe evitar socios duplicados: tipo y número de documento únicos, con búsqueda previa por documento y por nombre más fecha de nacimiento. | Obligatorio |
+| RF-SOC-02 | El sistema debe evitar socios duplicados: tipo y número de documento únicos, con búsqueda previa por documento y una advertencia confirmable cuando coinciden nombre, apellido y fecha de nacimiento con otro socio. | Obligatorio |
 | RF-SOC-03 | El sistema debe permitir modificar los datos de un socio. | Obligatorio |
 | RF-SOC-04 | El sistema debe permitir buscar socios por número de socio, documento o apellido. | Obligatorio |
 | RF-SOC-05 | El sistema debe inhabilitar automáticamente a un socio con un préstamo vencido o una multa pendiente, registrando el motivo, y rehabilitarlo cuando ambas causas desaparezcan. | Obligatorio |
-| RF-SOC-06 | El administrador debe poder inhabilitar y rehabilitar manualmente a un socio, con motivo. | Obligatorio |
+| RF-SOC-06 | El administrador debe poder inhabilitar y rehabilitar manualmente a un socio, con motivo. El personal también puede pedir la rehabilitación, que se rechaza si siguen vigentes causas automáticas o si la inhabilitación es administrativa y no la pide un administrador. | Obligatorio |
 | RF-SOC-07 | El sistema debe impedir préstamos y reservas a un socio `Inhabilitado`. | Obligatorio |
 | RF-SOC-08 | El sistema debe limitar los préstamos simultáneos de un socio al máximo configurado. | Obligatorio |
 | RF-SOC-09 | El sistema debe permitir dar de baja lógica a un socio sin préstamos activos ni multas pendientes, y reactivar a un socio dado de baja en lugar de duplicarlo. | Obligatorio |
@@ -20,6 +20,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 | RF-SOC-12 | El socio dado de baja debe poder solicitar su reactivación desde su cuenta; el personal que puede reactivarlo según el tipo de baja la aprueba o la rechaza con motivo. También debe poder reactivarse en mostrador. | Obligatorio |
 | RF-SOC-13 | El sistema debe registrar un historial de solo inserción por socio (alta, modificaciones campo a campo, inhabilitaciones y rehabilitaciones con su origen, bajas, solicitudes, reactivaciones y cuenta), con usuario y momento. | Obligatorio |
 | RF-SOC-14 | Cada rol debe recibir solo los datos del socio que puede ver: el socio no ve la auditoría ni la identidad del personal; el bibliotecario no ve la auditoría. | Obligatorio |
+| RF-SOC-15 | El personal debe poder crear la cuenta de acceso (rol Socio) de un socio registrado, con usuario único y contraseña de 10 a 128 caracteres con al menos una letra y un número. Un socio tiene a lo sumo una cuenta y no se crea si está dado de baja. | Obligatorio |
 
 ## Casos de uso
 
@@ -30,13 +31,15 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
   1. Busca previamente por documento y por nombre y fecha de nacimiento.
   2. Al no encontrarlo, ingresa los datos.
   3. El sistema valida formato y unicidad.
-  4. Asigna el número de socio, estado `Habilitado`, fecha de alta y sede de alta.
+  4. Asigna el número de socio, estado `Habilitado`, fecha de alta y sede de alta (la del bibliotecario; el administrador la elige).
 - **Flujos alternativos:**
   - **A1 (paso 1): el socio ya existe habilitado.** El sistema muestra el existente y no permite crear otro.
   - **A2 (paso 1): el socio existe dado de baja.** El sistema ofrece reactivarlo (CU-SOC-04).
   - **A3 (paso 3): documento duplicado.** Rechaza el alta.
   - **A4 (paso 3): dato obligatorio faltante o con formato inválido.** Rechaza y lo señala.
   - **A5 (paso 3): sede del usuario en `Baja`.** Rechaza el alta.
+  - **A6 (paso 3): hay socios con el mismo nombre, apellido y fecha de nacimiento.** El sistema advierte y los muestra; el personal confirma que es otra persona (y el alta sigue) o cancela.
+  - **A7 (paso 4): bibliotecario que indica otra sede de alta, o administrador que no la indica.** Rechaza.
 
 ### CU-SOC-02. Modificar datos de un socio
 
@@ -45,10 +48,11 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 - **Flujos alternativos:**
   - **A1:** el nuevo documento ya pertenece a otro socio; rechaza.
   - **A2:** el socio pidió la corrección desde su cuenta; el personal la aplica (el socio no edita directamente).
+  - **A3:** el socio está dado de baja; rechaza: primero se reactiva.
 
 ### CU-SOC-03. Inhabilitar y rehabilitar a un socio
 
-- **Actor:** Sistema (automático), Administrador (manual).
+- **Actor:** Sistema (automático); Administrador (inhabilitación y rehabilitación manual); el personal puede pedir la rehabilitación (A4).
 - **Flujo normal (automático):**
   1. Un préstamo del socio pasa a `Vencido`, o se le genera una multa.
   2. El sistema lo pasa a `Inhabilitado` con motivo (`Préstamo vencido` o `Multa impaga`).
@@ -57,6 +61,7 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
   - **A1 (paso 3): queda otra causa vigente.** Sigue inhabilitado con la causa restante.
   - **A2:** inhabilitación manual por decisión administrativa; solo el administrador puede levantarla.
   - **A3:** la inhabilitación no cancela préstamos en curso; el socio debe devolverlos igual.
+  - **A4:** el personal pide rehabilitar; el sistema lo rechaza si siguen vigentes causas automáticas, o si la inhabilitación es administrativa y quien lo pide no es administrador.
 
 ### CU-SOC-04. Dar de baja o reactivar a un socio
 
@@ -64,16 +69,16 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 - **Flujo normal:** elige el tipo de baja y el motivo; el sistema verifica que no tenga préstamos activos ni multas y lo pasa a `Baja`. Para reactivar en mostrador, selecciona al socio en `Baja` y confirma; vuelve `Habilitado`, o `Inhabilitado` si tenía una inhabilitación administrativa.
 - **Flujos alternativos:**
   - **A0:** un bibliotecario intenta una baja administrativa o por fallecimiento, o reactivar una baja administrativa; el sistema lo rechaza por falta de permiso.
-  - **A3:** baja por fallecimiento: el sistema desactiva la cuenta de acceso del socio; la baja no se puede reactivar.
   - **A1:** tiene préstamos activos o multas; bloquea la baja y los lista.
   - **A2:** tiene reservas pendientes; el sistema avisa antes de confirmar, las cancela al darlo de baja e informa cuántas canceló (los ejemplares pasan al siguiente de la cola).
+  - **A3:** baja por fallecimiento: el sistema desactiva la cuenta de acceso del socio; la baja no se puede reactivar.
 
 ### CU-SOC-05. Consultar la situación de un socio
 
 - **Actor:** Bibliotecario, Administrador, Socio (solo la propia).
 - **Flujo normal:** busca al socio y abre su ficha con estado, préstamos, vencimientos, multas, reservas e historial; cada rol ve solo los datos que le corresponden.
 - **Flujos alternativos:**
-  - **A1:** el socio intenta ver a otro; el sistema lo rechaza.
+  - **A1:** el socio intenta ver a otro; el sistema responde como si no existiera.
   - **A2:** el socio está inhabilitado o dado de baja: igual puede ingresar y ver su situación, pero no reservar ni recibir préstamos.
 
 ### CU-SOC-06. Solicitar la reactivación desde la cuenta
@@ -94,6 +99,19 @@ Origen: [negocio/02-socios.md](../negocio/02-socios.md). Proceso obligatorio 2.
 - **Actores:** Bibliotecario, Administrador, Socio (solo el propio).
 - **Flujo normal:** abre la pestaña de historial de la ficha; el sistema lista los eventos del más reciente al más antiguo, con autor, fecha, estados, motivo, origen y cambios.
 - **Flujo alternativo A1:** el socio ve el suyo sin la identidad del personal («Personal de la biblioteca», «Sistema»).
+
+### CU-SOC-08. Crear la cuenta de acceso de un socio
+
+- **Actor:** Bibliotecario, Administrador.
+- **Flujo normal:**
+  1. Desde la ficha del socio, elige «Crear cuenta» e ingresa usuario y contraseña.
+  2. El sistema valida el formato y crea la cuenta con rol Socio, vinculada al socio; queda el evento en su historial.
+  3. El socio ya puede ingresar y ver «Mis datos», sus préstamos, reservas y multas.
+- **Flujos alternativos:**
+  - **A1 (paso 2): el socio ya tiene cuenta.** Rechaza.
+  - **A2 (paso 2): el usuario ya existe.** Rechaza e indica que elija otro.
+  - **A3 (paso 1): el socio está dado de baja.** Rechaza.
+  - **A4 (paso 2): usuario o contraseña con formato inválido.** Rechaza y señala el campo.
 
 ## Criterios de aceptación
 

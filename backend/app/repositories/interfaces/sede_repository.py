@@ -1,4 +1,4 @@
-"""Puertos de acceso a sedes y al catálogo geográfico."""
+"""Puertos de acceso a sedes y al catálogo geográfico (patrón Repository)."""
 
 from dataclasses import dataclass
 from datetime import datetime

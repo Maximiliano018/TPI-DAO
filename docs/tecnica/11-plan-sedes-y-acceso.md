@@ -1,5 +1,13 @@
 # 11. Plan de implementación: sedes y acceso
 
+> **Estado: completado (histórico).** Este es el plan de la primera iteración y se conserva como registro. Diferencias con el estado actual del sistema:
+>
+> - Los seis verificadores de baja de sede ya existen (`services/verificadores_baja_sede.py`) y `TIPOS_PENDIENTES_DE_MODULO` está vacío.
+> - El módulo de socios está completo (y también catálogo, préstamos, remitos, reservas, devoluciones, pagos y reportes).
+> - `gh` está autenticado y los PR se abren con `gh pr create`.
+> - `docker compose up` levanta **solo la base de datos**; las migraciones, el seed, el backend y el frontend se ejecutan con los comandos de `CLAUDE.md` (contenedores de backend y frontend: pendiente).
+> - La prueba de OpenAPI prevista en el PR 5 no se hizo (pendiente).
+
 Primera iteración de código. Entrega el **módulo completo de sedes** y las bases de las que depende: persistencia, acceso (login, usuarios, roles y permisos), pruebas y frontend base. Las reglas están en [negocio](../negocio/01-sedes.md) y [funcional](../funcional/01-sedes.md); acá se fija el **alcance técnico**, el **orden** y la **cadena de ramas y PR**.
 
 ## Alcance
@@ -22,7 +30,7 @@ Primera iteración de código. Entrega el **módulo completo de sedes** y las ba
 
 | Tema | Por qué / cuándo |
 |------|------------------|
-| Verificadores de ejemplares, préstamos, remitos y reservas | Los módulos aún no existen; cada uno aporta el suyo en su PR (contrato en [Patrones](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede)). Mientras tanto la baja solo se bloquea por bibliotecarios |
+| Verificadores de ejemplares, préstamos, remitos y reservas | Los módulos aún no existen; cada uno aporta el suyo en su PR (contrato en [Patrones](05-patrones-de-diseno.md#4-strategy--composite-verificación-de-baja-de-sede)). Mientras tanto la baja solo se bloquea por bibliotecarios |
 | Aplicar `validar_operativa()` en préstamos, reservas, remitos, ejemplares y socios | Lo hará cada módulo; hoy queda el método, la excepción y la regla en el dominio, con pruebas de contrato |
 | Módulo de socios | Solo se crea la estructura de la tabla (necesaria para el usuario socio y su clave foránea) |
 | Refresh token, bloqueo por intentos, recuperación de contraseña, doble factor | Ver [D6](00-stack-y-decisiones.md#d6-autenticación-y-permisos) |

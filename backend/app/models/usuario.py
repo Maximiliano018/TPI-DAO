@@ -73,7 +73,22 @@ class Permiso(StrEnum):
     REPORTE_RED = "REPORTE_RED"
 
 
+# Autogestión del socio: exige ser un socio (``socio_id``), así que no es del personal.
+PERMISOS_PROPIOS_DEL_SOCIO = frozenset(
+    {
+        Permiso.SOCIO_VER_PROPIO,
+        Permiso.PRESTAMO_VER_PROPIOS,
+        Permiso.PRESTAMO_SOLICITAR_PROPIO,
+        Permiso.RESERVA_PROPIA,
+        Permiso.MULTA_VER_PROPIAS,
+        Permiso.MULTA_PAGAR_PROPIA,
+    }
+)
+
 ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
+    # El administrador tiene los permisos completos del proyecto: administra la red y también
+    # opera en el mostrador de cualquier sede (préstamos, remitos, reservas, devoluciones). Solo
+    # quedan fuera los de autogestión del socio, que requieren una ficha de socio.
     Rol.ADMIN: frozenset(
         {
             Permiso.SEDE_LEER_PUBLICO,
@@ -89,12 +104,16 @@ ROL_PERMISOS: dict[Rol, frozenset[Permiso]] = {
             Permiso.CATALOGO_ADMINISTRAR,
             Permiso.EJEMPLAR_LEER,
             Permiso.EJEMPLAR_ADMINISTRAR,
+            Permiso.PRESTAMO_REGISTRAR,
             Permiso.PRESTAMO_LEER,
+            Permiso.REMITO_OPERAR,
             Permiso.REMITO_LEER,
             Permiso.REMITO_EXTRAVIO,
             Permiso.TAREAS_EJECUTAR,
             Permiso.PARAMETROS_ADMINISTRAR,
+            Permiso.RESERVA_REGISTRAR,
             Permiso.RESERVA_LEER,
+            Permiso.DEVOLUCION_REGISTRAR,
             Permiso.MULTA_LEER,
             Permiso.MULTA_SALDAR,
             Permiso.REPORTE_SEDE,
@@ -149,7 +168,7 @@ class SedeRef:
 
 @dataclass(frozen=True)
 class UsuarioRef:
-    """Quién realizó una operación (id y nombre para mostrar)."""
+    """Quién realizó una operación (id y nombre para mostrar). Objeto de valor."""
 
     id: int
     nombre: str
@@ -238,8 +257,30 @@ class Usuario:
             raise PermisoDenegado("No tiene permiso para realizar esta operación.")
 
     def opera_en(self, sede_id: int) -> bool:
-        """Un bibliotecario opera solo en su sede; el administrador no opera por sede."""
-        return self.rol == Rol.BIBLIOTECARIO and self.sede_id == sede_id
+        """Un bibliotecario opera solo en su sede; el administrador, en cualquiera."""
+        return self.rol == Rol.ADMIN or (self.rol == Rol.BIBLIOTECARIO and self.sede_id == sede_id)
+
+    def sede_de_operacion(self, sede_id: int | None, campo: str) -> int:
+        """Sede en la que el personal registra una operación nueva (préstamo, remito).
+
+        El bibliotecario opera en la suya (``sede_id`` es opcional y no puede ser otra); el
+        administrador no tiene sede y la indica en ``campo``.
+
+        Raises:
+            PermisoDenegado: El bibliotecario indica otra sede.
+            ErrorDeValidacion: El administrador no indica la sede.
+        """
+        if self.rol == Rol.BIBLIOTECARIO:
+            assert self.sede_id is not None
+            if sede_id is not None and sede_id != self.sede_id:
+                raise PermisoDenegado("Solo puede operar en su sede.")
+            return self.sede_id
+        if sede_id is None:
+            raise ErrorDeValidacion(
+                "Indique la sede en la que se registra la operación.",
+                [{"campo": campo, "problema": "obligatorio"}],
+            )
+        return sede_id
 
     # --- gestión del personal -------------------------------------------------------------
 

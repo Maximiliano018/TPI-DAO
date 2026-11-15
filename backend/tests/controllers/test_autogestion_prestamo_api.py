@@ -172,12 +172,11 @@ def test_un_socio_no_pide_prestamos_a_nombre_de_otro(cliente, mundo, sesion):  #
     assert sesion.scalar(text("SELECT count(*) FROM prestamo")) == 0
 
 
-@pytest.mark.ca("CA-ACC-16", "CA-ACC-17")
-def test_el_personal_no_usa_la_autogestion_y_el_administrador_no_registra(cliente, mundo):  # noqa: F811
+@pytest.mark.ca("CA-ACC-16")
+def test_el_personal_no_usa_la_autogestion_del_socio(cliente, mundo):  # noqa: F811
     cuerpo = {"libro_id": mundo["libros"][0]["id"], "socio_id": mundo["lucia"]["id"]}
     for headers in (mundo["h_b"], mundo["h_admin"]):
         _error(cliente.post(SOLICITUDES, json=cuerpo, headers=headers), 403, "FORBIDDEN")
-    _error(_prestar(cliente, mundo["h_admin"], mundo["lucia"], mundo["ej_b"][0]), 403, "FORBIDDEN")
 
 
 # --- cancelación y plazo de retiro ------------------------------------------------------------

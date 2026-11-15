@@ -1,4 +1,4 @@
-"""Puertos de devoluciones y multas."""
+"""Puertos de devoluciones y multas (patrón Repository)."""
 
 from dataclasses import dataclass
 from typing import Protocol

@@ -28,7 +28,7 @@ A ambos.
 
 ## ¿Quién registra una devolución?
 
-El **Bibliotecario** de la sede donde se devuelve. El administrador la consulta.
+El **Bibliotecario** de la sede donde se devuelve, o el **Administrador** (opera en cualquier sede).
 
 ## ¿Cuándo es fuera de término?
 
@@ -53,9 +53,9 @@ El bibliotecario registra el estado físico y las observaciones.
 
 | Estado recibido | Efecto |
 |-----------------|--------|
-| `Bueno` / `Regular` | El ejemplar vuelve a estar disponible (actualiza su estado físico) |
-| `Dañado` | El ejemplar pasa a revisión; no está disponible hasta decidir si se repara o se da de baja |
-| `Extraviado` | Ejemplar en `Baja` con incidencia registrada |
+| `Bueno` / `Regular` | El ejemplar vuelve a estar disponible (actualiza su estado físico); en un préstamo entre sedes, vuelve a su sede con el remito de retorno |
+| `Dañado` | Préstamo local: el ejemplar pasa a `En revisión`, no disponible hasta que su sede lo repare o lo dé de baja. Entre sedes: queda `Apartado`, vuelve con el remito de retorno y pasa a `En revisión` al llegar a su sede propietaria. En los dos casos, incidencia de daño a nombre del socio |
+| `Extraviado` | Ejemplar en `Baja` con incidencia de extravío a nombre del socio. Si aparece después, la sede propietaria lo recupera y la incidencia queda resuelta |
 
 **Multa por daño o extravío** (extensión opcional): además de la incidencia, una devolución `Dañado` genera una **multa por daño** y una `Extraviado`, una **multa por extravío** (la reposición del ejemplar). Reglas:
 
@@ -78,9 +78,9 @@ De dos formas; en ambas la multa queda `Saldada` con **un** pago aprobado y el s
 
 - Mientras el pago en línea no se aprueba, la multa sigue `Pendiente`.
 - Todo pago aprobado (de mostrador o en línea) tiene su **comprobante en PDF**, que el socio descarga desde «Mis multas» y el personal desde la página de multas.
-- Un pago rechazado deja la multa pendiente; el socio puede intentarlo de nuevo.
+- Un pago rechazado deja la multa pendiente; el socio puede intentarlo de nuevo. Para la demo, la tarjeta de prueba terminada en `0002` simula un rechazo; cualquier otra se aprueba.
 - Si el socio inició un pago en línea y se le cobra en el mostrador, el pago en línea se cancela y ya no se puede aprobar (ver [técnica/12](../tecnica/12-pago-de-multas.md)).
-- El socio ve el medio con que se pagó su multa, pero no quién la cobró ni el comprobante.
+- El socio ve el medio con que se pagó su multa y descarga el comprobante en PDF, pero no ve quién la cobró ni el número de cupón u operación del cobro en el mostrador.
 
 ## Validaciones y reglas
 

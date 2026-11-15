@@ -1,4 +1,8 @@
-"""Repositorios del catálogo sobre SQLAlchemy."""
+"""Repositorios del catálogo sobre SQLAlchemy.
+
+Patrones Repository y Data Mapper, con bloqueo pesimista y optimista: ver
+``app/repositories/impl/__init__.py``.
+"""
 
 import re
 from typing import Any

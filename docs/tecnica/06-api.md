@@ -1,6 +1,6 @@
 # 06. API REST
 
-Contrato de la API del backend. La especificación completa e interactiva se genera automáticamente con FastAPI (OpenAPI) y queda disponible en `/docs` (Swagger UI) y `/openapi.json`. Este documento fija las convenciones y los endpoints antes de implementarlos; los esquemas Pydantic deben incluir `examples` que coincidan con los ejemplos de acá.
+Contrato de la API del backend. La especificación completa e interactiva se genera automáticamente con FastAPI (OpenAPI) y queda disponible en `/docs` (Swagger UI) y `/openapi.json`. Este documento resume las convenciones y los endpoints tal como están implementados (`backend/app/controllers/`); los esquemas Pydantic incluyen `examples` coherentes con los de acá.
 
 ## Convenciones
 
@@ -12,20 +12,21 @@ Contrato de la API del backend. La especificación completa e interactiva se gen
 | Fechas | ISO 8601: fecha `2026-10-14`, fecha y hora en UTC `2026-10-14T15:30:00Z` |
 | Dinero | Cadena decimal (`"1000.00"`) para no perder precisión |
 | Identificadores | Enteros |
-| Autenticación | `Authorization: Bearer <token>` en todo salvo el login |
+| Autenticación | `Authorization: Bearer <token>` en todo salvo el login (`POST /auth/login`) y `GET /api/version` |
 | Paginación | `?page=1&size=20` (máximo 100). Respuesta `{ "items": [...], "total": 125, "page": 1, "size": 20 }` |
 | Filtros y orden | Parámetros de consulta (`?estado=ACTIVA&q=centro&orden=nombre`) |
 | Acciones de estado | `POST /recursos/{id}/accion` (por ejemplo `/remitos/7/despachar`); nunca se edita el estado con `PATCH` |
 | Idempotencia | Las acciones repetidas sobre un estado ya alcanzado devuelven `409 TRANSICION_INVALIDA` (o el código específico del recurso: `SEDE_YA_EN_BAJA`, `SEDE_YA_ACTIVA`) |
 | Concurrencia | Los recursos con `version` exigen enviarla al modificar y devuelven `409 CONFLICTO_DE_VERSION` si quedó desactualizada |
 | Versionado | Prefijo `/v1`; los cambios incompatibles van a `/v2` |
+| Trazabilidad | Toda respuesta lleva `X-Request-ID`: el que mandó el cliente (hasta 64 caracteres `A-Za-z0-9._-`) o uno generado. El mismo identificador aparece en cada línea de log de esa solicitud, así un error reportado se encuentra en los logs |
 
 ### Códigos HTTP
 
 | Código | Uso |
 |--------|-----|
 | 200 | Consulta o acción correcta |
-| 201 | Recurso creado (con encabezado `Location`) |
+| 201 | Recurso creado; lleva encabezado `Location` cuando el recurso tiene URL propia (sedes, usuarios, socios, libros, ejemplares, préstamos, remitos, reservas). No lo llevan la devolución, el inicio de un pago, una excepción de horario, la cuenta del socio ni la solicitud de reactivación |
 | 204 | Sin contenido (bajas lógicas que no devuelven recurso) |
 | 400 | Solicitud mal formada |
 | 401 | Falta autenticación o el token es inválido |
@@ -164,15 +165,15 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /prestamos` | B (`PRESTAMO_REGISTRAR`) | Registrar en mostrador en nombre del socio (el bibliotecario elige el ejemplar; local o interbibliotecario según dónde está) | RF-PRE-01 a 08 |
+| `POST /prestamos` | A, B (`PRESTAMO_REGISTRAR`) | Registrar en mostrador en nombre del socio (el personal elige el ejemplar; local o interbibliotecario según dónde está). `sede_destino_id` es la sede de retiro: el bibliotecario puede omitirla (es la suya) y el administrador la indica (`422` si falta) | RF-PRE-01 a 08, RF-ACC-13 |
 | `GET /prestamos/solicitudes/propuesta` | S (`PRESTAMO_SOLICITAR_PROPIO`) | Qué préstamo se haría si el socio pide el libro ahora (`?libro_id=&sede_destino_id=`); no aparta nada | RF-PRE-16, 17 |
 | `POST /prestamos/solicitudes` | S (`PRESTAMO_SOLICITAR_PROPIO`) | El socio pide un libro para sí; el sistema elige tipo y ejemplar | RF-PRE-16 a 19 |
-| `GET /prestamos` | A, B, S | Listado; `?estado=`, `?tipo=`, `?socio_id=` | RF-PRE-15 |
+| `GET /prestamos` | A, B, S | Listado; `?estado=`, `?tipo=`, `?socio_id=`, `?numero=`, `?sede_origen_id=` (los que salen de esa sede, para armar envíos) | RF-PRE-15 |
 | `GET /prestamos/{id}` | A, B, S | Detalle, historial y remito (esquema por rol, ver abajo) | RF-PRE-15, 22 |
-| `POST /prestamos/{id}/entregar` | B | Entrega al socio; inicia el plazo | RF-PRE-09 |
-| `POST /prestamos/{id}/renovar` | B | Renovación | RF-PRE-14 |
-| `POST /prestamos/{id}/cancelar` | B, S | Cancelar antes de la entrega; si ya llegó a destino y el socio no lo retira, genera el remito de retorno. El socio solo cancela los propios en `SOLICITADO` | RF-PRE-13, 21 |
-| `POST /prestamos/{id}/devolucion` | B | Registrar devolución | RF-DEV-01 a 11, 14 |
+| `POST /prestamos/{id}/entregar` | A, B | Entrega al socio; inicia el plazo | RF-PRE-09 |
+| `POST /prestamos/{id}/renovar` | A, B | Renovación | RF-PRE-14 |
+| `POST /prestamos/{id}/cancelar` | A, B, S | Cancelar antes de la entrega, con `{ "motivo": "..." }` opcional (hasta 300); si ya llegó a destino y el socio no lo retira, genera el remito de retorno. El socio solo cancela los propios en `SOLICITADO` | RF-PRE-13, 21 |
+| `POST /prestamos/{id}/devolucion` | A, B | Registrar devolución | RF-DEV-01 a 11, 14 |
 | `POST /admin/tareas/detectar-vencidos` | A | Ejecuta la detección de vencidos (también corre sola cada día) | RF-PRE-12 |
 | `POST /admin/tareas/vencer-retiros` | A | Cancela los préstamos no retirados a tiempo (también corre sola cada día) | RF-PRE-20 |
 
@@ -180,25 +181,25 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /remitos` | B (sede origen) | Generar remito | RF-REM-01 a 04, 10 |
-| `GET /remitos` | A, B | Listado; `?estado=`, `?sede_id=`, `?abiertos=`, `?atrasados=` (sin despachar fuera de plazo). Cada remito trae `despachar_hasta` y `atrasado` | RF-REM-14, 15 |
-| `GET /remitos/{id}` | A, B, S | Detalle y movimientos | RF-REM-14 |
-| `POST /remitos/{id}/empaquetar` | B (sede origen) | | RF-REM-05, 07 |
-| `POST /remitos/{id}/despachar` | B (sede origen) | | RF-REM-08 |
-| `POST /remitos/{id}/en-transito` | B (sede origen) | Marca el envío en viaje (si no, la recepción completa ese paso) | RF-REM-05 |
-| `POST /remitos/{id}/recibir` | B (sede destino) | Recepción con estado por línea; una línea puede ir `faltante` (sin estado físico) | RF-REM-09, 13, 16 |
-| `POST /remitos/{id}/anular` | B (sede origen) | Antes del despacho | RF-REM-11 |
-| `POST /remitos/{id}/extraviado` | A, B | Si venció el plazo de tránsito | RF-REM-12 |
+| `POST /remitos` | A, B (sede origen) | Generar remito desde la sede del bibliotecario, o desde `sede_origen_id` si lo genera el administrador (`422` si falta; un bibliotecario que indica otra sede recibe `403`): motivo `ENVIO` o `TRASLADO` (un `RETORNO` lo genera el sistema; pedirlo responde `422 REMITO_INVALIDO`) | RF-REM-01 a 04, 10, RF-ACC-13 |
+| `GET /remitos` | A, B | Listado; `?estado=`, `?motivo=`, `?sede_id=`, `?numero=`, `?abiertos=`, `?atrasados=` (sin despachar fuera de plazo). Cada remito trae `despachar_hasta` y `atrasado` | RF-REM-14, 15 |
+| `GET /remitos/{id}` | A, B | Detalle y movimientos (el socio ve el estado y los movimientos del envío dentro del detalle de su préstamo) | RF-REM-14 |
+| `POST /remitos/{id}/empaquetar` | A, B (sede origen) | | RF-REM-05, 07 |
+| `POST /remitos/{id}/despachar` | A, B (sede origen) | | RF-REM-08 |
+| `POST /remitos/{id}/en-transito` | A, B (sede origen) | Marca el envío en viaje (si no, la recepción completa ese paso) | RF-REM-05 |
+| `POST /remitos/{id}/recibir` | A, B (sede destino) | Recepción con estado por línea; una línea puede ir `faltante` (sin estado físico) | RF-REM-09, 13, 16 |
+| `POST /remitos/{id}/anular` | A, B (sede origen) | Antes del despacho, con `{ "motivo": "..." }` (hasta 500). Un remito de retorno no se anula (`422 REMITO_INVALIDO`) | RF-REM-11 |
+| `POST /remitos/{id}/extraviado` | A, B (origen o destino) | Si venció el plazo de tránsito, con `{ "motivo": "..." }` (hasta 500) | RF-REM-12 |
 
 ### Reservas
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `POST /reservas` | B, S | Reservar un libro (el socio, solo para sí) | RF-RES-01 a 05, 15 |
-| `GET /reservas` | A, B, S | Listado; `?libro_id=`, `?estado=`, `?sede_retiro_id=`, `?orden=cola` (FIFO) | RF-RES-12 |
+| `POST /reservas` | A, B, S | Reservar un libro (el socio, solo para sí) | RF-RES-01 a 05, 15 |
+| `GET /reservas` | A, B, S | Listado; `?socio_id=`, `?libro_id=`, `?estado=`, `?sede_retiro_id=`, `?orden=recientes` (por defecto) o `cola` (FIFO) | RF-RES-12 |
 | `GET /reservas/{id}` | A, B, S | Detalle, posición en la cola e historial | RF-RES-12, 16 |
-| `POST /reservas/{id}/cancelar` | B (sede de retiro), S (propia) | Motivo opcional | RF-RES-10, 15 |
-| `POST /reservas/{id}/retirar` | B (sede de retiro) | Entrega y crea el préstamo activo | RF-RES-11 |
+| `POST /reservas/{id}/cancelar` | A, B (sede de retiro), S (propia) | Motivo opcional | RF-RES-10, 15 |
+| `POST /reservas/{id}/retirar` | A, B (sede de retiro) | Entrega y crea el préstamo activo | RF-RES-11 |
 | `POST /admin/tareas/vencer-reservas` | A | Vence las reservas no retiradas (también corre sola cada día) | RF-RES-09 |
 
 ### Multas
@@ -248,7 +249,14 @@ Permisos: `REPORTE_SEDE` (administrador y bibliotecario) para R1, R4 y R6; `REPO
 | `PUT /usuarios/{id}` | A | Modificar nombre y, si es bibliotecario, **reasignar a otra sede activa**. El rol no se cambia | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/baja` | A | Baja lógica (desvincula al bibliotecario de su sede) | RF-ACC-06, 09 |
 | `POST /usuarios/{id}/reactivar` | A | Reactivar; rechaza si su sede está en baja | RF-ACC-06, 09 |
-| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio (`{ "valor": "21" }`); rigen desde la siguiente operación | — |
+| `GET /parametros`, `PUT /parametros/{clave}` | A | Parámetros de negocio (`{ "valor": "21" }`); rigen desde la siguiente operación. Cada parámetro responde además `actualizado_en` y `actualizado_por` (`null` si nunca se cambió); un valor igual al vigente responde `422` | RF-ACC-12 |
+| `GET /parametros/historial` | A | Auditoría de los cambios, del más reciente al más antiguo (`?clave=`, `page`, `size`): `clave`, `descripcion`, `valor_anterior`, `valor_nuevo`, `usuario {id, nombre}`, `fecha_hora` | RF-ACC-07 |
+
+### Sistema
+
+| Método y ruta | Roles | Descripción |
+|---------------|-------|-------------|
+| `GET /api/version` | público (sin token, sin `/v1`) | Estado y versión del backend: `{ "servicio": "backend", "estado": "ok", "version": "..." }` |
 
 ---
 
@@ -709,7 +717,7 @@ Response `201`:
   "multas": [
     { "id": 14, "tipo": "ATRASO", "concepto": "Atraso de 5 días", "dias_atraso": 5, "monto_por_dia": "200.00", "monto_total": "1000.00", "estado": "PENDIENTE" }
   ],
-  "remito_retorno": { "id": 52, "numero": "RM-2026-000052", "motivo": "RETORNO", "estado": "GENERADO" },
+  "remito_retorno": { "id": 52, "numero": "R-2026-000052", "motivo": "RETORNO", "estado": "GENERADO" },
   "reserva_asignada": null,
   "socio": { "id": 45, "estado": "INHABILITADO", "motivo": "MULTA_IMPAGA" }
 }
@@ -727,7 +735,7 @@ Qué pasa con el ejemplar según el estado recibido, todo en la misma transacci�
 
 Las incidencias de una devolución quedan asociadas al socio (RF-DEV-12). La multa por atraso guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0; la de daño o extravío toma `multa_por_danio` o `multa_por_extravio` (0 = no se genera) y no tiene tope (RF-DEV-23). Toda multa responde `tipo` y `concepto` («Atraso de 5 días», «Daño del ejemplar», «Extravío del ejemplar»). Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar` con el medio, `409 TRANSICION_INVALIDA` si ya estaba saldada, `422` si el medio no es de mostrador) se reevalúa la habilitación del socio.
 
-**Pagos.** El pago tiene esquema por rol: el socio ve `id`, `medio`, `estado`, `monto`, `fecha`, `acreditado_en`, `motivo` (de un rechazo o una cancelación), `forma_en_linea`, `tarjeta_ultimos4`, `numero_comprobante` (si está aprobado), `numero_prestamo`, `libro`, `dias_atraso`, `tipo_multa` y `concepto`; el personal suma `registrado_por` y `comprobante`. Pagar un pago que ya no está pendiente responde `409 TRANSICION_INVALIDA`; uno de otro socio, `404 PAGO_NO_ENCONTRADO`; una tarjeta sin sus 4 últimos dígitos (o un número completo), `422`. El comprobante responde `application/pdf` con `Content-Disposition: attachment; filename="comprobante-PG-<año>-<id>.pdf"`, o `409` si el pago no está aprobado. El pago en línea es simulado (ver [técnica/12](12-pago-de-multas.md)).
+**Pagos.** El pago tiene esquema por rol: el socio ve `id`, `multa_id`, `medio`, `estado`, `monto`, `fecha`, `acreditado_en`, `motivo` (de un rechazo o una cancelación), `forma_en_linea`, `tarjeta_ultimos4`, `numero_comprobante` (si está aprobado), `numero_prestamo`, `libro`, `dias_atraso`, `tipo_multa` y `concepto`; el personal suma `registrado_por` y `comprobante`. Pagar un pago que ya no está pendiente responde `409 TRANSICION_INVALIDA`; uno de otro socio, `404 PAGO_NO_ENCONTRADO`; una tarjeta sin sus 4 últimos dígitos (o un número completo), `422`. El comprobante responde `application/pdf` con `Content-Disposition: attachment; filename="comprobante-PG-<año>-<id>.pdf"`, o `409` si el pago no está aprobado. El pago en línea es simulado (ver [técnica/12](12-pago-de-multas.md)).
 
 ### `POST /remitos` — generar remito
 
@@ -735,9 +743,9 @@ Request:
 
 ```json
 {
-  "sede_origen_id": 1,
   "sede_destino_id": 2,
   "motivo": "ENVIO",
+  "observaciones": "Caja 1 de 1",
   "lineas": [
     { "ejemplar_id": 301, "prestamo_id": 118 },
     { "ejemplar_id": 305, "prestamo_id": 120 }
@@ -788,7 +796,7 @@ Request (estado por línea):
 
 Cada línea lleva `estado_fisico` y, si llegó inutilizable, `"destruido": true`; un daño o una destrucción exige `observacion` (`422 REMITO_INVALIDO`). Hay que verificar todas las líneas del remito.
 
-Response `200`: el remito con `estado` (`RECIBIDO`, `DANADO` o `DESTRUIDO` según la peor línea), el resultado de cada línea, `movimientos` e `incidencias` (`[{ "ejemplar_id": 305, "tipo": "DANIO", ... }]`).
+Response `200`: el remito con `estado` (`RECIBIDO`, `DANADO`, `DESTRUIDO` o `INCOMPLETO` según la peor línea), el resultado de cada línea, `movimientos` e `incidencias` (`[{ "ejemplar_id": 305, "tipo": "DANIO", ... }]`).
 
 Efectos por línea recibida bien: en un **envío** el ejemplar queda `APARTADO` en destino hasta la entrega al socio (`POST /prestamos/{id}/entregar`, que inicia el plazo); en un **retorno**, `DISPONIBLE` en su sede; en un **traslado**, cambia la sede propietaria y queda `DISPONIBLE`. Una línea dañada o destruida registra la incidencia (`DANIO` o `DESTRUCCION`) y, en un envío, cancela el préstamo:
 
@@ -814,11 +822,11 @@ Response `200`:
   "numero": "R-2026-000051",
   "estado": "RECIBIDO",
   "movimientos": [
-    { "estado_anterior": null, "estado_nuevo": "GENERADO", "fecha_hora": "2026-10-14T16:00:00Z", "usuario": "mlopez" },
-    { "estado_anterior": "GENERADO", "estado_nuevo": "EMPAQUETADO", "fecha_hora": "2026-10-15T11:00:00Z", "usuario": "mlopez" },
-    { "estado_anterior": "EMPAQUETADO", "estado_nuevo": "DESPACHADO", "fecha_hora": "2026-10-15T12:00:00Z", "usuario": "mlopez" },
-    { "estado_anterior": "DESPACHADO", "estado_nuevo": "EN_TRANSITO", "fecha_hora": "2026-10-15T12:00:00Z", "usuario": "mlopez" },
-    { "estado_anterior": "EN_TRANSITO", "estado_nuevo": "RECIBIDO", "fecha_hora": "2026-10-17T14:30:00Z", "usuario": "jperez" }
+    { "estado_anterior": null, "estado_nuevo": "GENERADO", "fecha_hora": "2026-10-14T16:00:00Z", "usuario": { "id": 4, "nombre": "María López" } },
+    { "estado_anterior": "GENERADO", "estado_nuevo": "EMPAQUETADO", "fecha_hora": "2026-10-15T11:00:00Z", "usuario": { "id": 4, "nombre": "María López" } },
+    { "estado_anterior": "EMPAQUETADO", "estado_nuevo": "DESPACHADO", "fecha_hora": "2026-10-15T12:00:00Z", "usuario": { "id": 4, "nombre": "María López" } },
+    { "estado_anterior": "DESPACHADO", "estado_nuevo": "EN_TRANSITO", "fecha_hora": "2026-10-15T12:00:00Z", "usuario": { "id": 4, "nombre": "María López" } },
+    { "estado_anterior": "EN_TRANSITO", "estado_nuevo": "RECIBIDO", "fecha_hora": "2026-10-17T14:30:00Z", "usuario": { "id": 7, "nombre": "Juan Pérez" } }
   ]
 }
 ```
@@ -903,7 +911,57 @@ Cuenta los remitos cerrados (`RECIBIDO`, `EXTRAVIADO`, `DANADO`, `DESTRUIDO`, `I
 }
 ```
 
+
 La multa acumulada de un vencido usa el monto por día y el tope vigentes; la definitiva se fija al devolverlo, y desde ahí figura en `multas` (pendiente o saldada). La sede (como origen o destino del préstamo, igual que R6) y el socio definen el alcance; `estado_multa`, el período y el rango de atraso solo acotan `vencidos` y `multas`. `cantidad_vencidos` y los `total_*` son siempre la deuda real del alcance.
+
+### `GET /reportes/libros-mas-solicitados` (R3)
+
+Request: `?desde=2026-09-01&hasta=2026-09-30&limite=10`
+
+```json
+{
+  "desde": "2026-09-01",
+  "hasta": "2026-09-30",
+  "libros": [
+    { "posicion": 1, "libro_id": 12, "titulo": "Rayuela", "prestamos": 7, "sede_origen_frecuente": "Central", "sede_destino_frecuente": "Norte" }
+  ]
+}
+```
+
+Préstamos interbibliotecarios no cancelados solicitados en el período, ordenados por cantidad (en empate, por título); la sede más frecuente desempata por nombre.
+
+### `GET /reportes/disponibilidad-por-sede` (R5)
+
+Request: `?q=borges&page=1&size=50`
+
+```json
+{
+  "items": [
+    { "libro_id": 12, "titulo": "Ficciones", "sede_id": 1, "sede": "Central", "totales": 3, "disponibles": 1, "prestados": 1, "reservados": 0, "en_transito": 1, "otros": 0 }
+  ],
+  "total": 1,
+  "page": 1,
+  "size": 50
+}
+```
+
+Ejemplares sin dar de baja, por libro y sede propietaria activa, contados igual que la ficha del libro; `otros` son los apartados y los que están en revisión.
+
+### `GET /reportes/prestamos-activos-y-en-transito` (R6)
+
+```json
+{
+  "fecha": "2026-11-12",
+  "prestamos": [
+    { "prestamo_id": 118, "numero": "P-2026-000118", "tipo": "INTERBIBLIOTECARIO", "estado": "ACTIVO", "socio": "Lucía Pérez", "libro": "Rayuela", "sede_origen": "Central", "sede_destino": "Norte", "fecha_vencimiento": "2026-11-20", "dias_para_vencer": 8 }
+  ],
+  "remitos": [
+    { "remito_id": 51, "numero": "R-2026-000051", "motivo": "ENVIO", "estado": "EN_TRANSITO", "sede_origen": "Central", "sede_destino": "Norte", "fecha_generacion": "2026-11-10T14:00:00Z", "antiguedad_dias": 2, "ejemplares": 2 }
+  ]
+}
+```
+
+Préstamos `ACTIVO` o `VENCIDO` (en manos de socios) y remitos abiertos (`GENERADO`, `EMPAQUETADO`, `DESPACHADO`, `EN_TRANSITO`). `dias_para_vencer` es negativo si ya venció.
 
 ## Documentación de endpoints en el código
 
@@ -915,4 +973,4 @@ Cada endpoint de FastAPI debe declarar, además de la ruta:
 - `examples` en los esquemas Pydantic de entrada y salida,
 - `tags` por recurso.
 
-Así `/docs` queda completo y un test verifica que ningún endpoint carezca de descripción ni de modelo de respuesta (ver [Testing](07-testing-y-calidad.md)).
+Así `/docs` queda completo. Lo controla la **prueba de contrato** `tests/contract/test_openapi.py`, que recorre todas las rutas y su operación en `app.openapi()` y exige `summary`, docstring y `tags`; una respuesta exitosa con esquema (salvo `204` y los archivos, como el comprobante PDF); `401` en las rutas protegidas; `403` en las que exigen con `requiere(...)` un permiso que algún rol no tiene; `404` en las que reciben un identificador en la ruta, y `422` en las que reciben parámetros o cuerpo.
