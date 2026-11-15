@@ -178,7 +178,8 @@ describe('Multas', () => {
       .getAllByRole('columnheader')
       .map((c) => c.textContent);
     expect(encabezados).not.toContain('Socio');
-    expect(encabezados).not.toContain('Acciones');
+    expect(within(tabla).queryByRole('button', { name: /Saldar/ })).not.toBeInTheDocument();
+    expect(within(tabla).getByRole('button', { name: /Pagar en línea/ })).toBeVisible();
     expect(within(tabla).getByText('Pendiente')).toBeVisible();
     expect(screen.getByText(/no puede pedir préstamos ni reservas/)).toBeVisible();
     expect(await axe(container)).toHaveNoViolations();
@@ -204,15 +205,16 @@ describe('Multas', () => {
     renderizarApp('/multas', { conSesion: true });
 
     const tabla = await screen.findByRole('table', { name: 'Multas' });
-    expect(within(tabla).getByText('Saldada el 16/11/2026')).toBeVisible();
+    expect(within(tabla).getByText(/Saldada el 16\/11\/2026/)).toBeVisible();
     await user.click(
       within(tabla).getByRole('button', { name: 'Saldar la multa del préstamo P-2026-000118' }),
     );
-    await user.click(
-      within(screen.getByRole('dialog')).getByRole('button', { name: 'Marcar saldada' }),
-    );
+    const dialogo = screen.getByRole('dialog');
+    await user.selectOptions(within(dialogo).getByLabelText(/Medio de pago/), 'DEBITO');
+    await user.type(within(dialogo).getByLabelText(/Comprobante/), 'Cupón 004512');
+    await user.click(within(dialogo).getByRole('button', { name: 'Registrar el cobro' }));
 
     expect(await screen.findByText('Multa saldada')).toBeVisible();
-    expect(llamadas).toHaveLength(1);
+    expect(llamadas[0].cuerpo).toEqual({ medio: 'DEBITO', comprobante: 'Cupón 004512' });
   });
 });

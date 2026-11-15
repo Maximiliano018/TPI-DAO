@@ -71,6 +71,7 @@ export const SOCIO = {
   permisos: [
     'CATALOGO_LEER',
     'MULTA_VER_PROPIAS',
+    'MULTA_PAGAR_PROPIA',
     'PRESTAMO_SOLICITAR_PROPIO',
     'PRESTAMO_VER_PROPIOS',
     'RESERVA_PROPIA',
@@ -439,6 +440,29 @@ export function multa(over = {}) {
     fecha_generacion: '2026-11-15T15:00:00Z',
     fecha_saldada: null,
     saldada_por: null,
+    pago: null,
+    pago_en_curso: null,
+    ...over,
+  };
+}
+
+/** Pago de una multa con el formato de la API; `over` pisa cualquier campo. */
+export function pago(over = {}) {
+  return {
+    id: 7,
+    multa_id: 14,
+    medio: 'EN_LINEA',
+    estado: 'PENDIENTE',
+    monto: '1000.00',
+    fecha: '2026-11-16T15:00:00Z',
+    acreditado_en: null,
+    motivo: null,
+    forma_en_linea: null,
+    tarjeta_ultimos4: null,
+    numero_comprobante: null,
+    numero_prestamo: 'P-2026-000118',
+    libro: 'Rayuela',
+    dias_atraso: 5,
     ...over,
   };
 }

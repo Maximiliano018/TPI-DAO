@@ -18,6 +18,7 @@ Define cómo se construye el **Sistema de Préstamos Interbibliotecarios**. Se d
 | 09 | [Frontend](09-frontend.md) | Arquitectura de React, pantallas por rol, estado y formularios |
 | 10 | [Guía de estilos](10-guia-de-estilos.md) | Design system base: tokens, componentes y accesibilidad |
 | 11 | [Plan de implementación: sedes y acceso](11-plan-sedes-y-acceso.md) | Alcance de la primera iteración, cadena de ramas y PR, definición de terminado |
+| 12 | [Pago de multas](12-pago-de-multas.md) | Cobro en el mostrador y pago en línea simulado |
 
 ## Decisiones ya tomadas
 

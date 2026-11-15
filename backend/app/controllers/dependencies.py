@@ -15,6 +15,7 @@ from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
 from app.services.auth_service import AuthService
 from app.services.catalogo_service import CatalogoService
 from app.services.devolucion_service import DevolucionService
+from app.services.pago_service import PagoService
 from app.services.parametro_service import ParametroService
 from app.services.prestamo_service import PrestamoService
 from app.services.remito_service import RemitoService
@@ -125,6 +126,12 @@ def get_devolucion_service(
     uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
 ) -> DevolucionService:
     return DevolucionService(uow, reloj)
+
+
+def get_pago_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> PagoService:
+    return PagoService(uow, reloj)
 
 
 def get_reporte_service(

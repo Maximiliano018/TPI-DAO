@@ -1,4 +1,7 @@
-"""Casos de uso de devoluciones y multas: registrar la devolución, saldar y consultar multas."""
+"""Casos de uso de devoluciones y multas: registrar la devolución y consultar multas.
+
+El pago de las multas (mostrador y en línea) está en ``pago_service``.
+"""
 
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -7,7 +10,6 @@ from datetime import datetime
 
 from app.exceptions import (
     EjemplarNoEncontrado,
-    MultaNoEncontrada,
     PermisoDenegado,
     PrestamoNoEncontrado,
 )
@@ -25,6 +27,7 @@ from app.repositories.interfaces.devolucion_repository import FiltroMultas
 from app.repositories.unit_of_work import UnitOfWork
 from app.services.cola_reservas import ColaDeReservas
 from app.services.remito_service import RemitoService
+from app.services.situacion_socio import reevaluar_socio
 from app.utils.reloj import Reloj
 
 
@@ -112,8 +115,12 @@ class DevolucionService:
             self._uow.devoluciones.agregar(devolucion)
             if multa is not None:
                 self._uow.multas.agregar(multa)
-            socio = self._reevaluar_socio(
-                prestamo.socio_id, yo, ahora, f"Devolución del préstamo {prestamo.numero}"
+            socio = reevaluar_socio(
+                self._uow,
+                prestamo.socio_id,
+                yo,
+                ahora,
+                f"Devolución del préstamo {prestamo.numero}",
             )
             ejemplar = self._ejemplar(prestamo.ejemplar_id)
             remito, reserva = self._resolver_ejemplar(prestamo, ejemplar, devolucion, yo, ahora)
@@ -127,25 +134,6 @@ class DevolucionService:
         )
 
     # --- multas ---------------------------------------------------------------------------
-
-    def saldar_multa(self, actor: Usuario, multa_id: int) -> Multa:
-        """Marca la multa como saldada y reevalúa al socio (CU-DEV-05, CA-DEV-10)."""
-        actor.exigir(Permiso.MULTA_SALDAR)
-        with self._transaccion():
-            multa = self._uow.multas.obtener_para_modificar(multa_id)
-            if multa is None:
-                raise MultaNoEncontrada("La multa solicitada no existe.")
-            ahora = self._reloj.ahora()
-            yo = _ref(actor)
-            multa.saldar(yo, ahora)
-            self._uow.multas.guardar(multa)
-            self._reevaluar_socio(
-                multa.socio_id,
-                yo,
-                ahora,
-                f"Multa del préstamo {multa.numero_prestamo or multa.prestamo_id} saldada",
-            )
-        return self._uow.multas.obtener(multa_id) or multa
 
     def listar_multas(
         self,
@@ -186,17 +174,6 @@ class DevolucionService:
         if fecha_hora > ahora:
             raise error_de_campo("fecha_hora", "La fecha de devolución no puede ser futura.")
         return fecha_hora
-
-    def _reevaluar_socio(
-        self, socio_id: int, actor: UsuarioRef, ahora: datetime, origen: str
-    ) -> Socio | None:
-        socio = self._uow.socios.obtener_para_modificar(socio_id)
-        if socio is None:
-            return None
-        situacion = self._uow.socios.situacion(socio_id)
-        if socio.reevaluar(situacion, actor=actor, ahora=ahora, origen=origen):
-            self._uow.socios.guardar(socio)
-        return socio
 
     def _ejemplar(self, ejemplar_id: int) -> Ejemplar:
         ejemplar = self._uow.ejemplares.obtener_para_modificar(ejemplar_id)

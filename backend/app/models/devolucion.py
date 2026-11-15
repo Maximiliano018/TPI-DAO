@@ -15,6 +15,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from app.exceptions import TransicionInvalida
+from app.models.pago import Pago
 from app.models.policies.multa import PoliticaMulta
 from app.models.prestamo import Prestamo
 from app.models.usuario import UsuarioRef
@@ -51,9 +52,18 @@ class Multa:
     numero_prestamo: str | None = None
     socio_nombre: str | None = None
     libro_titulo: str | None = None
+    # El pago que la saldó y el intento en línea en curso (los completa el repositorio).
+    pago_aprobado: "Pago | None" = None
+    pago_pendiente: "Pago | None" = None
 
-    def saldar(self, actor: UsuarioRef, ahora: datetime) -> None:
-        """Marca la multa como saldada (el cobro real queda fuera del sistema, RF-DEV-06).
+    @property
+    def pendiente(self) -> bool:
+        return self.estado == EstadoMulta.PENDIENTE
+
+    def saldar(self, actor: UsuarioRef | None, ahora: datetime) -> None:
+        """Marca la multa como saldada con un pago aprobado (RF-DEV-06, 17, 19).
+
+        ``actor`` es quien cobró en el mostrador, o ``None`` si la saldó un pago en línea.
 
         Raises:
             TransicionInvalida: Ya estaba saldada.
@@ -159,14 +169,15 @@ class Devolucion:
             motivo_fecha=motivo,
         )
         multa = None
-        if dias > 0:
+        monto_total = politica.calcular(dias)
+        if dias > 0 and monto_total > 0:  # con monto por día en 0 no hay nada que cobrar
             multa = Multa(
                 id=None,
                 prestamo_id=prestamo.id,
                 socio_id=prestamo.socio_id,
                 dias_atraso=dias,
                 monto_por_dia=politica.monto_por_dia,
-                monto_total=politica.calcular(dias),
+                monto_total=monto_total,
                 fecha_generacion=fecha_hora,
             )
         return devolucion, multa

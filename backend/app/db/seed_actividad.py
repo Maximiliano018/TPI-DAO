@@ -16,10 +16,12 @@ from app.config import get_settings
 from app.db.models import EjemplarORM, PrestamoORM, SedeORM, SocioORM
 from app.models.devolucion import EstadoRecibido
 from app.models.ejemplar import EstadoFisico
+from app.models.pago import MedioPago
 from app.models.remito import MotivoRemito, RecepcionLinea
 from app.models.usuario import Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork
 from app.services.devolucion_service import DevolucionService
+from app.services.pago_service import PagoService
 from app.services.prestamo_service import PrestamoService
 from app.services.remito_service import LineaNueva, RemitoService
 from app.services.reserva_service import ReservaService
@@ -56,6 +58,7 @@ class _Demo:
         self.remitos = RemitoService(self.uow, self.reloj)
         self.devoluciones = DevolucionService(self.uow, self.reloj)
         self.reservas = ReservaService(self.uow, self.reloj)
+        self.pagos = PagoService(self.uow, self.reloj)
 
     def usuario(self, username: str) -> Usuario:
         usuario = self.uow.usuarios.obtener_por_username(username)
@@ -188,7 +191,7 @@ def cargar_actividad(sesion: Session) -> None:
     p_rayuela2 = d.prestar(norte, valentina, "CEN-705783-1")
     ida_rayuela2 = d.enviar(cen, "NORTE", MotivoRemito.ENVIO, [("CEN-705783-1", p_rayuela2)])
 
-    # Carla devuelve dos días tarde: multa de $400 que salda al día siguiente.
+    # Carla devuelve dos días tarde: multa de $400 que paga con débito al día siguiente.
     d.reloj.hace(19, hora=17)
     tarde = d.devoluciones.registrar(cen, p_cien, EstadoRecibido.REGULAR, "Tapa gastada")
     d.reloj.hace(18)
@@ -196,7 +199,7 @@ def cargar_actividad(sesion: Session) -> None:
     d.prestamos.entregar(norte, p_rayuela2)
     d.reloj.hace(18, hora=12)
     assert tarde.multa is not None and tarde.multa.id is not None
-    d.devoluciones.saldar_multa(cen, tarde.multa.id)
+    d.pagos.saldar_en_mostrador(cen, tarde.multa.id, MedioPago.DEBITO, "Cupón 004512")
 
     # Norte manda «El túnel» (2) a Río Cuarto y el envío nunca llega.
     d.reloj.hace(15)

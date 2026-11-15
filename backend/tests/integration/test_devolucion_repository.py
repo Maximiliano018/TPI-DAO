@@ -82,3 +82,60 @@ def test_la_multa_es_coherente_con_su_atraso(
 @pytest.mark.ca("CA-DEV-18")
 def test_una_multa_con_tope_es_valida(sesion: Session, datos, prestamo_id):  # noqa: F811
     _multa(sesion, datos, prestamo_id, 5, "200", "500")
+
+
+# --- pagos -------------------------------------------------------------------------------------
+
+
+@pytest.fixture
+def multa_id(sesion: Session, datos, prestamo_id) -> int:  # noqa: F811
+    _multa(sesion, datos, prestamo_id, 5, "200", "1000")
+    return sesion.scalar(text("SELECT id FROM multa"))
+
+
+def _pago(sesion: Session, multa: int, medio: str, estado: str, **extra) -> None:
+    columnas = {"acreditado_en": None, "registrado_por_id": None, **extra}
+    sesion.execute(
+        text(
+            "INSERT INTO pago (multa_id, medio, estado, monto, fecha, acreditado_en, "
+            "registrado_por_id) VALUES (:m, :medio, :estado, 1000, now(), :acreditado_en, "
+            ":registrado_por_id)"
+        ),
+        {"m": multa, "medio": medio, "estado": estado, **columnas},
+    )
+
+
+@pytest.mark.ca("CA-DEV-25")
+def test_una_multa_tiene_un_solo_pago_aprobado_y_uno_pendiente(
+    sesion: Session,
+    datos,  # noqa: F811
+    multa_id,
+):
+    acreditado = {"acreditado_en": "2026-11-10T10:00Z", "registrado_por_id": datos["actor"].id}
+    _pago(sesion, multa_id, "EFECTIVO", "APROBADO", **acreditado)
+    _pago(sesion, multa_id, "EN_LINEA", "PENDIENTE")
+    with pytest.raises(IntegrityError, match="uq_pago_pendiente_por_multa"), sesion.begin_nested():
+        _pago(sesion, multa_id, "EN_LINEA", "PENDIENTE")
+    with pytest.raises(IntegrityError, match="uq_pago_aprobado_por_multa"):
+        _pago(sesion, multa_id, "DEBITO", "APROBADO", **acreditado)
+
+
+@pytest.mark.ca("CA-DEV-21")
+@pytest.mark.parametrize(
+    ("medio", "estado", "extra", "restriccion"),
+    [
+        ("EFECTIVO", "PENDIENTE", {}, "ck_pago_mostrador_aprobado"),
+        ("EFECTIVO", "APROBADO", {"acreditado_en": "2026-11-10T10:00Z"}, "ck_pago_mostrador"),
+        ("EN_LINEA", "APROBADO", {}, "ck_pago_acreditado_segun_estado"),
+    ],
+)
+def test_los_datos_del_pago_son_coherentes(
+    sesion: Session,
+    multa_id,
+    medio,
+    estado,
+    extra,
+    restriccion,
+):
+    with pytest.raises(IntegrityError, match=restriccion):
+        _pago(sesion, multa_id, medio, estado, **extra)

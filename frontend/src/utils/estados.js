@@ -53,7 +53,24 @@ export const ESTADOS = {
     PENDIENTE: { tono: 'danger', texto: 'Pendiente' },
     SALDADA: { tono: 'success', texto: 'Saldada' },
   },
+  pago: {
+    PENDIENTE: { tono: 'info', texto: 'En curso' },
+    APROBADO: { tono: 'success', texto: 'Aprobado' },
+    RECHAZADO: { tono: 'danger', texto: 'Rechazado' },
+    CANCELADO: { tono: 'neutral', texto: 'Cancelado' },
+  },
 };
+
+/** Medios de pago de una multa (los de mostrador los elige el bibliotecario). */
+export const MEDIOS_DE_PAGO = {
+  EFECTIVO: 'Efectivo',
+  DEBITO: 'Tarjeta de débito',
+  CREDITO: 'Tarjeta de crédito',
+  TRANSFERENCIA: 'Transferencia',
+  EN_LINEA: 'En línea (simulado)',
+  NO_REGISTRADO: 'Sin dato',
+};
+export const MEDIOS_DE_MOSTRADOR = ['EFECTIVO', 'DEBITO', 'CREDITO', 'TRANSFERENCIA'];
 
 export const TIPOS_DE_PRESTAMO = { LOCAL: 'Local', INTERBIBLIOTECARIO: 'Entre sedes' };
 export const MOTIVOS_DE_REMITO = { ENVIO: 'Envío', RETORNO: 'Retorno', TRASLADO: 'Traslado' };

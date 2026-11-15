@@ -205,8 +205,12 @@ El bibliotecario solo modifica, da de baja o repara ejemplares cuya sede propiet
 
 | Método y ruta | Roles | Descripción | RF |
 |---------------|-------|-------------|----|
-| `GET /multas` | A, B, S | Listado; `?socio_id=`, `?estado=` | RF-DEV-13 |
-| `POST /multas/{id}/saldar` | A, B | Marca como saldada | RF-DEV-06 |
+| `GET /multas` | A, B, S | Listado; `?socio_id=`, `?estado=`. Cada multa trae `pago` (el que la saldó) y `pago_en_curso` | RF-DEV-13 |
+| `POST /multas/{id}/saldar` | A, B | Cobro en el mostrador: `{ "medio": "DEBITO", "comprobante": "..." }` | RF-DEV-06, 17 |
+| `POST /multas/{id}/pagos` | S (propias) | Inicia el pago en línea simulado (o retoma el que está en curso) | RF-DEV-18 |
+| `GET /pagos/{id}` | A, B, S (propios) | Detalle del pago | RF-DEV-18 |
+| `POST /pagos/{id}/pagar` | S (propios) | Confirma el checkout simulado: `{ "forma": "TARJETA_CREDITO", "tarjeta_ultimos4": "3704" }` (la terminada en `0002` se rechaza) | RF-DEV-18 a 20 |
+| `GET /pagos/{id}/comprobante` | A, B, S (propios) | Comprobante en PDF de un pago aprobado | RF-DEV-22 |
 
 ### Reportes
 
@@ -708,7 +712,9 @@ Qué pasa con el ejemplar según el estado recibido, todo en la misma transacci�
 | `DANADO` | `EN_REVISION` con incidencia `DANIO` | Remito de retorno con incidencia `DANIO`; al recibirse dañado en su sede pasa a `EN_REVISION` sin otra incidencia |
 | `EXTRAVIADO` | `BAJA` con incidencia `EXTRAVIO` | `BAJA` con incidencia `EXTRAVIO` |
 
-Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0. Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar`, `409 TRANSICION_INVALIDA` si ya estaba saldada) se reevalúa la habilitación del socio.
+Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0. Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar` con el medio, `409 TRANSICION_INVALIDA` si ya estaba saldada, `422` si el medio no es de mostrador) se reevalúa la habilitación del socio.
+
+**Pagos.** El pago tiene esquema por rol: el socio ve `id`, `medio`, `estado`, `monto`, `fecha`, `acreditado_en`, `motivo` (de un rechazo o una cancelación), `forma_en_linea`, `tarjeta_ultimos4`, `numero_comprobante` (si está aprobado), `numero_prestamo`, `libro` y `dias_atraso`; el personal suma `registrado_por` y `comprobante`. Pagar un pago que ya no está pendiente responde `409 TRANSICION_INVALIDA`; uno de otro socio, `404 PAGO_NO_ENCONTRADO`; una tarjeta sin sus 4 últimos dígitos (o un número completo), `422`. El comprobante responde `application/pdf` con `Content-Disposition: attachment; filename="comprobante-PG-<año>-<id>.pdf"`, o `409` si el pago no está aprobado. El pago en línea es simulado (ver [técnica/12](12-pago-de-multas.md)).
 
 ### `POST /remitos` — generar remito
 

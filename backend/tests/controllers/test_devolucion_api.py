@@ -20,6 +20,7 @@ from tests.controllers.test_sede_api import _error
 
 API = "/api/v1"
 ZONA = ZoneInfo("America/Argentina/Cordoba")
+EFECTIVO = {"medio": "EFECTIVO"}
 
 
 def _entregado(cliente, sesion, headers, socio, ejemplar, *, vence=None):
@@ -154,21 +155,23 @@ def test_devolucion_tardia_genera_multa_y_se_rehabilita_al_saldarla(cliente, mun
     )
 
     _error(
-        cliente.post(f"{API}/multas/{multa['id']}/saldar", headers=mundo["h_lucia"]),
+        cliente.post(f"{API}/multas/{multa['id']}/saldar", json=EFECTIVO, headers=mundo["h_lucia"]),
         403,
         "FORBIDDEN",
     )
-    saldada = cliente.post(f"{API}/multas/{multa['id']}/saldar", headers=mundo["h_a"]).json()
+    saldada = cliente.post(
+        f"{API}/multas/{multa['id']}/saldar", json=EFECTIVO, headers=mundo["h_a"]
+    ).json()
 
     assert (saldada["estado"], saldada["saldada_por"]["nombre"]) == ("SALDADA", "Bea A")
     assert _ficha(cliente, mundo, mundo["lucia"])["estado"] == "HABILITADO"
     _error(
-        cliente.post(f"{API}/multas/{multa['id']}/saldar", headers=mundo["h_admin"]),
+        cliente.post(f"{API}/multas/{multa['id']}/saldar", json=EFECTIVO, headers=mundo["h_admin"]),
         409,
         "TRANSICION_INVALIDA",
     )
     _error(
-        cliente.post(f"{API}/multas/999999/saldar", headers=mundo["h_admin"]),
+        cliente.post(f"{API}/multas/999999/saldar", json=EFECTIVO, headers=mundo["h_admin"]),
         404,
         "MULTA_NO_ENCONTRADA",
     )
@@ -254,7 +257,7 @@ def test_el_socio_no_ve_quien_registro_la_devolucion_ni_quien_saldo(cliente, mun
         cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(2)
     )
     multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
-    cliente.post(f"{API}/multas/{multa['id']}/saldar", headers=mundo["h_b"])
+    cliente.post(f"{API}/multas/{multa['id']}/saldar", json=EFECTIVO, headers=mundo["h_b"])
 
     propia = cliente.get(f"{API}/multas", headers=mundo["h_lucia"]).json()["items"][0]
     detalle = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_lucia"]).json()

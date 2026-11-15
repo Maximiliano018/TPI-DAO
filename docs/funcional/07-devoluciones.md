@@ -22,6 +22,12 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | RF-DEV-14 | Una devolución con fecha anterior al día en que se registra debe exigir un motivo (de 5 a 300 caracteres) y dejar en el historial del préstamo la fecha de devolución, la de registro y el motivo. | Obligatorio |
 | RF-DEV-15 | El sistema debe permitir configurar un tope de multa por préstamo (0 = sin tope); la política de cálculo lo aplica. | Opcional |
 | RF-DEV-16 | El socio debe ver sus devoluciones y multas sin la identidad del personal que las registró o saldó; el personal sí la ve. | Obligatorio |
+| RF-DEV-17 | Al saldar una multa en el mostrador, el personal debe registrar el medio de pago (efectivo, débito, crédito o transferencia) y, opcionalmente, el comprobante. | Opcional |
+| RF-DEV-18 | El socio debe poder pagar en línea sus multas pendientes en un checkout simulado de tres pasos (forma de pago: tarjeta de crédito, de débito o dinero en cuenta; datos; resultado); si ya tiene un pago en curso, lo retoma. De la tarjeta solo se envían los últimos 4 dígitos. No hay cobro real. | Opcional |
+| RF-DEV-19 | Al aprobar el pago en línea, la multa queda saldada y el socio se reevalúa. | Opcional |
+| RF-DEV-20 | Un pago en línea rechazado deja la multa pendiente y permite reintentar; cobrar en el mostrador cancela el pago en línea en curso, que ya no se puede aprobar. | Opcional |
+| RF-DEV-21 | El socio solo inicia y paga pagos de sus multas; el personal no inicia pagos en línea. | Opcional |
+| RF-DEV-22 | Todo pago aprobado (de mostrador o en línea) debe tener un comprobante descargable en PDF; el socio descarga los suyos y el personal, cualquiera. | Opcional |
 
 ## Casos de uso
 
@@ -81,15 +87,26 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 ### CU-DEV-05. Saldar una multa
 
 - **Actor:** Bibliotecario, Administrador.
-- **Flujo normal:** busca al socio (en la página de multas o desde su ficha, «Ver las multas del socio»), selecciona la multa `Pendiente` y la marca `Saldada`; el sistema reevalúa su habilitación.
+- **Flujo normal:** busca al socio (en la página de multas o desde su ficha, «Ver las multas del socio»), selecciona la multa `Pendiente`, elige el medio de pago (y el comprobante, si hay) y registra el cobro; la multa queda `Saldada` y el sistema reevalúa su habilitación.
 - **Flujos alternativos:**
   - **A1:** la multa ya está saldada; informa.
   - **A2:** el socio tiene otras causas de inhabilitación; sigue inhabilitado.
+  - **A3:** el socio había iniciado un pago en línea; se cancela.
 
-### CU-DEV-06. Consultar devoluciones y multas
+### CU-DEV-07. Pagar una multa en línea (simulado)
 
-- **Actores:** Bibliotecario, Administrador, Socio (propias).
-- **Flujo normal:** ve devoluciones, días de atraso, estado físico, multas y su estado.
+- **Actor:** Socio.
+- **Flujo normal:**
+  1. En «Mis multas», elige «Pagar en línea» en una multa `Pendiente`.
+  2. El sistema crea el pago pendiente (o retoma el que estaba en curso) y abre el checkout simulado.
+  3. Elige la forma de pago (tarjeta de crédito, de débito o dinero en cuenta).
+  4. Con tarjeta, completa número, titular, vencimiento y código; el sistema los valida en el navegador y envía solo los últimos 4 dígitos.
+  5. Confirma: la multa queda saldada, el sistema reevalúa al socio y muestra el número de comprobante.
+  6. Descarga el comprobante en PDF (también desde «Mis multas»).
+- **Flujos alternativos:**
+  - **A1 (paso 4): datos de tarjeta inválidos.** Se indican sin enviar nada.
+  - **A2 (paso 5): la tarjeta se rechaza (la de prueba terminada en 0002).** La multa sigue pendiente; «Intentar de nuevo» inicia otro pago.
+  - **A3 (paso 5): mientras tanto se le cobró en el mostrador.** El pago en línea está cancelado y no se puede pagar.
 
 ## Criterios de aceptación
 
@@ -115,3 +132,11 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | CA-DEV-18 | RF-DEV-15 | **Dado** un tope de $500, **cuando** se devuelve con 5 días de atraso a $200 por día, **entonces** la multa es de $500. |
 | CA-DEV-19 | RF-DEV-16 | **Dado** una devolución con multa saldada, **cuando** el socio la consulta, **entonces** no ve quién la registró ni quién la saldó; el personal sí. |
 | CA-DEV-20 | RF-DEV-13 | **Dado** un socio elegido en la página de multas, **cuando** el personal la consulta, **entonces** ve solo las multas de ese socio. |
+| CA-DEV-21 | RF-DEV-17 | **Dado** una multa pendiente, **cuando** el bibliotecario la cobra con débito y un comprobante, **entonces** queda saldada con ese medio; el socio ve el medio pero no el comprobante ni quién cobró. |
+| CA-DEV-22 | RF-DEV-18 | **Dado** una multa pendiente propia, **cuando** el socio inicia el pago en línea, **entonces** queda un pago pendiente por el monto de la multa; otro pedido retoma el mismo pago. |
+| CA-DEV-23 | RF-DEV-19 | **Dado** un pago en línea pendiente, **cuando** el socio paga con una tarjeta válida, **entonces** la multa queda saldada y el socio se reevalúa. |
+| CA-DEV-24 | RF-DEV-20 | **Dado** un pago en línea pendiente, **cuando** el socio paga con la tarjeta de prueba rechazada, **entonces** la multa sigue pendiente y puede iniciar otro pago. |
+| CA-DEV-25 | RF-DEV-20 | **Dado** un pago en línea en curso, **cuando** el bibliotecario cobra la multa en el mostrador, **entonces** el pago en línea queda cancelado y no se puede aprobar. |
+| CA-DEV-26 | RF-DEV-21 | **Dado** un bibliotecario, o la multa o el pago de otro socio, **cuando** se intenta pagar en línea, **entonces** se rechaza. |
+| CA-DEV-27 | RF-DEV-22 | **Dado** un pago aprobado, **cuando** el socio o el personal descargan el comprobante, **entonces** reciben un PDF con su número, socio, concepto, medio y total; un pago no aprobado no tiene comprobante. |
+| CA-DEV-28 | RF-DEV-18 | **Dado** el checkout simulado, **cuando** el socio paga con tarjeta, **entonces** al servidor llegan solo los últimos 4 dígitos (un número completo se rechaza); con dinero en cuenta no se pide tarjeta. |

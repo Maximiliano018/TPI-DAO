@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -77,3 +78,67 @@ class MultaORM(ConAuditoriaDeTiempo, Base):
     saldada_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
 
     prestamo: Mapped["PrestamoORM"] = relationship(lazy="joined")
+
+
+MEDIOS_PAGO = "'EFECTIVO','DEBITO','CREDITO','TRANSFERENCIA','EN_LINEA','NO_REGISTRADO'"
+ESTADOS_PAGO = "'PENDIENTE','APROBADO','RECHAZADO','CANCELADO'"
+
+
+class PagoORM(ConAuditoriaDeTiempo, Base):
+    """Pago de una multa: en el mostrador o en línea (simulado).
+
+    Una multa tiene a lo sumo un pago aprobado y un pago en línea pendiente.
+    """
+
+    __tablename__ = "pago"
+    __table_args__ = (
+        CheckConstraint(f"medio IN ({MEDIOS_PAGO})", name="medio_valido"),
+        CheckConstraint(f"estado IN ({ESTADOS_PAGO})", name="estado_valido"),
+        CheckConstraint("monto > 0", name="monto_positivo"),
+        # El de mostrador nace aprobado y lo registra alguien; solo el en línea pasa por estados.
+        CheckConstraint(
+            "medio = 'EN_LINEA' OR (estado = 'APROBADO' "
+            "AND (registrado_por_id IS NOT NULL OR medio = 'NO_REGISTRADO'))",
+            name="mostrador_aprobado",
+        ),
+        CheckConstraint(
+            "(estado = 'APROBADO') = (acreditado_en IS NOT NULL)",
+            name="acreditado_segun_estado",
+        ),
+        # Del pago en línea: la forma elegida y, con tarjeta, solo sus últimos 4 dígitos.
+        CheckConstraint(
+            "forma_en_linea IS NULL OR (medio = 'EN_LINEA' AND forma_en_linea IN "
+            "('TARJETA_CREDITO','TARJETA_DEBITO','DINERO_EN_CUENTA'))",
+            name="forma_en_linea_valida",
+        ),
+        CheckConstraint(
+            "(tarjeta_ultimos4 IS NOT NULL) = "
+            "(forma_en_linea IN ('TARJETA_CREDITO','TARJETA_DEBITO')) "
+            "AND (tarjeta_ultimos4 IS NULL OR tarjeta_ultimos4 ~ '^[0-9]{4}$')",
+            name="tarjeta_segun_forma",
+        ),
+        Index(
+            "uq_pago_aprobado_por_multa",
+            "multa_id",
+            unique=True,
+            postgresql_where=text("estado = 'APROBADO'"),
+        ),
+        Index(
+            "uq_pago_pendiente_por_multa",
+            "multa_id",
+            unique=True,
+            postgresql_where=text("estado = 'PENDIENTE'"),
+        ),
+    )
+
+    multa_id: Mapped[int] = mapped_column(ForeignKey("multa.id"), nullable=False)
+    medio: Mapped[str] = mapped_column(String(15), nullable=False)
+    estado: Mapped[str] = mapped_column(String(10), nullable=False)
+    monto: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    comprobante: Mapped[str | None] = mapped_column(String(100))
+    motivo: Mapped[str | None] = mapped_column(String(120))
+    forma_en_linea: Mapped[str | None] = mapped_column(String(20))
+    tarjeta_ultimos4: Mapped[str | None] = mapped_column(String(4))
+    registrado_por_id: Mapped[int | None] = mapped_column(ForeignKey("usuario.id"))
+    fecha: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    acreditado_en: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
