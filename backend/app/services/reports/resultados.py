@@ -117,7 +117,9 @@ class MultaDelReporte:
     socio_id: int
     socio: str
     libro: str
-    dias_atraso: int
+    tipo: str  # ATRASO, DANIO o EXTRAVIO
+    concepto: str
+    dias_atraso: int | None  # solo en la de atraso
     monto_total: Decimal
     estado: str
     fecha_generacion: datetime

@@ -17,7 +17,7 @@ def multa(cliente, mundo, sesion):  # noqa: F811
     p = _entregado(
         cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(5)
     )
-    return _devolver(cliente, mundo["h_b"], p).json()["multa"]
+    return _devolver(cliente, mundo["h_b"], p).json()["multas"][0]
 
 
 def _iniciar(cliente, m, multa):

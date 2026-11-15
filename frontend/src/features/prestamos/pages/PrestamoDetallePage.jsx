@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
@@ -325,15 +325,15 @@ export default function PrestamoDetallePage() {
                     <dd>{prestamo.devolucion.observaciones}</dd>
                   </>
                 )}
-                {prestamo.multa && (
-                  <>
+                {(prestamo.multas ?? []).map((multa) => (
+                  <Fragment key={multa.id}>
                     <dt>Multa</dt>
                     <dd>
-                      {formatearMonto(prestamo.multa.monto_total)}{' '}
-                      <EstadoBadge entidad="multa" estado={prestamo.multa.estado} />
+                      {formatearMonto(multa.monto_total)} ({multa.concepto.toLowerCase()}){' '}
+                      <EstadoBadge entidad="multa" estado={multa.estado} />
                     </dd>
-                  </>
-                )}
+                  </Fragment>
+                ))}
               </dl>
             </Card>
           )}

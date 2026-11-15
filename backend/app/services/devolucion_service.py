@@ -37,7 +37,7 @@ class ResultadoDevolucion:
 
     prestamo: Prestamo
     devolucion: Devolucion
-    multa: Multa | None
+    multas: list[Multa]  # por atraso y por daño o extravío, si corresponden
     remito_retorno: Remito | None
     reserva_asignada: Reserva | None
     socio: Socio | None
@@ -63,7 +63,8 @@ class DevolucionService:
     ) -> ResultadoDevolucion:
         """Registra la devolución en la sede destino del préstamo (CU-DEV-01 a 04).
 
-        En una sola transacción: cierra el préstamo, genera la multa si hay atraso, reevalúa al
+        En una sola transacción: cierra el préstamo, genera las multas que correspondan (por
+        atraso, y por daño o extravío con los montos configurados, RF-DEV-23), reevalúa al
         socio y resuelve el ejemplar según cómo llegó:
 
         * ``Bueno`` o ``Regular`` en un préstamo local: queda ``Disponible`` y se ofrece a la
@@ -98,7 +99,7 @@ class DevolucionService:
             parametros = self._uow.parametros.vigentes()
             yo = _ref(actor)
             fecha = momento.astimezone(zona).date()
-            devolucion, multa = Devolucion.registrar(
+            devolucion, multas = Devolucion.registrar(
                 prestamo=prestamo,
                 fecha_hora=momento,
                 fecha=fecha,
@@ -109,11 +110,12 @@ class DevolucionService:
                 actor=yo,
                 ahora=ahora,
                 motivo_fecha=motivo_fecha,
+                politica_incidencia=parametros.politica_multa_por_incidencia(),
             )
             prestamo.devolver(momento, yo, ahora, devolucion.texto_del_historial(fecha, hoy))
             self._uow.prestamos.guardar(prestamo)
             self._uow.devoluciones.agregar(devolucion)
-            if multa is not None:
+            for multa in multas:
                 self._uow.multas.agregar(multa)
             socio = reevaluar_socio(
                 self._uow,
@@ -127,7 +129,7 @@ class DevolucionService:
         return ResultadoDevolucion(
             prestamo=self._uow.prestamos.obtener(prestamo_id) or prestamo,
             devolucion=devolucion,
-            multa=self._uow.multas.de_prestamo(prestamo_id),
+            multas=self._uow.multas.de_prestamo(prestamo_id),
             remito_retorno=remito,
             reserva_asignada=reserva,
             socio=socio,
@@ -222,7 +224,7 @@ class DevolucionService:
         actor: UsuarioRef,
         ahora: datetime,
     ) -> None:
-        """Incidencia asociada al socio, sin penalización económica (RF-DEV-12)."""
+        """Incidencia asociada al socio (RF-DEV-12); la multa, si hay, va aparte (RF-DEV-23)."""
         self._uow.incidencias.agregar(
             Incidencia(
                 tipo=tipo,

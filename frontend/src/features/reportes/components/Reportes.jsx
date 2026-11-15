@@ -341,7 +341,7 @@ const COLUMNAS_MULTAS = [
   },
   { clave: 'socio', titulo: 'Socio', valor: (m) => m.socio },
   { clave: 'libro', titulo: 'Libro', valor: (m) => m.libro },
-  { clave: 'dias', titulo: 'Días de atraso', valor: (m) => m.dias_atraso },
+  { clave: 'concepto', titulo: 'Concepto', valor: (m) => m.concepto },
   { clave: 'monto', titulo: 'Monto', valor: (m) => formatearMonto(m.monto_total) },
   { clave: 'fecha', titulo: 'Generada', valor: (m) => formatearFecha(m.fecha_generacion) },
   {

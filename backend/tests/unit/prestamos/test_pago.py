@@ -7,6 +7,7 @@ import pytest
 
 from app.exceptions import ErrorDeValidacion, TransicionInvalida
 from app.models.pago import EstadoPago, MedioPago, Pago
+from app.models.policies.multa import TipoMulta
 from app.models.usuario import UsuarioRef
 
 AHORA = datetime(2026, 11, 20, 15, 0, tzinfo=UTC)
@@ -129,6 +130,7 @@ def test_el_comprobante_tiene_los_datos_del_pago():
     pago = en_linea()
     pago.id = 7
     pago.numero_prestamo, pago.libro_titulo, pago.dias_atraso = "P-2026-000118", "Rayuela", 5
+    pago.tipo_multa = TipoMulta.ATRASO
     pago.socio_nombre, pago.numero_socio = "Lucía Socio", "00012"
     pago.pagar_en_linea(FormaEnLinea.TARJETA_CREDITO, "3704", AHORA)
 
@@ -138,7 +140,7 @@ def test_el_comprobante_tiene_los_datos_del_pago():
         "PG-2026-000007",
         "20/11/2026 12:00",
         "Lucía Socio",
-        "Multa del préstamo P-2026-000118 (5 día(s) de atraso)",
+        "Multa del préstamo P-2026-000118 (atraso de 5 días)",
         "Tarjeta de crédito terminada en 3704",
         "$ 1.000,00",
         "no se realizó un cobro real",

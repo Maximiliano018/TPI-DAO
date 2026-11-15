@@ -485,3 +485,22 @@ def test_r6_filtra_por_estado_tipo_y_estado_del_remito(cliente, mundo, sesion): 
     assert [
         x["numero"] for x in _r(cliente, mundo, ruta, estado_remito="DESPACHADO")["remitos"]
     ] == [remito["numero"]]
+
+
+@pytest.mark.ca("CA-DEV-33")
+def test_r4_muestra_la_multa_por_danio_con_su_concepto(cliente, mundo, sesion):  # noqa: F811
+    cliente.put(
+        "/api/v1/parametros/multa_por_danio", json={"valor": "3000"}, headers=mundo["h_admin"]
+    )
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
+    _devolver(cliente, mundo["h_b"], p, "DANADO", observaciones="Lomo roto")
+
+    datos = _r(cliente, mundo, "vencidos-y-multas")
+
+    assert [(m["tipo"], m["concepto"], m["dias_atraso"]) for m in datos["multas"]] == [
+        ("DANIO", "Daño del ejemplar", None)
+    ]
+    assert (datos["total_multas_pendientes"], datos["total_adeudado"]) == ("3000.00", "3000.00")
+    # No tiene atraso: un rango de atraso la deja fuera de la lista, no del total.
+    con_atraso = _r(cliente, mundo, "vencidos-y-multas", atraso_min=0)
+    assert (con_atraso["multas"], con_atraso["total_adeudado"]) == ([], "3000.00")

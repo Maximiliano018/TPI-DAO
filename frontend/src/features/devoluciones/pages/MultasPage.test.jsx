@@ -22,7 +22,7 @@ describe('Devoluciones', () => {
       {
         prestamo: { ...ACTIVO, estado: 'DEVUELTO' },
         devolucion: { id: 60, dias_atraso: 5, estado_fisico_recibido: 'BUENO' },
-        multa: multa(),
+        multas: [multa()],
         remito_retorno: null,
         reserva_asignada: null,
         socio: { id: 45, estado: 'INHABILITADO', motivo: 'MULTA_IMPAGA' },
@@ -36,13 +36,51 @@ describe('Devoluciones', () => {
     const dialogo = screen.getByRole('dialog');
     await user.click(within(dialogo).getByRole('button', { name: 'Registrar devolución' }));
 
-    expect(await screen.findByText(/multa de \$\s?1\.000,00 por 5 día/)).toBeVisible();
+    expect(await screen.findByText(/multa de \$\s?1\.000,00 \(atraso de 5 días\)/)).toBeVisible();
     expect(llamadas[0].cuerpo).toEqual({
       estado_fisico: 'BUENO',
       observaciones: null,
       fecha_hora: null,
       motivo_fecha: null,
     });
+  });
+
+  it('CA-DEV-29: devolver dañado avisa la multa por daño y muestra su concepto', async () => {
+    sesionDe(BIBLIOTECARIO);
+    responder('get', '/prestamos/118', ACTIVO);
+    const llamadas = registrar(
+      'post',
+      '/prestamos/118/devolucion',
+      {
+        prestamo: { ...ACTIVO, estado: 'DEVUELTO' },
+        devolucion: { id: 60, dias_atraso: 0, estado_fisico_recibido: 'DANADO' },
+        multas: [
+          multa({
+            tipo: 'DANIO',
+            concepto: 'Daño del ejemplar',
+            dias_atraso: null,
+            monto_por_dia: null,
+            monto_total: '3000.00',
+          }),
+        ],
+        remito_retorno: null,
+        reserva_asignada: null,
+        socio: { id: 45, estado: 'INHABILITADO', motivo: 'MULTA_IMPAGA' },
+      },
+      201,
+    );
+    const user = userEvent.setup();
+    renderizarApp('/prestamos/118', { conSesion: true });
+
+    await user.click(await screen.findByRole('button', { name: 'Registrar devolución' }));
+    const dialogo = screen.getByRole('dialog');
+    await user.selectOptions(within(dialogo).getByLabelText('Estado en que llega'), 'DANADO');
+    expect(within(dialogo).getByText(/multa por daño del ejemplar/)).toBeVisible();
+    await user.type(within(dialogo).getByLabelText(/Observaciones/), 'Lomo roto');
+    await user.click(within(dialogo).getByRole('button', { name: 'Registrar devolución' }));
+
+    expect(await screen.findByText(/multa de \$\s?3\.000,00 \(daño del ejemplar\)/)).toBeVisible();
+    expect(llamadas[0].cuerpo.estado_fisico).toBe('DANADO');
   });
 
   it('CA-DEV-17: una fecha anterior a hoy exige el motivo y avisa el atraso', async () => {
@@ -54,7 +92,7 @@ describe('Devoluciones', () => {
       {
         prestamo: { ...ACTIVO, estado: 'DEVUELTO' },
         devolucion: { id: 60, dias_atraso: 0, estado_fisico_recibido: 'BUENO' },
-        multa: null,
+        multas: [],
         remito_retorno: null,
         reserva_asignada: null,
         socio: { id: 45, estado: 'HABILITADO', motivo: null },
@@ -153,7 +191,7 @@ describe('Devoluciones', () => {
           observaciones: 'Hojas marcadas',
           registrada_por: { id: 2, nombre: 'Lucía Gómez' },
         },
-        multa: multa(),
+        multas: [multa()],
       }),
     );
     renderizarApp('/prestamos/118', { conSesion: true });

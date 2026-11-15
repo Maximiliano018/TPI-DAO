@@ -55,7 +55,9 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Renovaciones permitidas por préstamo | 1 (solo si no hay reservas pendientes sobre el libro) |
 | Máximo de préstamos simultáneos por socio | 3 |
 | Multa por día de atraso | $200 por día de atraso, monto fijo |
-| Tope de multa por préstamo | 0 (sin tope); si se configura, la multa no lo supera |
+| Tope de multa por préstamo | 0 (sin tope); si se configura, la multa por atraso no lo supera |
+| Multa por daño del ejemplar | 0 (no se cobra); si se configura, una devolución `Dañado` genera una multa por ese monto |
+| Multa por extravío del ejemplar | 0 (no se cobra); si se configura, una devolución `Extraviado` genera una multa por ese monto |
 | Vigencia de una reserva cumplida (retiro) | 3 días corridos |
 | Plazo de despacho de un remito | 3 días corridos desde la generación; vencido, el remito figura atrasado |
 | Plazo para retirar un préstamo solicitado | 3 días corridos (el local, desde la solicitud; el interbibliotecario, desde la llegada a la sede destino) |
@@ -81,5 +83,5 @@ Valores iniciales **confirmados**. Se guardan como configuración, no en el cód
 | Préstamo interbibliotecario | Origen y destino distintos; requiere envío |
 | Remito | Comprobante del envío de ejemplares entre sedes, con estados y trazabilidad |
 | Reserva | Espera ordenada por un libro no disponible |
-| Multa | Sanción económica por devolución fuera de término |
+| Multa | Sanción económica por devolución fuera de término, o por devolver el ejemplar dañado o extraviado |
 | Incidencia | Extravío, daño o destrucción de un ejemplar o envío |

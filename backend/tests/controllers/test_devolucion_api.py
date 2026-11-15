@@ -79,8 +79,8 @@ def test_devolucion_local_en_termino(cliente, mundo, sesion):  # noqa: F811
     devolucion = cuerpo["devolucion"]
     assert (devolucion["estado_fisico_recibido"], devolucion["dias_atraso"]) == ("REGULAR", 0)
     assert cuerpo["devolucion"]["registrada_por"]["nombre"] == "Beto B"
-    assert (cuerpo["multa"], cuerpo["remito_retorno"], cuerpo["socio"]["estado"]) == (
-        None,
+    assert (cuerpo["multas"], cuerpo["remito_retorno"], cuerpo["socio"]["estado"]) == (
+        [],
         None,
         "HABILITADO",
     )
@@ -92,7 +92,7 @@ def test_devolucion_local_en_termino(cliente, mundo, sesion):  # noqa: F811
     )
     detalle = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_lucia"]).json()
     assert detalle["devolucion"]["observaciones"] == "Hojas marcadas"
-    assert detalle["multa"] is None
+    assert detalle["multas"] == []
 
 
 @pytest.mark.ca("CA-DEV-02", "CA-DEV-03", "CA-ACC-02", "CA-DEV-04")
@@ -128,7 +128,7 @@ def test_devolucion_tardia_genera_multa_y_se_rehabilita_al_saldarla(cliente, mun
 
     cuerpo = _devolver(cliente, mundo["h_b"], p).json()
 
-    multa = cuerpo["multa"]
+    (multa,) = cuerpo["multas"]
     assert (multa["dias_atraso"], multa["monto_por_dia"], multa["monto_total"]) == (
         5,
         "200.00",
@@ -188,7 +188,7 @@ def test_si_lo_devolvio_a_tiempo_pero_se_registra_despues_no_hay_multa(cliente, 
         cliente, mundo["h_b"], p, fecha_hora=a_tiempo, motivo_fecha="Lo dejó en el buzón"
     ).json()
 
-    assert (cuerpo["devolucion"]["dias_atraso"], cuerpo["multa"]) == (0, None)
+    assert (cuerpo["devolucion"]["dias_atraso"], cuerpo["multas"]) == (0, [])
     assert cuerpo["socio"]["estado"] == "HABILITADO"
 
 
@@ -242,7 +242,7 @@ def test_la_multa_respeta_el_tope_configurado(cliente, mundo, sesion):  # noqa: 
         f"{API}/parametros/multa_tope_por_prestamo", json={"valor": "500"}, headers=mundo["h_admin"]
     )
 
-    multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
+    (multa,) = _devolver(cliente, mundo["h_b"], p).json()["multas"]
 
     assert (multa["dias_atraso"], multa["monto_por_dia"], multa["monto_total"]) == (
         5,
@@ -256,7 +256,7 @@ def test_el_socio_no_ve_quien_registro_la_devolucion_ni_quien_saldo(cliente, mun
     p = _entregado(
         cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(2)
     )
-    multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
+    (multa,) = _devolver(cliente, mundo["h_b"], p).json()["multas"]
     cliente.post(f"{API}/multas/{multa['id']}/saldar", json=EFECTIVO, headers=mundo["h_b"])
 
     propia = cliente.get(f"{API}/multas", headers=mundo["h_lucia"]).json()["items"][0]
@@ -265,9 +265,9 @@ def test_el_socio_no_ve_quien_registro_la_devolucion_ni_quien_saldo(cliente, mun
 
     assert propia["estado"] == "SALDADA" and "saldada_por" not in propia
     assert "registrada_por" not in detalle["devolucion"]
-    assert "saldada_por" not in detalle["multa"]
+    assert "saldada_por" not in detalle["multas"][0]
     assert personal["devolucion"]["registrada_por"]["nombre"] == "Beto B"
-    assert personal["multa"]["saldada_por"]["nombre"] == "Beto B"
+    assert personal["multas"][0]["saldada_por"]["nombre"] == "Beto B"
 
 
 @pytest.mark.ca("CA-DEV-07")
@@ -280,7 +280,7 @@ def test_la_multa_nueva_usa_el_monto_por_dia_vigente(cliente, mundo, sesion):  #
     )
     assert r.status_code == 200, r.json()
 
-    multa = _devolver(cliente, mundo["h_b"], p).json()["multa"]
+    (multa,) = _devolver(cliente, mundo["h_b"], p).json()["multas"]
 
     assert (multa["monto_por_dia"], multa["monto_total"]) == ("350.00", "1050.00")
 
@@ -329,8 +329,8 @@ def test_un_ejemplar_devuelto_danado_queda_en_revision_con_incidencia(cliente, m
     ejemplar = _estado_ejemplar(cliente, mundo, ej)
     assert (ejemplar["estado"], ejemplar["estado_fisico"]) == ("EN_REVISION", "DANADO")
     assert _incidencias(sesion, p) == [("DANIO", "DEVOLUCION", mundo["lucia"]["id"])]
-    # Sin atraso no hay multa ni inhabilitación por el daño.
-    assert r.json()["socio"]["estado"] == "HABILITADO"
+    # Con el monto por daño en 0 (valor inicial) no hay multa ni inhabilitación (CA-DEV-31).
+    assert (r.json()["multas"], r.json()["socio"]["estado"]) == ([], "HABILITADO")
 
 
 @pytest.mark.ca("CA-DEV-14")
@@ -425,3 +425,82 @@ def test_el_danado_entre_sedes_vuelve_y_se_revisa_en_su_sede(cliente, mundo, ses
     assert (en_casa["estado"], en_casa["sede_actual_id"]) == ("EN_REVISION", mundo["a"]["id"])
     # El daño se registró una sola vez, en la devolución.
     assert _incidencias(sesion, p) == [("DANIO", "DEVOLUCION", mundo["lucia"]["id"])]
+
+
+# --- multas por daño y extravío (RF-DEV-23) ---------------------------------------------------
+
+
+def _monto(cliente, m, clave, valor):
+    r = cliente.put(f"{API}/parametros/{clave}", json={"valor": valor}, headers=m["h_admin"])
+    assert r.status_code == 200, r.json()
+
+
+@pytest.mark.ca("CA-DEV-29", "CA-DEV-32")
+def test_devolver_danado_y_tarde_genera_dos_multas_y_hay_que_pagar_las_dos(cliente, mundo, sesion):  # noqa: F811
+    _monto(cliente, mundo, "multa_por_danio", "3000")
+    _monto(cliente, mundo, "multa_tope_por_prestamo", "500")  # el tope es solo del atraso
+    p = _entregado(
+        cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(5)
+    )
+
+    cuerpo = _devolver(cliente, mundo["h_b"], p, "DANADO", observaciones="Lomo roto").json()
+
+    atraso, danio = cuerpo["multas"]
+    assert (atraso["tipo"], atraso["concepto"], atraso["monto_total"]) == (
+        "ATRASO",
+        "Atraso de 5 días",
+        "500.00",
+    )
+    assert (danio["tipo"], danio["concepto"], danio["monto_total"]) == (
+        "DANIO",
+        "Daño del ejemplar",
+        "3000.00",
+    )
+    assert (danio["dias_atraso"], danio["monto_por_dia"]) == (None, None)
+    assert cuerpo["socio"]["estado"] == "INHABILITADO"
+    detalle = cliente.get(f"{API}/prestamos/{p['id']}", headers=mundo["h_lucia"]).json()
+    assert [m["tipo"] for m in detalle["multas"]] == ["ATRASO", "DANIO"]
+    assert _incidencias(sesion, p) == [("DANIO", "DEVOLUCION", mundo["lucia"]["id"])]
+
+    cliente.post(f"{API}/multas/{danio['id']}/saldar", json=EFECTIVO, headers=mundo["h_b"])
+    assert _ficha(cliente, mundo, mundo["lucia"])["estado"] == "INHABILITADO"
+    cliente.post(f"{API}/multas/{atraso['id']}/saldar", json=EFECTIVO, headers=mundo["h_b"])
+    assert _ficha(cliente, mundo, mundo["lucia"])["estado"] == "HABILITADO"
+
+
+@pytest.mark.ca("CA-DEV-30", "CA-DEV-33")
+def test_el_extravio_genera_su_multa_y_el_socio_la_paga_en_linea(cliente, mundo, sesion):  # noqa: F811
+    _monto(cliente, mundo, "multa_por_extravio", "15000")
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
+
+    cuerpo = _devolver(cliente, mundo["h_b"], p, "EXTRAVIADO", observaciones="Lo perdió").json()
+
+    (multa,) = cuerpo["multas"]
+    assert (multa["tipo"], multa["concepto"], multa["monto_total"]) == (
+        "EXTRAVIO",
+        "Extravío del ejemplar",
+        "15000.00",
+    )
+    assert cuerpo["socio"]["estado"] == "INHABILITADO"
+    pago = cliente.post(f"{API}/multas/{multa['id']}/pagos", headers=mundo["h_lucia"]).json()
+    assert pago["concepto"] == "Extravío del ejemplar"
+    pagado = cliente.post(
+        f"{API}/pagos/{pago['id']}/pagar",
+        json={"forma": "DINERO_EN_CUENTA", "tarjeta_ultimos4": None},
+        headers=mundo["h_lucia"],
+    ).json()
+    assert pagado["estado"] == "APROBADO"
+    pdf = cliente.get(f"{API}/pagos/{pago['id']}/comprobante", headers=mundo["h_lucia"])
+    # En el PDF los paréntesis van escapados.
+    assert "\\(extravío del ejemplar\\)".encode("cp1252") in pdf.content
+    assert _ficha(cliente, mundo, mundo["lucia"])["estado"] == "HABILITADO"
+
+
+@pytest.mark.ca("CA-DEV-31")
+def test_regular_no_genera_multa_aunque_haya_monto_por_danio(cliente, mundo, sesion):  # noqa: F811
+    _monto(cliente, mundo, "multa_por_danio", "3000")
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
+
+    cuerpo = _devolver(cliente, mundo["h_b"], p, "REGULAR", observaciones="Tapa gastada").json()
+
+    assert (cuerpo["multas"], cuerpo["socio"]["estado"]) == ([], "HABILITADO")

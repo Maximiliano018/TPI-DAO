@@ -2,12 +2,13 @@
 
 from typing import Any
 
-from sqlalchemy import ColumnElement, func, select
+from sqlalchemy import ColumnElement, case, func, select
 from sqlalchemy.orm import Session
 
 from app.db.models import DevolucionORM, MultaORM, PagoORM
 from app.models.devolucion import Devolucion, EstadoMulta, EstadoRecibido, Multa
 from app.models.pago import EstadoPago, FormaEnLinea, MedioPago, Pago
+from app.models.policies.multa import TipoMulta
 from app.models.usuario import UsuarioRef
 from app.repositories.impl.consultas import nombres_de_usuarios
 from app.repositories.interfaces.devolucion_repository import FiltroMultas
@@ -69,6 +70,7 @@ def _multa_a_dominio(orm: MultaORM, nombres: dict[int, str]) -> Multa:
         monto_total=orm.monto_total,
         fecha_generacion=orm.fecha_generacion,
         estado=EstadoMulta(orm.estado),
+        tipo=TipoMulta(orm.tipo),
         fecha_saldada=orm.fecha_saldada,
         saldada_por=(
             UsuarioRef(orm.saldada_por_id, nombres.get(orm.saldada_por_id, ""))
@@ -89,6 +91,7 @@ class SqlAlchemyMultaRepository:
         orm = MultaORM(
             prestamo_id=multa.prestamo_id,
             socio_id=multa.socio_id,
+            tipo=multa.tipo.value,
             dias_atraso=multa.dias_atraso,
             monto_por_dia=multa.monto_por_dia,
             monto_total=multa.monto_total,
@@ -119,8 +122,12 @@ class SqlAlchemyMultaRepository:
             .execution_options(populate_existing=True)
         )
 
-    def de_prestamo(self, prestamo_id: int) -> Multa | None:
-        return self._uno(select(MultaORM).where(MultaORM.prestamo_id == prestamo_id))
+    def de_prestamo(self, prestamo_id: int) -> list[Multa]:
+        """Las multas del préstamo: la de atraso primero, después la de daño o extravío."""
+        orden = case({"ATRASO": 0, "DANIO": 1}, value=MultaORM.tipo, else_=2)
+        return self._varios(
+            select(MultaORM).where(MultaORM.prestamo_id == prestamo_id).order_by(orden)
+        )
 
     def listar(self, filtro: FiltroMultas, page: int, size: int) -> tuple[list[Multa], int]:
         condiciones: list[ColumnElement[bool]] = []
@@ -260,6 +267,7 @@ class SqlAlchemyPagoRepository:
             pago.numero_prestamo = prestamo.numero
             pago.libro_titulo = prestamo.ejemplar.libro.titulo
             pago.dias_atraso = multa.dias_atraso
+            pago.tipo_multa = TipoMulta(multa.tipo)
             pago.socio_nombre = f"{prestamo.socio.nombre} {prestamo.socio.apellido}"
             pago.numero_socio = prestamo.socio.numero_socio
         return pagos
