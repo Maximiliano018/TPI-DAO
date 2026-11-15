@@ -214,6 +214,34 @@ def test_el_historial_de_sede_es_de_solo_insercion(sesion: Session):
     debe_fallar(sesion, lambda: sesion.execute(text("DELETE FROM historial_sede")))
 
 
+@pytest.mark.ca("CA-ACC-18")
+def test_la_auditoria_de_parametros_es_de_solo_insercion(sesion: Session):
+    admin = crear_admin(sesion)
+    sesion.execute(
+        text(
+            "INSERT INTO historial_parametro (clave, valor_anterior, valor_nuevo, usuario_id) "
+            "VALUES ('multa_por_dia', '200.00', '250.00', :u)"
+        ),
+        {"u": admin.id},
+    )
+    sesion.flush()
+
+    debe_fallar(
+        sesion, lambda: sesion.execute(text("UPDATE historial_parametro SET valor_nuevo = '1'"))
+    )
+    debe_fallar(sesion, lambda: sesion.execute(text("DELETE FROM historial_parametro")))
+    debe_fallar(
+        sesion,
+        lambda: sesion.execute(
+            text(
+                "INSERT INTO historial_parametro (clave, valor_anterior, valor_nuevo, usuario_id) "
+                "VALUES ('multa_por_dia', '250.00', '250.00', :u)"
+            ),
+            {"u": admin.id},
+        ),
+    )
+
+
 def test_el_historial_solo_admite_tipos_de_evento_conocidos(sesion: Session):
     admin = crear_admin(sesion)
     sede = crear_sede(sesion, admin)
@@ -253,56 +281,111 @@ def test_un_usuario_socio_exige_la_ficha_de_socio(sesion: Session):
     debe_fallar(sesion, lambda: crear_admin(sesion, rol="SOCIO"))
 
 
+CLAVE_DEMO = "clave-de-demo-1"
+
+
+def _estados(sesion: Session, tabla: str, columna: str = "estado") -> set[str]:
+    return set(sesion.scalars(text(f"SELECT DISTINCT {columna} FROM {tabla}")))
+
+
 def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Session):
-    seed.cargar(sesion, "clave-de-demo")
-    seed.cargar(sesion, "clave-de-demo")
-
-    usuarios = set(sesion.scalars(select(UsuarioORM.username)))
-    assert {"admin", "bibliotecario.cen", "bibliotecario.norte", "socio.demo"} <= usuarios
-    codigos = set(sesion.scalars(text("SELECT codigo FROM sede")))
-    assert {"CEN", "NORTE", "SUR_RC", "OESTE_VCP"} <= codigos
-    socios = dict(sesion.execute(text("SELECT nro_documento, estado FROM socio")).all())
-    assert {d["documento"] for d in seed.SOCIOS} <= set(socios)
-    assert (socios["35222333"], socios["27444555"]) == ("INHABILITADO", "BAJA")
-    libros = sesion.scalar(text("SELECT count(*) FROM libro"))
-    ejemplares = sesion.scalar(text("SELECT count(*) FROM ejemplar"))
-    assert libros == len(seed.LIBROS)
-    assert ejemplares == sum(sum(e.values()) for *_, e in seed.LIBROS)
-
-
-def test_el_seed_carga_actividad_para_los_reportes(sesion: Session):
-    seed.cargar(sesion, "clave-de-demo")
+    assert seed.cargar(sesion, CLAVE_DEMO) is True
     prestamos = sesion.scalar(text("SELECT count(*) FROM prestamo"))
-    seed.cargar(sesion, "clave-de-demo")
+    assert seed.cargar(sesion, CLAVE_DEMO) is False
 
     assert sesion.scalar(text("SELECT count(*) FROM prestamo")) == prestamos
-    estados = dict(
-        sesion.execute(text("SELECT estado, count(*) FROM prestamo GROUP BY estado")).all()
-    )
-    assert estados == {
-        "ACTIVO": 3,
-        "VENCIDO": 1,
-        "DEVUELTO": 3,
-        "CANCELADO": 1,
-        "EN_ENVIO": 1,
+    usuarios = set(sesion.scalars(select(UsuarioORM.username)))
+    assert {"admin", *(u.username for u in seed.PERSONAL), "socio.demo"} <= usuarios
+    assert set(sesion.scalars(text("SELECT codigo FROM sede"))) == {s.codigo for s in seed.SEDES}
+    socios = set(sesion.scalars(text("SELECT nro_documento FROM socio")))
+    assert {s.documento for s in seed.SOCIOS} == socios
+    assert sesion.scalar(text("SELECT count(*) FROM libro")) == len(seed.LIBROS)
+
+
+def test_el_seed_recorre_todos_los_estados_con_su_historial(sesion: Session):
+    seed.cargar(sesion, CLAVE_DEMO)
+
+    assert _estados(sesion, "sede") == {"ACTIVA", "BAJA"}
+    assert _estados(sesion, "historial_sede", "tipo_evento") == {
+        "ALTA",
+        "MODIFICACION",
+        "BAJA",
+        "REACTIVACION",
+        "EXCEPCION_AGREGADA",
+        "EXCEPCION_ELIMINADA",
     }
-    multas = dict(sesion.execute(text("SELECT estado, monto_total FROM multa")).all())
-    assert {k: str(v) for k, v in multas.items()} == {"SALDADA": "400.00", "PENDIENTE": "800.00"}
-    remitos = dict(
-        sesion.execute(text("SELECT estado, count(*) FROM remito GROUP BY estado")).all()
-    )
-    assert remitos == {
-        "RECIBIDO": 5,
-        "DANADO": 1,
-        "EXTRAVIADO": 1,
-        # el retorno pendiente del préstamo de Lucía y el del ejemplar que llegó dañado
-        "GENERADO": 2,
-        "DESPACHADO": 1,
+    assert _estados(sesion, "socio") == {"HABILITADO", "INHABILITADO", "BAJA"}
+    assert _estados(sesion, "socio", "tipo_baja") >= {"A_PEDIDO", "FALLECIMIENTO"}
+    assert {
+        "ALTA",
+        "MODIFICACION",
+        "INHABILITACION",
+        "REHABILITACION",
+        "CAMBIO_AUTOMATICO",
+        "BAJA",
+        "SOLICITUD_REACTIVACION",
+        "SOLICITUD_RECHAZADA",
+        "REACTIVACION",
+        "CUENTA_CREADA",
+    } <= _estados(sesion, "historial_socio", "tipo_evento")
+    assert _estados(sesion, "ejemplar") == {
+        "DISPONIBLE",
+        "APARTADO",
+        "RESERVADO",
+        "PRESTADO",
+        "EN_TRANSITO",
+        "EN_REVISION",
+        "BAJA",
     }
-    assert sesion.scalar(text("SELECT estado FROM reserva")) == "PENDIENTE"
-    socios = dict(sesion.execute(text("SELECT nro_documento, estado FROM socio")).all())
-    # Camila debe la multa; Julián tiene «Facundo» vencido.
-    assert (socios["36888999"], socios["31777888"]) == ("INHABILITADO", "INHABILITADO")
+    assert _estados(sesion, "prestamo") == {
+        "SOLICITADO",
+        "EN_ENVIO",
+        "ACTIVO",
+        "VENCIDO",
+        "DEVUELTO",
+        "CANCELADO",
+    }
+    assert _estados(sesion, "remito") == {
+        "GENERADO",
+        "EMPAQUETADO",
+        "DESPACHADO",
+        "EN_TRANSITO",
+        "RECIBIDO",
+        "EXTRAVIADO",
+        "DANADO",
+        "DESTRUIDO",
+        "INCOMPLETO",
+        "ANULADO",
+    }
+    assert _estados(sesion, "reserva") == {
+        "PENDIENTE",
+        "DISPONIBLE_PARA_RETIRO",
+        "CUMPLIDA",
+        "CANCELADA",
+        "VENCIDA",
+    }
+    assert _estados(sesion, "multa", "tipo") == {"ATRASO", "DANIO", "EXTRAVIO"}
+    assert _estados(sesion, "multa") == {"PENDIENTE", "SALDADA"}
+    assert _estados(sesion, "pago") == {"APROBADO", "RECHAZADO", "CANCELADO"}
+    assert _estados(sesion, "devolucion", "estado_fisico_recibido") == {
+        "BUENO",
+        "REGULAR",
+        "DANADO",
+        "EXTRAVIADO",
+    }
+    assert sesion.scalar(text("SELECT count(*) FROM devolucion WHERE motivo_fecha IS NOT NULL"))
+    assert sesion.scalar(text("SELECT count(*) FROM prestamo WHERE renovaciones > 0"))
+    assert sesion.scalar(text("SELECT count(*) FROM incidencia WHERE resuelta_en IS NOT NULL"))
+    assert sesion.scalar(text("SELECT count(*) FROM historial_parametro")) >= 4
+    assert _estados(sesion, "excepcion_horario_sede", "tipo") == {"CIERRE_TOTAL", "CIERRE_PARCIAL"}
+    # Todo pasó por los casos de uso: cada préstamo tiene su historial.
+    sin_historial = sesion.scalar(
+        text(
+            "SELECT count(*) FROM prestamo p WHERE NOT EXISTS "
+            "(SELECT 1 FROM movimiento_prestamo m WHERE m.prestamo_id = p.id)"
+        )
+    )
+    assert sin_historial == 0
 
 
 def test_el_seed_se_niega_fuera_de_desarrollo_y_test(monkeypatch: pytest.MonkeyPatch):
