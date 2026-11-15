@@ -1,6 +1,6 @@
 # Imagen del frontend: compila con Vite y sirve los archivos estáticos con nginx, que además
 # redirige /api al backend (igual que el proxy de Vite en desarrollo).
-FROM node:20-alpine AS build
+FROM node:26-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
