@@ -14,7 +14,7 @@ Una **devolución** es el registro de que el socio entrega un ejemplar prestado 
 | Estado físico recibido | `Bueno`, `Regular`, `Dañado`, `Extraviado` |
 | Observaciones | |
 | Días de atraso | Calculado |
-| Multa generada | Si corresponde |
+| Multas generadas | Por atraso, y por daño o extravío; cada una si corresponde |
 | Registrado por | Bibliotecario |
 | Registrada en | Cuándo se cargó en el sistema (difiere de la fecha si es retroactiva) |
 | Motivo de la fecha | Obligatorio si la fecha es anterior al día en que se registra |
@@ -36,12 +36,14 @@ Cuando la fecha de devolución es posterior a la **fecha de vencimiento** del pr
 
 ## ¿Cómo se aplica la multa?
 
-`multa = días de atraso × monto por día`, con un monto fijo configurable (valor inicial: $200 por día de atraso, ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configurables)). Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
+Una devolución puede generar hasta **dos multas**, una de cada tipo: por **atraso** y por **daño o extravío** (ver [¿Qué pasa si se devuelve en mal estado?](#qué-pasa-si-se-devuelve-en-mal-estado)). Un préstamo nunca tiene dos multas del mismo tipo.
+
+**Por atraso:** `multa = días de atraso × monto por día`, con un monto fijo configurable (valor inicial: $200 por día de atraso, ver [parámetros globales](00-contexto-y-actores.md#parámetros-globales-configurables)). Se implementa como política intercambiable (patrón Strategy), de modo que se pueda cambiar la regla sin tocar el resto del código.
 
 - La multa nace al registrar la devolución tardía.
 - Estados: `Pendiente`, `Saldada`.
 - Una multa `Pendiente` inhabilita al socio hasta que se paga (ver [¿Cómo se paga una multa?](#cómo-se-paga-una-multa)).
-- **Tope por préstamo** configurable (parámetro, valor inicial 0 = sin tope): si se configura, ninguna multa lo supera.
+- **Tope por préstamo** configurable (parámetro, valor inicial 0 = sin tope): si se configura, la multa por atraso no lo supera. La de daño o extravío no tiene tope (ya es un monto fijo).
 - El socio ve sus multas y sus devoluciones sin la identidad del personal que las registró o saldó (ve «Personal de la biblioteca», como en el resto del sistema); el personal sí la ve.
 - El personal busca las multas de un socio desde la página de multas o desde su ficha.
 
@@ -55,7 +57,15 @@ El bibliotecario registra el estado físico y las observaciones.
 | `Dañado` | El ejemplar pasa a revisión; no está disponible hasta decidir si se repara o se da de baja |
 | `Extraviado` | Ejemplar en `Baja` con incidencia registrada |
 
-*La penalización económica al socio por daño o extravío queda fuera del alcance obligatorio.* Se deja registrada la incidencia asociada al socio por si se decide aplicarla más adelante. Las incidencias de un envío (remito), en cambio, no son del socio: quedan a cargo de la sede origen (ver [Remitos](05-remitos.md#quién-es-responsable-de-una-incidencia)).
+**Multa por daño o extravío** (extensión opcional): además de la incidencia, una devolución `Dañado` genera una **multa por daño** y una `Extraviado`, una **multa por extravío** (la reposición del ejemplar). Reglas:
+
+- **Monto fijo configurable** por cada caso (parámetros `multa_por_danio` y `multa_por_extravio`). El valor inicial es **0 = no se cobra**: el administrador lo activa cargando un monto. Es otra política intercambiable (Strategy): podría pasar a depender del valor de reposición del libro sin tocar la devolución.
+- **Nace al registrar la devolución**, cuando el socio está en el mostrador y el daño ya quedó descrito en las observaciones (obligatorias). No depende de que después el ejemplar se repare o se dé de baja.
+- `Regular` es desgaste normal y **no genera multa**: lo que distingue un caso del otro es el criterio del bibliotecario al elegir `Regular` o `Dañado`.
+- Se suma a la de atraso si la hubo (un préstamo devuelto tarde y dañado tiene dos multas). Se paga igual que cualquier multa (en el mostrador o en línea) y también **inhabilita al socio** hasta que la paga: con dos multas, se rehabilita al pagar las dos.
+- En un préstamo entre sedes la genera la sede destino al recibir la devolución, como la de atraso; la sede propietaria después revisa el ejemplar.
+
+Las incidencias de un envío (remito), en cambio, no son del socio: quedan a cargo de la sede origen y nunca generan multa (ver [Remitos](05-remitos.md#quién-es-responsable-de-una-incidencia)).
 
 ## ¿Cómo se paga una multa?
 
@@ -85,7 +95,7 @@ De dos formas; en ambas la multa queda `Saldada` con **un** pago aprobado y el s
 
 1. **Devolución en término.**
 2. **Devolución tardía** con generación de multa.
-3. **Devolución con daño o extravío.**
+3. **Devolución con daño o extravío**, con su multa si el monto está configurado.
 4. **Devolución de préstamo interbibliotecario** con remito de retorno.
 5. **Saldar una multa** en el mostrador, con su medio de pago.
 5b. **Pagar una multa en línea** (el socio, simulado).

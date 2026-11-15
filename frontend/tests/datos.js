@@ -353,7 +353,7 @@ export function prestamo(over = {}) {
     ],
     remitos: [],
     devolucion: null,
-    multa: null,
+    multas: [],
     ...over,
   };
 }
@@ -433,6 +433,8 @@ export function multa(over = {}) {
     socio_id: 45,
     socio: 'Sol Socia',
     libro: 'Rayuela',
+    tipo: 'ATRASO',
+    concepto: 'Atraso de 5 días',
     dias_atraso: 5,
     monto_por_dia: '200.00',
     monto_total: '1000.00',
@@ -463,6 +465,8 @@ export function pago(over = {}) {
     numero_prestamo: 'P-2026-000118',
     libro: 'Rayuela',
     dias_atraso: 5,
+    tipo_multa: 'ATRASO',
+    concepto: 'Atraso de 5 días',
     ...over,
   };
 }

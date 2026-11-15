@@ -21,7 +21,7 @@ El sistema sirve a dos tipos de usuario: el personal (operación y administraci�
 | 7 | Reservas | Cola o espera sobre material no disponible |
 | 8 | Devoluciones | Registro del estado físico del material |
 
-**Opcional (extensiones):** notificaciones, historial de lecturas, recomendaciones, inventario por códigos, revisión de recepción (extravío, daño, destrucción) y **pago de multas** (en el mostrador con su medio de pago, o en línea de forma simulada; ver [técnica/12](docs/tecnica/12-pago-de-multas.md)).
+**Opcional (extensiones):** notificaciones, historial de lecturas, recomendaciones, inventario por códigos, revisión de recepción (extravío, daño, destrucción), **multas por daño o extravío del ejemplar** (monto fijo configurable, 0 = no se cobra; ver [negocio/07](docs/negocio/07-devoluciones.md#qué-pasa-si-se-devuelve-en-mal-estado)) y **pago de multas** (en el mostrador con su medio de pago, o en línea de forma simulada; ver [técnica/12](docs/tecnica/12-pago-de-multas.md)).
 
 **Fuera de alcance (implícito):** adquisiciones, catalogación bibliográfica avanzada (MARC), cobros reales con una pasarela de pagos, devoluciones de dinero y logística externa real.
 
@@ -36,7 +36,7 @@ El sistema sirve a dos tipos de usuario: el personal (operación y administraci�
 - **MovimientoRemito** (historial de estados): remito, estado, fecha/hora, responsable. Es lo que da la trazabilidad.
 - **Reserva**: socio, libro o ejemplar, sede, fecha, estado (pendiente, cumplida, cancelada, vencida).
 - **Devolución**: préstamo, fecha, estado físico del material.
-- **Multa**: préstamo, días de atraso, monto, estado.
+- **Multa**: préstamo, tipo (atraso, daño o extravío), días de atraso (solo la de atraso), monto, estado.
 - **Personal/Usuario del sistema** (si se modela autenticación).
 
 ## Conceptos clave y decisiones de modelado
@@ -93,7 +93,7 @@ Los reportes 1 y 2 dependen de guardar bien el historial de estados del remito. 
 3. ¿Quién es el usuario del sistema? ¿Hay roles (bibliotecario, administrador, socio) y autenticación, o solo una consola o GUI para el personal?
 4. ¿Se espera una GUI, una API o una consola? ¿Qué tecnología y persistencia se usa?
 5. ¿Una reserva es sobre un libro (cualquier ejemplar) o sobre un ejemplar concreto?
-6. ¿Qué ocurre con un ejemplar dañado, extraviado o destruido? ¿Se da de baja y se penaliza al socio?
+6. ¿Qué ocurre con un ejemplar dañado, extraviado o destruido? ¿Se da de baja y se penaliza al socio? *Decidido: el dañado pasa a revisión y el extraviado a baja, con una incidencia del socio; la multa por daño o extravío es un monto fijo configurable (0 = no se cobra), ver [negocio/07](docs/negocio/07-devoluciones.md#qué-pasa-si-se-devuelve-en-mal-estado).*
 
 ## Próximo paso sugerido
 

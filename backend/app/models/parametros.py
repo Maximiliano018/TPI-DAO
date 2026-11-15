@@ -7,11 +7,13 @@ administrador puede cambiar sin redesplegar (ver ``docs/negocio/00-contexto-y-ac
 from dataclasses import dataclass, fields
 from decimal import Decimal
 
-from app.models.policies.multa import MultaFijaPorDia
+from app.models.policies.multa import MontoFijoPorIncidencia, MultaFijaPorDia
 from app.models.valores import error_de_campo
 
 # Parámetros en pesos: admiten centavos y montos mayores que los plazos.
-MONTOS = frozenset({"multa_por_dia", "multa_tope_por_prestamo"})
+MONTOS = frozenset(
+    {"multa_por_dia", "multa_tope_por_prestamo", "multa_por_danio", "multa_por_extravio"}
+)
 MONTO_MAXIMO = Decimal("1000000")
 
 
@@ -29,6 +31,9 @@ class Parametros:
     multa_por_dia: Decimal = Decimal("200.00")
     # Tope de la multa de un préstamo; 0 = sin tope (CU-DEV-02, A2).
     multa_tope_por_prestamo: Decimal = Decimal("0.00")
+    # Multa por devolver el ejemplar dañado o informarlo extraviado; 0 = no se cobra.
+    multa_por_danio: Decimal = Decimal("0.00")
+    multa_por_extravio: Decimal = Decimal("0.00")
     transito_maximo_dias: int = 7
     despacho_maximo_dias: int = 3
 
@@ -36,6 +41,10 @@ class Parametros:
         """Strategy de cálculo vigente: monto por día con el tope configurado (si hay)."""
         tope = self.multa_tope_por_prestamo or None
         return MultaFijaPorDia(self.multa_por_dia, tope)
+
+    def politica_multa_por_incidencia(self) -> MontoFijoPorIncidencia:
+        """Strategy de la multa por daño o extravío: un monto fijo por cada caso."""
+        return MontoFijoPorIncidencia(self.multa_por_danio, self.multa_por_extravio)
 
     @classmethod
     def claves(cls) -> list[str]:

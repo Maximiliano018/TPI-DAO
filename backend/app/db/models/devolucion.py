@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -48,29 +49,42 @@ class DevolucionORM(ConAuditoriaDeTiempo, Base):
     motivo_fecha: Mapped[str | None] = mapped_column(String(300))
 
 
+TIPOS_MULTA = "'ATRASO','DANIO','EXTRAVIO'"
+
+
 class MultaORM(ConAuditoriaDeTiempo, Base):
-    """Multa por atraso. Guarda el monto por día vigente al generarse (no cambia después)."""
+    """Multa de un préstamo: por atraso (guarda el monto por día vigente al generarse) o por
+    daño o extravío del ejemplar. Un préstamo tiene a lo sumo una de cada tipo."""
 
     __tablename__ = "multa"
     __table_args__ = (
+        UniqueConstraint("prestamo_id", "tipo"),
         CheckConstraint("estado IN ('PENDIENTE','SALDADA')", name="estado_valido"),
+        CheckConstraint(f"tipo IN ({TIPOS_MULTA})", name="tipo_valido"),
         CheckConstraint("monto_total >= 0", name="monto_no_negativo"),
         CheckConstraint(
             "(estado = 'SALDADA') = (fecha_saldada IS NOT NULL)", name="saldada_con_fecha"
         ),
-        # Solo hay multa con atraso, y el total no supera días × monto (menos si hay tope).
-        CheckConstraint("dias_atraso > 0", name="atraso_positivo"),
+        # Solo la de atraso tiene días y monto por día.
         CheckConstraint(
-            "monto_por_dia >= 0 AND monto_total <= dias_atraso * monto_por_dia",
+            "(tipo = 'ATRASO') = (dias_atraso IS NOT NULL AND monto_por_dia IS NOT NULL)",
+            name="atraso_segun_tipo",
+        ),
+        # La de atraso existe solo con atraso, y el total no supera días × monto (menos con tope).
+        CheckConstraint("dias_atraso IS NULL OR dias_atraso > 0", name="atraso_positivo"),
+        CheckConstraint(
+            "dias_atraso IS NULL "
+            "OR (monto_por_dia >= 0 AND monto_total <= dias_atraso * monto_por_dia)",
             name="monto_coherente",
         ),
         Index("ix_multa_socio_id_estado", "socio_id", "estado"),
     )
 
-    prestamo_id: Mapped[int] = mapped_column(ForeignKey("prestamo.id"), nullable=False, unique=True)
+    prestamo_id: Mapped[int] = mapped_column(ForeignKey("prestamo.id"), nullable=False)
     socio_id: Mapped[int] = mapped_column(ForeignKey("socio.id"), nullable=False)
-    dias_atraso: Mapped[int] = mapped_column(Integer, nullable=False)
-    monto_por_dia: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    tipo: Mapped[str] = mapped_column(String(10), nullable=False)
+    dias_atraso: Mapped[int | None] = mapped_column(Integer)
+    monto_por_dia: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     monto_total: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     estado: Mapped[str] = mapped_column(String(10), nullable=False)
     fecha_generacion: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

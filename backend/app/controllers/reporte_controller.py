@@ -195,7 +195,9 @@ class MultaReporteResponse(_Modelo):
     socio_id: int
     socio: str
     libro: str
-    dias_atraso: int
+    tipo: str
+    concepto: str
+    dias_atraso: int | None
     monto_total: Decimal
     estado: str
     fecha_generacion: datetime

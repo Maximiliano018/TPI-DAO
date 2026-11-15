@@ -289,6 +289,16 @@ classDiagram
     }
     PoliticaMulta <|.. MultaFijaPorDia
 
+    class PoliticaMultaPorIncidencia {
+        <<interface>>
+        +calcular(tipo) Dinero
+    }
+    class MontoFijoPorIncidencia {
+        +Dinero danio
+        +Dinero extravio
+    }
+    PoliticaMultaPorIncidencia <|.. MontoFijoPorIncidencia
+
     class PoliticaPlazo {
         <<interface>>
         +vencimiento(inicio) date
@@ -305,6 +315,7 @@ classDiagram
     PrestamoFactory ..> PoliticaPlazo : elige
     Prestamo ..> PoliticaPlazo
     Devolucion ..> PoliticaMulta
+    Devolucion ..> PoliticaMultaPorIncidencia
 ```
 
 Los estados de préstamo, ejemplar y reserva siguen la misma estructura que `EstadoRemito` (una clase por estado que define qué operaciones admite). Ver [Máquinas de estado](03-maquinas-de-estado.md). La sede no usa State: su estado es el enum `EstadoSede` ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)).

@@ -51,8 +51,9 @@ def test_una_devolucion_retroactiva_con_motivo_es_valida(sesion: Session, datos,
 def _multa(sesion: Session, d, prestamo: int, dias: int, por_dia: str, total: str) -> None:
     sesion.execute(
         text(
-            "INSERT INTO multa (prestamo_id, socio_id, dias_atraso, monto_por_dia, monto_total, "
-            "estado, fecha_generacion) VALUES (:p, :s, :d, :pd, :t, 'PENDIENTE', now())"
+            "INSERT INTO multa (prestamo_id, socio_id, tipo, dias_atraso, monto_por_dia, "
+            "monto_total, estado, fecha_generacion) "
+            "VALUES (:p, :s, 'ATRASO', :d, :pd, :t, 'PENDIENTE', now())"
         ),
         {"p": prestamo, "s": d["socio"].id, "d": dias, "pd": por_dia, "t": total},
     )
@@ -82,6 +83,47 @@ def test_la_multa_es_coherente_con_su_atraso(
 @pytest.mark.ca("CA-DEV-18")
 def test_una_multa_con_tope_es_valida(sesion: Session, datos, prestamo_id):  # noqa: F811
     _multa(sesion, datos, prestamo_id, 5, "200", "500")
+
+
+def _multa_por(sesion: Session, d, prestamo: int, tipo: str, dias=None, por_dia=None) -> None:
+    sesion.execute(
+        text(
+            "INSERT INTO multa (prestamo_id, socio_id, tipo, dias_atraso, monto_por_dia, "
+            "monto_total, estado, fecha_generacion) "
+            "VALUES (:p, :s, :tipo, :d, :pd, 3000, 'PENDIENTE', now())"
+        ),
+        {"p": prestamo, "s": d["socio"].id, "tipo": tipo, "d": dias, "pd": por_dia},
+    )
+
+
+@pytest.mark.ca("CA-DEV-32")
+def test_un_prestamo_tiene_una_multa_de_cada_tipo(sesion: Session, datos, prestamo_id):  # noqa: F811
+    _multa(sesion, datos, prestamo_id, 5, "200", "1000")
+    _multa_por(sesion, datos, prestamo_id, "DANIO")
+    with pytest.raises(IntegrityError, match="uq_multa_prestamo_id_tipo"), sesion.begin_nested():
+        _multa_por(sesion, datos, prestamo_id, "DANIO")
+
+
+@pytest.mark.ca("CA-DEV-29")
+@pytest.mark.parametrize(
+    ("tipo", "dias", "por_dia", "restriccion"),
+    [
+        ("DANIO", 3, "200", "ck_multa_atraso_segun_tipo"),
+        ("ATRASO", None, None, "ck_multa_atraso_segun_tipo"),
+        ("MULTA", None, None, "ck_multa_tipo_valido"),
+    ],
+)
+def test_solo_la_multa_de_atraso_tiene_dias(
+    sesion: Session,
+    datos,  # noqa: F811
+    prestamo_id,
+    tipo,
+    dias,
+    por_dia,
+    restriccion,
+):
+    with pytest.raises(IntegrityError, match=restriccion):
+        _multa_por(sesion, datos, prestamo_id, tipo, dias, por_dia)
 
 
 # --- pagos -------------------------------------------------------------------------------------

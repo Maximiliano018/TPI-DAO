@@ -14,7 +14,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from app.dtos.response.sede_response import UsuarioRefResponse
-from app.models.devolucion import Devolucion, Multa
+from app.models.devolucion import Devolucion, Multa, concepto_de_multa
 from app.models.paginacion import Pagina
 from app.models.pago import Pago
 from app.models.usuario import Permiso, Usuario
@@ -82,6 +82,8 @@ class PagoPropioResponse(BaseModel):
     numero_prestamo: str | None
     libro: str | None
     dias_atraso: int | None
+    tipo_multa: str | None
+    concepto: str | None
 
 
 class PagoPersonalResponse(PagoPropioResponse):
@@ -111,6 +113,8 @@ def pago_a_response(p: Pago, lector: Usuario) -> PagoResponse:
         "numero_prestamo": p.numero_prestamo,
         "libro": p.libro_titulo,
         "dias_atraso": p.dias_atraso,
+        "tipo_multa": p.tipo_multa.value if p.tipo_multa else None,
+        "concepto": concepto_de_multa(p.tipo_multa, p.dias_atraso) if p.tipo_multa else None,
     }
     if not lector.puede(Permiso.MULTA_LEER):
         return PagoPropioResponse(**campos)
@@ -122,7 +126,11 @@ def pago_a_response(p: Pago, lector: Usuario) -> PagoResponse:
 
 
 class MultaPropiaResponse(BaseModel):
-    """``pago``: el que la saldó; ``pago_en_curso``: el pago en línea iniciado y sin resultado."""
+    """``pago``: el que la saldó; ``pago_en_curso``: el pago en línea iniciado y sin resultado.
+
+    ``tipo`` es ``ATRASO``, ``DANIO`` o ``EXTRAVIO``; ``dias_atraso`` y ``monto_por_dia`` solo
+    los tiene la de atraso. ``concepto`` lo dice en palabras («Atraso de 3 días»).
+    """
 
     id: int
     prestamo_id: int
@@ -130,8 +138,10 @@ class MultaPropiaResponse(BaseModel):
     socio_id: int
     socio: str | None
     libro: str | None
-    dias_atraso: int
-    monto_por_dia: Decimal
+    tipo: str
+    concepto: str
+    dias_atraso: int | None
+    monto_por_dia: Decimal | None
     monto_total: Decimal
     estado: str
     fecha_generacion: datetime
@@ -156,6 +166,8 @@ def multa_a_response(m: Multa, lector: Usuario) -> MultaResponse:
         "socio_id": m.socio_id,
         "socio": m.socio_nombre,
         "libro": m.libro_titulo,
+        "tipo": m.tipo.value,
+        "concepto": m.concepto,
         "dias_atraso": m.dias_atraso,
         "monto_por_dia": m.monto_por_dia,
         "monto_total": m.monto_total,

@@ -46,7 +46,7 @@ function Resumen({ pago }) {
     <div className={estilos.resumen}>
       <span>
         Multa del préstamo <span className="mono">{pago.numero_prestamo}</span>
-        {pago.dias_atraso ? ` · ${pago.dias_atraso} día(s) de atraso` : ''}
+        {pago.concepto ? ` · ${pago.concepto}` : ''}
       </span>
       {pago.libro && <span>{pago.libro}</span>}
       <span className={estilos.total}>{formatearMonto(pago.monto)}</span>

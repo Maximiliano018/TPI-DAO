@@ -23,6 +23,8 @@ from app.db.models import (
     SedeORM,
     SocioORM,
 )
+from app.models.devolucion import concepto_de_multa
+from app.models.policies.multa import TipoMulta
 from app.models.usuario import Permiso, Rol, Usuario
 from app.models.valores import error_de_campo
 from app.repositories.impl.catalogo_repository import (
@@ -303,7 +305,8 @@ class ReporteService:
         devolver). La sede y el socio definen el alcance; la sede interviene como origen o
         destino del préstamo, igual que en R6 (CA-REP-19). El estado de la multa, el período
         (fecha de generación de la multa) y el rango de atraso solo acotan las listas: los
-        totales son siempre la deuda real del alcance (CA-REP-18).
+        totales son siempre la deuda real del alcance (CA-REP-18). Las multas por daño o
+        extravío no tienen atraso: un rango de atraso las deja fuera de la lista.
         """
         actor.exigir(Permiso.REPORTE_SEDE)
         self._validar_periodo(desde, hasta)
@@ -420,6 +423,7 @@ class ReporteService:
                 MultaORM.monto_total,
                 MultaORM.estado,
                 MultaORM.fecha_generacion,
+                MultaORM.tipo,
             )
             .join(PrestamoORM, PrestamoORM.id == MultaORM.prestamo_id)
             .join(SocioORM, SocioORM.id == MultaORM.socio_id)
@@ -436,6 +440,8 @@ class ReporteService:
                 socio_id=f[3],
                 socio=f"{f[4]} {f[5]}",
                 libro=f[6],
+                tipo=f[11],
+                concepto=concepto_de_multa(TipoMulta(f[11]), f[7]),
                 dias_atraso=f[7],
                 monto_total=f[8],
                 estado=f[9],

@@ -17,7 +17,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | RF-DEV-09 | En una devolución interbibliotecaria, el sistema debe generar el remito de retorno hacia la sede propietaria y dejar el ejemplar `En tránsito` al despacharse. | Obligatorio |
 | RF-DEV-10 | Según el estado recibido: `Bueno` o `Regular` actualizan el estado físico; `Dañado` deja el ejemplar en revisión, no disponible; `Extraviado` lo pasa a `Baja` con incidencia. | Obligatorio |
 | RF-DEV-11 | Al liberarse el ejemplar, el sistema debe revisar la cola de reservas del libro (ver [Reservas](06-reservas.md)). | Obligatorio |
-| RF-DEV-12 | El sistema debe registrar una incidencia asociada al socio ante daño o extravío, sin penalización económica. | Opcional |
+| RF-DEV-12 | El sistema debe registrar una incidencia asociada al socio ante daño o extravío (la multa, si corresponde, la define RF-DEV-23). | Opcional |
 | RF-DEV-13 | El sistema debe permitir consultar devoluciones y multas por préstamo y por socio; el personal busca las multas de un socio desde la página de multas o desde su ficha. | Obligatorio |
 | RF-DEV-14 | Una devolución con fecha anterior al día en que se registra debe exigir un motivo (de 5 a 300 caracteres) y dejar en el historial del préstamo la fecha de devolución, la de registro y el motivo. | Obligatorio |
 | RF-DEV-15 | El sistema debe permitir configurar un tope de multa por préstamo (0 = sin tope); la política de cálculo lo aplica. | Opcional |
@@ -28,6 +28,8 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | RF-DEV-20 | Un pago en línea rechazado deja la multa pendiente y permite reintentar; cobrar en el mostrador cancela el pago en línea en curso, que ya no se puede aprobar. | Opcional |
 | RF-DEV-21 | El socio solo inicia y paga pagos de sus multas; el personal no inicia pagos en línea. | Opcional |
 | RF-DEV-22 | Todo pago aprobado (de mostrador o en línea) debe tener un comprobante descargable en PDF; el socio descarga los suyos y el personal, cualquiera. | Opcional |
+| RF-DEV-23 | Al registrar una devolución `Dañado` o `Extraviado`, el sistema debe generar una multa por daño o por extravío con el monto fijo configurado (`multa_por_danio`, `multa_por_extravio`; 0 = no se cobra), además de la de atraso si la hay. Un préstamo tiene a lo sumo una multa de cada tipo; el tope por préstamo se aplica solo a la de atraso. | Opcional |
+| RF-DEV-24 | La multa por daño o extravío se paga, inhabilita y rehabilita al socio igual que la de atraso; las fichas, la lista de multas, el reporte R4 y el comprobante muestran su concepto (atraso, daño o extravío). | Opcional |
 
 ## Casos de uso
 
@@ -67,9 +69,11 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 - **Flujo normal:**
   1. Registra la devolución con estado `Dañado` y observaciones.
   2. El sistema deja el ejemplar en revisión, no disponible, y registra la incidencia.
-  3. Si hay atraso, se genera además la multa (CU-DEV-02).
+  3. Si el monto por daño está configurado, genera la multa por daño (RF-DEV-23) y el socio queda inhabilitado hasta pagarla.
+  4. Si hay atraso, se genera además la multa por atraso (CU-DEV-02).
 - **Flujos alternativos:**
-  - **A1:** estado `Extraviado` (el socio no puede entregarlo); el préstamo se cierra como `Devuelto` con incidencia, el ejemplar pasa a `Baja`.
+  - **A1:** estado `Extraviado` (el socio no puede entregarlo); el préstamo se cierra como `Devuelto` con incidencia, el ejemplar pasa a `Baja` y, si el monto está configurado, se genera la multa por extravío.
+  - **A4:** el monto por daño o extravío es 0 (valor inicial); queda solo la incidencia, sin multa.
   - **A2:** observaciones vacías; rechaza (el daño o extravío exige descripción).
   - **A3:** el ejemplar en revisión se repara; el bibliotecario lo pasa a `Disponible` actualizando el estado físico; si no, se da de baja.
 
@@ -140,3 +144,8 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | CA-DEV-26 | RF-DEV-21 | **Dado** un bibliotecario, o la multa o el pago de otro socio, **cuando** se intenta pagar en línea, **entonces** se rechaza. |
 | CA-DEV-27 | RF-DEV-22 | **Dado** un pago aprobado, **cuando** el socio o el personal descargan el comprobante, **entonces** reciben un PDF con su número, socio, concepto, medio y total; un pago no aprobado no tiene comprobante. |
 | CA-DEV-28 | RF-DEV-18 | **Dado** el checkout simulado, **cuando** el socio paga con tarjeta, **entonces** al servidor llegan solo los últimos 4 dígitos (un número completo se rechaza); con dinero en cuenta no se pide tarjeta. |
+| CA-DEV-29 | RF-DEV-23 | **Dado** una multa por daño de $3.000, **cuando** se registra una devolución `Dañado` en término, **entonces** se genera una multa por daño de $3.000, sin días de atraso, y el socio queda inhabilitado. |
+| CA-DEV-30 | RF-DEV-23 | **Dado** una multa por extravío de $15.000, **cuando** se registra una devolución `Extraviado`, **entonces** se genera una multa por extravío de $15.000. |
+| CA-DEV-31 | RF-DEV-23 | **Dado** el monto por daño en 0, o una devolución `Regular` o `Bueno`, **cuando** se registra, **entonces** no se genera multa por daño. |
+| CA-DEV-32 | RF-DEV-23 | **Dado** un tope de $500 y una devolución dañada con 5 días de atraso, **cuando** se registra, **entonces** hay dos multas (atraso de $500 y daño entero), el socio se rehabilita solo al pagar las dos, y un préstamo no puede tener dos multas del mismo tipo. |
+| CA-DEV-33 | RF-DEV-24 | **Dado** una multa por daño o extravío, **cuando** el socio la paga en línea o el personal consulta R4, **entonces** el pago se aprueba como el de atraso y el comprobante y el reporte muestran su concepto. |

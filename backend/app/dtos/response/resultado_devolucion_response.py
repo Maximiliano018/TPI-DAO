@@ -24,11 +24,11 @@ class SocioEstadoResponse(BaseModel):
 
 
 class ResultadoDevolucionResponse(BaseModel):
-    """Lo que cambió con la devolución: préstamo, multa, remito de retorno y socio."""
+    """Lo que cambió con la devolución: préstamo, multas, remito de retorno y socio."""
 
     prestamo: PrestamoResponse
     devolucion: DevolucionResponse
-    multa: MultaResponse | None
+    multas: list[MultaResponse]
     remito_retorno: RemitoResumenResponse | None
     reserva_asignada: str | None
     socio: SocioEstadoResponse | None
@@ -38,7 +38,7 @@ class ResultadoDevolucionResponse(BaseModel):
         return cls(
             prestamo=prestamo_a_response(r.prestamo, actor),
             devolucion=devolucion_a_response(r.devolucion, actor),
-            multa=multa_a_response(r.multa, actor) if r.multa else None,
+            multas=[multa_a_response(m, actor) for m in r.multas],
             remito_retorno=(
                 RemitoResumenResponse.desde(r.remito_retorno) if r.remito_retorno else None
             ),

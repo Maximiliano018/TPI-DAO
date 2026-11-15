@@ -3,6 +3,7 @@
 from datetime import tzinfo
 from decimal import Decimal
 
+from app.models.devolucion import concepto_de_multa
 from app.models.pago import FormaEnLinea, MedioPago, Pago
 from app.utils.pdf import ALTO, ANCHO, DocumentoPdf
 
@@ -53,8 +54,8 @@ def comprobante_pdf(pago: Pago, zona: tzinfo) -> bytes:
 
     acreditado = pago.acreditado_en.astimezone(zona)
     concepto = f"Multa del préstamo {pago.numero_prestamo or pago.multa_id}"
-    if pago.dias_atraso:
-        concepto += f" ({pago.dias_atraso} día(s) de atraso)"
+    if pago.tipo_multa is not None:
+        concepto += f" ({concepto_de_multa(pago.tipo_multa, pago.dias_atraso).lower()})"
     filas = [
         ("Fecha y hora", acreditado.strftime("%d/%m/%Y %H:%M")),
         ("Socio", f"{pago.socio_nombre or ''} (n.º {pago.numero_socio or '-'})"),

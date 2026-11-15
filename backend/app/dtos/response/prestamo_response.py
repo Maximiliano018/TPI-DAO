@@ -249,12 +249,12 @@ class RemitoResumenResponse(BaseModel):
 
 
 class _Detalle(BaseModel):
-    """Lo que agrega la ficha: historial, remitos de ida y vuelta, devolución y multa."""
+    """Lo que agrega la ficha: historial, remitos de ida y vuelta, devolución y multas."""
 
     historial: list[MovimientoPrestamoResponse]
     remitos: list[RemitoResumenResponse]
     devolucion: DevolucionResponse | None = None
-    multa: MultaResponse | None = None
+    multas: list[MultaResponse] = []
 
 
 class PrestamoDetallePropioResponse(PrestamoPropioResponse, _Detalle):
@@ -273,7 +273,7 @@ def detalle_a_response(d: DetallePrestamo, lector: Usuario) -> PrestamoDetalleRe
         "historial": [MovimientoPrestamoResponse.desde(m, lector) for m in d.historial],
         "remitos": [RemitoResumenResponse.desde(r) for r in d.remitos],
         "devolucion": devolucion_a_response(d.devolucion, lector) if d.devolucion else None,
-        "multa": multa_a_response(d.multa, lector) if d.multa else None,
+        "multas": [multa_a_response(m, lector) for m in d.multas],
     }
     if not _es_personal(lector):
         return PrestamoDetallePropioResponse(**_campos(d.prestamo), **detalle)

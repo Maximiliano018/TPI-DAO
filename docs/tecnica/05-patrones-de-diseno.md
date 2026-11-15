@@ -119,6 +119,12 @@ class MultaFijaPorDia:
         total = self.monto_por_dia * dias_atraso
         return min(total, self.tope) if self.tope else total
 
+class PoliticaMultaPorIncidencia(Protocol):  # daño o extravío del ejemplar
+    def calcular(self, tipo: TipoMulta) -> Decimal: ...
+
+class MontoFijoPorIncidencia:  # parámetros multa_por_danio y multa_por_extravio (0 = no se cobra)
+    def calcular(self, tipo: TipoMulta) -> Decimal: ...
+
 class PoliticaPlazo(Protocol):
     def vencimiento(self, inicio: date) -> date: ...
 # PlazoLocal (14 días) y PlazoInterbibliotecario (21 días)
@@ -126,7 +132,7 @@ class PoliticaPlazo(Protocol):
 
 **Ventajas.**
 
-- Cambiar o sumar una política (multa escalonada, plazo por categoría de libro) no toca el dominio existente (principio abierto/cerrado).
+- Cambiar o sumar una política (multa escalonada, plazo por categoría de libro) no toca el dominio existente (principio abierto/cerrado). La multa por daño o extravío se sumó así: una segunda política que `Devolucion.registrar` recibe junto a la de atraso; pasar a cobrar según el valor de reposición del libro sería otra implementación de `PoliticaMultaPorIncidencia`.
 - Se prueba cada política sin base ni préstamo: `CA-DEV-06` y `CA-DEV-07`.
 - Los valores salen de la tabla `parametro`, así el administrador los ajusta sin cambiar código.
 

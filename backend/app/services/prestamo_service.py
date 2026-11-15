@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from app.exceptions import (
@@ -59,7 +59,7 @@ class DetallePrestamo:
     historial: list[MovimientoPrestamo]
     remitos: list[Remito]
     devolucion: Devolucion | None = None
-    multa: Multa | None = None
+    multas: list[Multa] = field(default_factory=list)
 
 
 class PrestamoService:
@@ -361,7 +361,7 @@ class PrestamoService:
     # --- lectura --------------------------------------------------------------------------
 
     def detalle(self, actor: Usuario, prestamo_id: int) -> DetallePrestamo:
-        """Préstamo con su historial, sus remitos, la devolución y la multa (RF-PRE-15, DEV-13).
+        """Préstamo con su historial, sus remitos, la devolución y las multas (RF-PRE-15, DEV-13).
 
         El socio ve solo los propios; el bibliotecario, los de su sede como origen o destino.
         """

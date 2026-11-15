@@ -89,7 +89,9 @@ class PagoService:
                 ahora=self._reloj.ahora(),
             )
             self._uow.pagos.agregar(pago)
-        return pago
+        assert pago.id is not None
+        # Releído para devolverlo con los datos de la multa (préstamo, libro, concepto).
+        return self._uow.pagos.obtener(pago.id) or pago
 
     def pagar_en_linea(
         self, actor: Usuario, pago_id: int, forma: FormaEnLinea, tarjeta_ultimos4: str | None

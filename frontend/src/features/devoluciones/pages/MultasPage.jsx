@@ -163,7 +163,7 @@ export default function MultasPage() {
         ]
       : []),
     { clave: 'libro', titulo: 'Libro' },
-    { clave: 'dias', titulo: 'Días de atraso', render: (m) => m.dias_atraso },
+    { clave: 'concepto', titulo: 'Concepto', render: (m) => m.concepto },
     {
       clave: 'monto',
       titulo: 'Monto',

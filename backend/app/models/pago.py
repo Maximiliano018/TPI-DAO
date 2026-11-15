@@ -17,6 +17,7 @@ from decimal import Decimal
 from enum import StrEnum
 
 from app.exceptions import TransicionInvalida
+from app.models.policies.multa import TipoMulta
 from app.models.usuario import UsuarioRef
 from app.models.valores import error_de_campo
 
@@ -77,6 +78,7 @@ class Pago:
     numero_prestamo: str | None = None
     libro_titulo: str | None = None
     dias_atraso: int | None = None
+    tipo_multa: TipoMulta | None = None
     socio_nombre: str | None = None
     numero_socio: str | None = None
 

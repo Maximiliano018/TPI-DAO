@@ -706,14 +706,16 @@ Response `201`:
 {
   "prestamo": { "id": 118, "estado": "DEVUELTO" },
   "devolucion": { "id": 60, "dias_atraso": 5, "estado_fisico_recibido": "BUENO" },
-  "multa": { "id": 14, "dias_atraso": 5, "monto_por_dia": "200.00", "monto_total": "1000.00", "estado": "PENDIENTE" },
+  "multas": [
+    { "id": 14, "tipo": "ATRASO", "concepto": "Atraso de 5 días", "dias_atraso": 5, "monto_por_dia": "200.00", "monto_total": "1000.00", "estado": "PENDIENTE" }
+  ],
   "remito_retorno": { "id": 52, "numero": "RM-2026-000052", "motivo": "RETORNO", "estado": "GENERADO" },
   "reserva_asignada": null,
   "socio": { "id": 45, "estado": "INHABILITADO", "motivo": "MULTA_IMPAGA" }
 }
 ```
 
-`multa`, `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, observaciones faltantes, o fecha anterior a hoy sin `motivo_fecha`).
+`multas` trae las que generó la devolución (vacía si ninguna): la de atraso y, si llegó `DANADO` o `EXTRAVIADO` con el monto configurado, la de daño o extravío (`tipo` `DANIO` o `EXTRAVIO`, sin `dias_atraso` ni `monto_por_dia`). La ficha del préstamo (`GET /prestamos/{id}`) también trae `multas`. `remito_retorno` y `reserva_asignada` (número de la reserva que recibió el ejemplar) son `null` cuando no corresponden. Errores: `409 TRANSICION_INVALIDA` (préstamo ya devuelto o todavía no entregado), `403 FORBIDDEN` (sede distinta de la de destino), `422 VALIDACION` (fecha futura o anterior a la entrega, observaciones faltantes, o fecha anterior a hoy sin `motivo_fecha`).
 
 Qué pasa con el ejemplar según el estado recibido, todo en la misma transacción:
 
@@ -723,9 +725,9 @@ Qué pasa con el ejemplar según el estado recibido, todo en la misma transacci�
 | `DANADO` | `EN_REVISION` con incidencia `DANIO` | Remito de retorno con incidencia `DANIO`; al recibirse dañado en su sede pasa a `EN_REVISION` sin otra incidencia |
 | `EXTRAVIADO` | `BAJA` con incidencia `EXTRAVIO` | `BAJA` con incidencia `EXTRAVIO` |
 
-Las incidencias de una devolución quedan asociadas al socio, sin penalización económica (RF-DEV-12). La multa guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0. Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar` con el medio, `409 TRANSICION_INVALIDA` si ya estaba saldada, `422` si el medio no es de mostrador) se reevalúa la habilitación del socio.
+Las incidencias de una devolución quedan asociadas al socio (RF-DEV-12). La multa por atraso guarda el monto por día vigente al generarse y respeta el tope `multa_tope_por_prestamo` si es mayor que 0; la de daño o extravío toma `multa_por_danio` o `multa_por_extravio` (0 = no se genera) y no tiene tope (RF-DEV-23). Toda multa responde `tipo` y `concepto` («Atraso de 5 días», «Daño del ejemplar», «Extravío del ejemplar»). Esquema por rol: en la devolución (dentro de la ficha del préstamo) y en la multa, el socio no recibe `registrada_por` ni `saldada_por`; el personal sí. Al saldarla (`POST /multas/{id}/saldar` con el medio, `409 TRANSICION_INVALIDA` si ya estaba saldada, `422` si el medio no es de mostrador) se reevalúa la habilitación del socio.
 
-**Pagos.** El pago tiene esquema por rol: el socio ve `id`, `medio`, `estado`, `monto`, `fecha`, `acreditado_en`, `motivo` (de un rechazo o una cancelación), `forma_en_linea`, `tarjeta_ultimos4`, `numero_comprobante` (si está aprobado), `numero_prestamo`, `libro` y `dias_atraso`; el personal suma `registrado_por` y `comprobante`. Pagar un pago que ya no está pendiente responde `409 TRANSICION_INVALIDA`; uno de otro socio, `404 PAGO_NO_ENCONTRADO`; una tarjeta sin sus 4 últimos dígitos (o un número completo), `422`. El comprobante responde `application/pdf` con `Content-Disposition: attachment; filename="comprobante-PG-<año>-<id>.pdf"`, o `409` si el pago no está aprobado. El pago en línea es simulado (ver [técnica/12](12-pago-de-multas.md)).
+**Pagos.** El pago tiene esquema por rol: el socio ve `id`, `medio`, `estado`, `monto`, `fecha`, `acreditado_en`, `motivo` (de un rechazo o una cancelación), `forma_en_linea`, `tarjeta_ultimos4`, `numero_comprobante` (si está aprobado), `numero_prestamo`, `libro`, `dias_atraso`, `tipo_multa` y `concepto`; el personal suma `registrado_por` y `comprobante`. Pagar un pago que ya no está pendiente responde `409 TRANSICION_INVALIDA`; uno de otro socio, `404 PAGO_NO_ENCONTRADO`; una tarjeta sin sus 4 últimos dígitos (o un número completo), `422`. El comprobante responde `application/pdf` con `Content-Disposition: attachment; filename="comprobante-PG-<año>-<id>.pdf"`, o `409` si el pago no está aprobado. El pago en línea es simulado (ver [técnica/12](12-pago-de-multas.md)).
 
 ### `POST /remitos` — generar remito
 

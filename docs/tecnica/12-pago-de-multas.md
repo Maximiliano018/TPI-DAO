@@ -24,7 +24,7 @@ sequenceDiagram
 
 **Checkout simulado (`/pagos/simulado?pago=ID`)**, en tres pasos:
 
-1. **Forma de pago:** tarjeta de crédito, tarjeta de débito o dinero en cuenta, con el resumen de la multa (préstamo, libro, días de atraso y total).
+1. **Forma de pago:** tarjeta de crédito, tarjeta de débito o dinero en cuenta, con el resumen de la multa (préstamo, libro, concepto —atraso, daño o extravío— y total).
 2. **Datos:** con tarjeta, número (validado con el algoritmo de Luhn y agrupado de a cuatro, con la marca), titular, vencimiento `MM/AA` no vencido y código de seguridad. **Solo los últimos 4 dígitos viajan al servidor**; el resto se valida en el navegador y se descarta al confirmar. Con dinero en cuenta no se pide nada más.
 3. **Resultado:** aprobado (con el número de comprobante y «Descargar comprobante») o rechazado (con el motivo e «Intentar de nuevo», que inicia otro pago).
 
@@ -32,7 +32,7 @@ sequenceDiagram
 
 ## Comprobante
 
-`GET /pagos/{id}/comprobante` devuelve un PDF A4 (`comprobante-PG-<año>-<id>.pdf`) para cualquier pago **aprobado**, de mostrador o en línea. Incluye el número `PG-<año>-<id>`, fecha y hora (zona de negocio), socio y número de socio, concepto (préstamo y días de atraso), libro, medio de pago (con la tarjeta enmascarada, «terminada en 3704»), comprobante del cobro y quién cobró (mostrador), total y, si es en línea, la aclaración de que es un pago simulado. El socio descarga los de sus pagos (desde el resultado del checkout o desde «Mis multas»); el personal, cualquiera.
+`GET /pagos/{id}/comprobante` devuelve un PDF A4 (`comprobante-PG-<año>-<id>.pdf`) para cualquier pago **aprobado**, de mostrador o en línea. Incluye el número `PG-<año>-<id>`, fecha y hora (zona de negocio), socio y número de socio, concepto (préstamo y por qué se cobra: «atraso de 5 días», «daño del ejemplar» o «extravío del ejemplar»), libro, medio de pago (con la tarjeta enmascarada, «terminada en 3704»), comprobante del cobro y quién cobró (mostrador), total y, si es en línea, la aclaración de que es un pago simulado. El socio descarga los de sus pagos (desde el resultado del checkout o desde «Mis multas»); el personal, cualquiera.
 
 El PDF se genera sin dependencias (`app/utils/pdf.py`): una página con las fuentes estándar Helvetica en codificación WinAnsi, que admite acentos y «ñ». Un pago no aprobado responde `409`.
 

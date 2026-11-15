@@ -18,9 +18,8 @@ const CON_DESCRIPCION = ['DANADO', 'EXTRAVIADO'];
 /** Resumen de lo que pasó con la devolución, para el aviso. */
 export function resumenDeDevolucion(resultado) {
   const partes = [];
-  if (resultado.multa) {
-    const { monto_total: monto, dias_atraso: dias } = resultado.multa;
-    partes.push(`multa de ${formatearMonto(monto)} por ${dias} día(s) de atraso`);
+  for (const multa of resultado.multas ?? []) {
+    partes.push(`multa de ${formatearMonto(multa.monto_total)} (${multa.concepto.toLowerCase()})`);
   }
   if (resultado.remito_retorno) {
     partes.push(`vuelve a su sede con el remito ${resultado.remito_retorno.numero}`);
@@ -30,6 +29,9 @@ export function resumenDeDevolucion(resultado) {
   }
   return partes.length ? `Devolución registrada: ${partes.join('; ')}` : 'Devolución registrada';
 }
+
+/** Multa por daño o extravío que corresponde al estado recibido (RF-DEV-23). */
+const MULTA_POR_ESTADO = { DANADO: 'daño', EXTRAVIADO: 'extravío' };
 
 function efecto(prestamo, estado) {
   if (estado === 'EXTRAVIADO') return 'El ejemplar se da de baja y queda una incidencia del socio.';
@@ -51,8 +53,10 @@ export function diasDeAtraso(prestamo, fecha) {
 
 /**
  * Registra la devolución de un préstamo activo o vencido en la sede destino.
- * Si pasó el vencimiento, el servidor genera la multa por los días de atraso. Una fecha anterior
- * a hoy (la devolvió antes y se registra ahora) exige el motivo: cambia el atraso y la multa.
+ * Si pasó el vencimiento, el servidor genera la multa por los días de atraso; si llega dañado o
+ * se informa extraviado, también la multa por daño o extravío (con el monto configurado). Una
+ * fecha anterior a hoy (la devolvió antes y se registra ahora) exige el motivo: cambia el atraso
+ * y la multa.
  */
 export default function DevolucionDialog({ prestamo, onCerrar }) {
   const registrar = useRegistrarDevolucion();
@@ -140,6 +144,12 @@ export default function DevolucionDialog({ prestamo, onCerrar }) {
         <Alert tono="warning">
           Venció el {formatearFecha(prestamo.fecha_vencimiento)}: {atraso} día(s) de atraso. Al
           registrarla se genera la multa.
+        </Alert>
+      )}
+      {MULTA_POR_ESTADO[estado] && (
+        <Alert tono="warning">
+          Al registrarla se genera la multa por {MULTA_POR_ESTADO[estado]} del ejemplar, si su monto
+          está configurado: el socio queda inhabilitado hasta pagarla.
         </Alert>
       )}
       {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}

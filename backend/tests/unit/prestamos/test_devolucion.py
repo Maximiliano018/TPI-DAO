@@ -7,7 +7,8 @@ import pytest
 
 from app.exceptions import ErrorDeValidacion, TransicionInvalida
 from app.models.devolucion import Devolucion, EstadoMulta, EstadoRecibido
-from app.models.policies.multa import MultaFijaPorDia
+from app.models.parametros import Parametros, convertir
+from app.models.policies.multa import MontoFijoPorIncidencia, MultaFijaPorDia, TipoMulta
 from app.models.prestamo import Prestamo
 from app.models.states.prestamo import EstadoPrestamoEnum as P
 from app.models.usuario import UsuarioRef
@@ -23,7 +24,15 @@ def activo(vence: date, estado: P = P.ACTIVO) -> Prestamo:
     return prestamo(estado, fecha_inicio=vence - timedelta(days=14), fecha_vencimiento=vence)
 
 
-def devolver(p: Prestamo, fecha: date = HOY, estado=EstadoRecibido.BUENO, obs=None, politica=None):
+def registrar(
+    p: Prestamo,
+    fecha: date = HOY,
+    estado=EstadoRecibido.BUENO,
+    obs=None,
+    politica=None,
+    incidencia=None,
+):
+    """Devolución y todas sus multas."""
     return Devolucion.registrar(
         prestamo=p,
         fecha_hora=AHORA,
@@ -33,7 +42,15 @@ def devolver(p: Prestamo, fecha: date = HOY, estado=EstadoRecibido.BUENO, obs=No
         observaciones=obs,
         politica=politica or POLITICA,
         actor=BIBLIO,
+        politica_incidencia=incidencia,
     )
+
+
+def devolver(p: Prestamo, fecha: date = HOY, estado=EstadoRecibido.BUENO, obs=None, politica=None):
+    """Devolución y su multa por atraso (o ``None``)."""
+    devolucion, multas = registrar(p, fecha, estado, obs, politica)
+    atraso = [m for m in multas if m.tipo == TipoMulta.ATRASO]
+    return devolucion, atraso[0] if atraso else None
 
 
 # --- política de multa (Strategy) ------------------------------------------------------------
@@ -142,7 +159,7 @@ def test_una_fecha_anterior_a_hoy_exige_motivo():
         devolver(p, fecha=HOY - timedelta(days=5))
     assert error.value.detalles[0]["campo"] == "motivo_fecha"
 
-    d, multa = Devolucion.registrar(
+    d, multas = Devolucion.registrar(
         prestamo=p,
         fecha_hora=AHORA - timedelta(days=5),
         fecha=HOY - timedelta(days=5),
@@ -154,7 +171,7 @@ def test_una_fecha_anterior_a_hoy_exige_motivo():
         ahora=AHORA,
         motivo_fecha="  Lo dejó   en el buzón ",
     )
-    assert (d.motivo_fecha, d.registrada_en, multa) == ("Lo dejó en el buzón", AHORA, None)
+    assert (d.motivo_fecha, d.registrada_en, multas) == ("Lo dejó en el buzón", AHORA, [])
     assert d.texto_del_historial(HOY - timedelta(days=5), HOY) == (
         "Devuelto el 15/11/2026 (registrado el 20/11/2026): Lo dejó en el buzón"
     )
@@ -169,7 +186,6 @@ def test_hoy_no_pide_motivo_y_el_historial_dice_devuelto():
 
 @pytest.mark.ca("CA-DEV-18")
 def test_la_politica_vigente_aplica_el_tope_y_cero_es_sin_tope():
-    from app.models.parametros import Parametros, convertir
 
     con_tope = Parametros(multa_tope_por_prestamo=Decimal("500.00")).politica_multa()
     sin_tope = Parametros().politica_multa()
@@ -179,3 +195,83 @@ def test_la_politica_vigente_aplica_el_tope_y_cero_es_sin_tope():
     assert convertir("multa_tope_por_prestamo", "25000") == Decimal("25000.00")
     with pytest.raises(ErrorDeValidacion):
         convertir("multa_tope_por_prestamo", "-1")
+
+
+# --- multas por daño y extravío (RF-DEV-23) ---------------------------------------------------
+
+INCIDENCIA = MontoFijoPorIncidencia(Decimal("3000"), Decimal("15000"))
+
+
+@pytest.mark.ca("CA-DEV-29")
+def test_devolver_danado_genera_la_multa_por_danio_sin_dias():
+    _, multas = registrar(
+        activo(vence=HOY), estado=EstadoRecibido.DANADO, obs="Roto", incidencia=INCIDENCIA
+    )
+
+    (multa,) = multas
+    assert (multa.tipo, multa.monto_total, multa.dias_atraso, multa.monto_por_dia) == (
+        TipoMulta.DANIO,
+        Decimal("3000.00"),
+        None,
+        None,
+    )
+    assert (multa.concepto, multa.estado, multa.socio_id) == (
+        "Daño del ejemplar",
+        EstadoMulta.PENDIENTE,
+        45,
+    )
+
+
+@pytest.mark.ca("CA-DEV-30", "CA-DEV-32")
+def test_un_extravio_tardio_genera_la_de_atraso_con_tope_y_la_de_extravio_entera():
+    p = activo(vence=HOY - timedelta(days=5), estado=P.VENCIDO)
+    con_tope = MultaFijaPorDia(Decimal("200"), Decimal("500"))
+
+    _, multas = registrar(
+        p,
+        estado=EstadoRecibido.EXTRAVIADO,
+        obs="Lo perdió",
+        politica=con_tope,
+        incidencia=INCIDENCIA,
+    )
+
+    assert [(m.tipo, m.monto_total) for m in multas] == [
+        (TipoMulta.ATRASO, Decimal("500.00")),
+        (TipoMulta.EXTRAVIO, Decimal("15000.00")),
+    ]
+    assert multas[0].concepto == "Atraso de 5 días"
+
+
+@pytest.mark.ca("CA-DEV-31")
+@pytest.mark.parametrize(
+    ("estado", "incidencia"),
+    [
+        (EstadoRecibido.DANADO, MontoFijoPorIncidencia(Decimal("0"), Decimal("15000"))),
+        (EstadoRecibido.DANADO, None),
+        (EstadoRecibido.REGULAR, INCIDENCIA),
+        (EstadoRecibido.BUENO, INCIDENCIA),
+    ],
+)
+def test_sin_monto_o_sin_dano_no_hay_multa_por_incidencia(estado, incidencia):
+    _, multas = registrar(activo(vence=HOY), estado=estado, obs="Algo", incidencia=incidencia)
+
+    assert multas == []
+
+
+def test_la_politica_por_incidencia_no_calcula_atrasos():
+    with pytest.raises(ValueError, match="ATRASO"):
+        INCIDENCIA.calcular(TipoMulta.ATRASO)
+
+
+def test_los_montos_por_danio_y_extravio_son_parametros_en_pesos():
+    politica = Parametros(
+        multa_por_danio=Decimal("2500"), multa_por_extravio=Decimal("9000")
+    ).politica_multa_por_incidencia()
+
+    assert (politica.calcular(TipoMulta.DANIO), politica.calcular(TipoMulta.EXTRAVIO)) == (
+        Decimal("2500.00"),
+        Decimal("9000.00"),
+    )
+    assert convertir("multa_por_extravio", "12000.5") == Decimal("12000.50")
+    with pytest.raises(ErrorDeValidacion):
+        convertir("multa_por_danio", "-1")

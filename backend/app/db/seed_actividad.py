@@ -198,8 +198,9 @@ def cargar_actividad(sesion: Session) -> None:
     d.recibir(norte, ida_rayuela2, ("CEN-705783-1", buen, None))
     d.prestamos.entregar(norte, p_rayuela2)
     d.reloj.hace(18, hora=12)
-    assert tarde.multa is not None and tarde.multa.id is not None
-    d.pagos.saldar_en_mostrador(cen, tarde.multa.id, MedioPago.DEBITO, "Cupón 004512")
+    multa_tarde = tarde.multas[0].id
+    assert multa_tarde is not None
+    d.pagos.saldar_en_mostrador(cen, multa_tarde, MedioPago.DEBITO, "Cupón 004512")
 
     # Norte manda «El túnel» (2) a Río Cuarto y el envío nunca llega.
     d.reloj.hace(15)
