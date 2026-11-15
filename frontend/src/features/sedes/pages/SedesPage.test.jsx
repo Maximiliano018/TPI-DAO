@@ -87,7 +87,7 @@ describe('Listado de sedes', () => {
     expect(primera.get('q')).toBe('cen');
     expect(primera.get('page')).toBe('2');
     expect(screen.getByLabelText('Estado')).toHaveValue('BAJA');
-    expect(screen.getByRole('searchbox', { name: 'Buscar' })).toHaveValue('cen');
+    expect(screen.getByRole('searchbox', { name: /^Buscar/ })).toHaveValue('cen');
 
     // Cambiar un filtro vuelve a la primera página.
     await user.selectOptions(screen.getByLabelText('Estado'), 'ACTIVA');
@@ -108,7 +108,7 @@ describe('Listado de sedes', () => {
     await screen.findByRole('table', { name: 'Sedes' });
     const antes = llamadas.length;
 
-    await user.type(screen.getByRole('searchbox', { name: 'Buscar' }), 'norte');
+    await user.type(screen.getByRole('searchbox', { name: /^Buscar/ }), 'norte');
     expect(llamadas.length).toBe(antes);
     await waitFor(() => expect(llamadas.at(-1).url.searchParams.get('q')).toBe('norte'));
 
@@ -136,7 +136,7 @@ describe('Listado de sedes', () => {
 
     expect(await screen.findByText('No hay sedes que coincidan')).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Limpiar filtros' })[0]);
-    await waitFor(() => expect(screen.getByRole('searchbox', { name: 'Buscar' })).toHaveValue(''));
+    await waitFor(() => expect(screen.getByRole('searchbox', { name: /^Buscar/ })).toHaveValue(''));
   });
 
   it('error: muestra el mensaje y reintenta', async () => {

@@ -69,6 +69,7 @@ export default function CatalogoPage() {
       <FilterBar etiqueta="Filtros del catálogo" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por título, autor o ISBN"
+          ejemplo="Rayuela, Cortázar o 9789500705783"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />

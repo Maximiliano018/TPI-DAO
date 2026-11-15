@@ -80,6 +80,7 @@ export default function SociosPage() {
       <FilterBar etiqueta="Filtros de socios" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por número, documento o nombre"
+          ejemplo="00045, 30111222 o Soto"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />

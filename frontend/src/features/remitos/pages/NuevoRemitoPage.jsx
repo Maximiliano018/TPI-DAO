@@ -119,6 +119,7 @@ function LineasDeTraslado({ sedeId, destinoId, onDestino, elegidos, onElegidos }
       </Select>
       <BusquedaConEspera
         etiqueta="Buscar ejemplar por código"
+        ejemplo="CEN-705783-1"
         valor={codigo}
         onBuscar={(texto) => {
           setCodigo(texto);

@@ -72,6 +72,7 @@ export default function EjemplaresPage() {
       <FilterBar etiqueta="Filtros de ejemplares" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por código"
+          ejemplo="CEN-705783-1"
           valor={filtros.codigo ?? ''}
           onBuscar={(codigo) => cambiar({ codigo })}
         />
