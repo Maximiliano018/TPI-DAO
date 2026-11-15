@@ -4,8 +4,31 @@ updates:
     directory: /
     schedule:
       interval: weekly
-  # Habilitar el ecosistema real cuando se defina el stack, por ej.:
-  # - package-ecosystem: pip   # o npm / maven
-  #   directory: /
-  #   schedule:
-  #     interval: weekly
+
+  # Backend (pyproject.toml). Las versiones menores y los parches van en un solo PR.
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+    groups:
+      menores-y-parches:
+        update-types: [minor, patch]
+
+  # Frontend (package.json y package-lock.json).
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    groups:
+      menores-y-parches:
+        update-types: [minor, patch]
+
+  # Imágenes base de los Dockerfile.
+  - package-ecosystem: docker
+    directory: /backend
+    schedule:
+      interval: weekly
+  - package-ecosystem: docker
+    directory: /frontend
+    schedule:
+      interval: weekly

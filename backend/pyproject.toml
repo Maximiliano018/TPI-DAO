@@ -38,6 +38,14 @@ markers = [
     "concurrencia: transacciones reales y varios hilos",
 ]
 
+[tool.coverage.run]
+source = ["app"]
+
+[tool.coverage.report]
+# Mínimo que exige `pytest --cov=app` (local y en CI): unos puntos por debajo de lo medido (94 %).
+fail_under = 90
+skip_empty = true
+
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
