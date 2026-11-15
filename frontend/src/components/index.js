@@ -11,6 +11,7 @@ export {
   default as FilterBar,
   BusquedaConEspera,
   FiltroFecha,
+  FiltroNumero,
   FiltroSelect,
 } from './FilterBar.jsx';
 export { default as FormField } from './FormField.jsx';

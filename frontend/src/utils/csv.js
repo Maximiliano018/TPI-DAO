@@ -1,6 +1,13 @@
-/** Una celda CSV: entre comillas si tiene separador, comillas o saltos de línea. */
+const NUMERO = /^-?\d+([.,]\d+)?$/;
+
+/**
+ * Una celda CSV: entre comillas si tiene separador, comillas o saltos de línea. Un texto que
+ * empieza con `=`, `+`, `-`, `@`, tabulación o retorno lleva delante un apóstrofo, para que la
+ * planilla no lo ejecute como fórmula (inyección de CSV); los números negativos quedan igual.
+ */
 function celda(valor) {
-  const texto = valor === null || valor === undefined ? '' : String(valor);
+  let texto = valor === null || valor === undefined ? '' : String(valor);
+  if (/^[=+\-@\t\r]/.test(texto) && !NUMERO.test(texto)) texto = `'${texto}`;
   return /[";\n\r]/.test(texto) ? `"${texto.replaceAll('"', '""')}"` : texto;
 }
 

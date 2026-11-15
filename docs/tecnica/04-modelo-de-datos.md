@@ -414,11 +414,11 @@ Además de claves primarias, únicas y los índices parciales anteriores:
 
 | Reporte | Fuente principal |
 |---------|------------------|
-| R1 Movimiento y tiempo de tránsito | `remito`, `detalle_remito`, `movimiento_remito` (despacho y recepción) |
+| R1 Movimiento y tiempo de tránsito | `remito` (`fecha_despacho` y `fecha_recepcion`, coherentes con el estado por `ck_remito_*_segun_estado`), `detalle_remito` (sin los faltantes) |
 | R2 Envíos exitosos e incidencias | `remito` (estado final), `incidencia` |
 | R3 Libros más solicitados entre sedes | `prestamo` (tipo interbibliotecario) → `ejemplar` → `libro` |
 | R4 Vencidos y multas | `prestamo`, `multa`, `parametro` |
-| R5 Disponibilidad por sede | `ejemplar` agrupado por libro, sede y estado |
+| R5 Disponibilidad por sede | `ejemplar` agrupado por libro, sede y estado (mismos conteos que la ficha del libro) |
 | R6 Activos y en tránsito | `prestamo`, `remito` |
 
 Los reportes son consultas de solo lectura en `services/reports/`, con SQL agregado (`GROUP BY`) y no recorren entidades una por una.

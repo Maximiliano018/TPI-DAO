@@ -6,16 +6,16 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
-| RF-REP-01 | **R1.** El sistema debe emitir el movimiento de ejemplares entre sedes: por par origen → destino, cantidad de envíos, de ejemplares y tiempo promedio de tránsito (recepción − despacho) sobre remitos `Recibido`. | Obligatorio |
-| RF-REP-02 | **R2.** El sistema debe emitir la tasa de envíos exitosos e incidencias: total, % `Recibido`, % `Extraviado`, `Dañado`, `Destruido` e `Incompleto` (recibido con faltantes), con detalle por sede. Excluye `Anulado` y los remitos abiertos. | Obligatorio |
+| RF-REP-01 | **R1.** El sistema debe emitir el movimiento de ejemplares entre sedes: por par origen → destino, cantidad de envíos, de ejemplares recibidos (sin los faltantes) y tiempo promedio de tránsito (recepción − despacho) sobre remitos `Recibido`. | Obligatorio |
+| RF-REP-02 | **R2.** El sistema debe emitir la tasa de envíos exitosos e incidencias: total, % `Recibido`, % `Extraviado`, `Dañado`, `Destruido` e `Incompleto` (recibido con faltantes), con detalle por sede origen y por sede destino. Excluye `Anulado` y los remitos abiertos. | Obligatorio |
 | RF-REP-03 | **R3.** El sistema debe emitir el ranking de libros más solicitados en préstamos interbibliotecarios no cancelados, con sedes origen y destino más frecuentes. | Obligatorio |
-| RF-REP-04 | **R4.** El sistema debe emitir los préstamos vencidos con socio, libro, sede, días de atraso y multa acumulada a la fecha, el total adeudado y las multas pendientes. | Obligatorio |
-| RF-REP-05 | **R5.** El sistema debe emitir la disponibilidad de catálogo por libro y sede: totales, disponibles, prestados, reservados y en tránsito. | Obligatorio |
+| RF-REP-04 | **R4.** El sistema debe emitir los préstamos vencidos con socio, libro, sede, días de atraso y multa acumulada a la fecha, el total adeudado y las multas pendientes. Los totales son la deuda real de la sede o del socio elegidos: no cambian con los filtros de la lista (estado de la multa, período, rango de atraso). | Obligatorio |
+| RF-REP-05 | **R5.** El sistema debe emitir la disponibilidad de catálogo por libro y sede: totales, disponibles, prestados, reservados y en tránsito, contados igual que en la ficha del libro. | Obligatorio |
 | RF-REP-06 | **R6.** El sistema debe emitir los préstamos activos con su vencimiento y los remitos abiertos con estado, origen, destino y antigüedad. | Obligatorio |
-| RF-REP-07 | Cada reporte debe permitir los filtros definidos (rango de fechas, sede, estado, categoría o socio, según corresponda) y mostrar un mensaje claro si no hay datos. | Obligatorio |
-| RF-REP-08 | El acceso a cada reporte debe respetar los roles: R1, R4 y R6 para el administrador y el bibliotecario (su sede); R2 y R3 para el administrador; R5 para todos. | Obligatorio |
+| RF-REP-07 | Cada reporte debe permitir los filtros definidos en [negocio](../negocio/08-reportes.md) y mostrar un mensaje claro si no hay datos: R1, período, sede, origen, destino y motivo; R2, período y sede; R3, período, sede y categoría; R4, sede, socio, estado de la multa, período y rango de atraso; R5, sede, título, autor o ISBN y categoría; R6, sede, estado (al día o vencido), tipo de préstamo y estado del remito. | Obligatorio |
+| RF-REP-08 | El acceso a cada reporte debe respetar los roles: R1, R4 y R6 para el administrador y el bibliotecario (su sede, como origen o destino); R2 y R3 para el administrador; R5 para todos. | Obligatorio |
 | RF-REP-09 | Los reportes deben calcularse sobre datos registrados (historial de estados, préstamos, multas), sin datos cargados a mano. | Obligatorio |
-| RF-REP-10 | El sistema debe permitir exportar el resultado de un reporte (por ejemplo, a CSV). | Opcional |
+| RF-REP-10 | El sistema debe permitir exportar el resultado de un reporte (por ejemplo, a CSV). En un reporte paginado, el archivo trae todas las filas, y ninguna celda se ejecuta como fórmula al abrirlo en una planilla. | Opcional |
 
 ## Casos de uso
 
@@ -29,10 +29,10 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
   4. Muestra el resultado con su detalle y totales.
 - **Flujos alternativos:**
   - **A1 (paso 1): rol sin permiso.** El sistema no ofrece el reporte y rechaza el acceso directo.
-  - **A2 (paso 2): rango de fechas inválido (fin anterior al inicio).** Rechaza y pide corregir.
+  - **A2 (paso 2): rango de fechas inválido (fin anterior al inicio) o rango de atraso invertido.** Rechaza y pide corregir.
   - **A3 (paso 3): sin datos para los filtros.** Informa que no hay resultados.
   - **A4 (paso 2): bibliotecario filtra por otra sede.** El sistema limita el resultado a su sede.
-  - **A5 (paso 4): el usuario pide exportar (opcional).** El sistema genera el archivo con el mismo contenido.
+  - **A5 (paso 4): el usuario pide exportar (opcional).** El sistema genera el archivo con el mismo contenido, todas las páginas incluidas.
 
 ### CU-REP-02. Interpretar R1: tiempo de tránsito
 
@@ -60,3 +60,10 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 | CA-REP-13 | RF-REP-08 | **Dado** un bibliotecario de la sede A, **cuando** emite R6, **entonces** ve solo lo que involucra a A. |
 | CA-REP-14 | RF-REP-07 | **Dado** un rango con fin anterior al inicio, **cuando** se emite, **entonces** se rechaza. |
 | CA-REP-15 | RF-REP-07 | **Dado** filtros sin datos, **cuando** se emite, **entonces** muestra «sin resultados» sin error. |
+| CA-REP-16 | RF-REP-07 | **Dado** los filtros definidos de cada reporte (motivo, origen y destino en R1; sede en R3; socio y rango de atraso en R4; título en R5; estado, tipo y estado del remito en R6), **cuando** se emite con ellos, **entonces** el resultado queda acotado a lo que cumple el filtro. |
+| CA-REP-17 | RF-REP-01 | **Dado** un remito recibido con 1 ejemplar en buen estado y 1 faltante, **cuando** se emite R1, **entonces** cuenta 1 envío y 1 ejemplar. |
+| CA-REP-18 | RF-REP-04 | **Dado** una multa pendiente de $800 y un vencido con $400 acumulados, **cuando** se emite R4 filtrando multas saldadas, un período sin multas o un atraso mayor, **entonces** el total adeudado sigue siendo $1.200 y las listas quedan acotadas. |
+| CA-REP-19 | RF-REP-08 | **Dado** un préstamo entre sedes A → B vencido, **cuando** el bibliotecario de A emite R4, **entonces** lo ve, como en R6. |
+| CA-REP-20 | RF-REP-05 | **Dado** un ejemplar `Apartado`, **cuando** se emite R5, **entonces** muestra los mismos números que la ficha del libro (el apartado va en «otros»). |
+| CA-REP-21 | RF-REP-02 | **Dado** remitos de A hacia B y hacia C, **cuando** se emite R2, **entonces** el detalle muestra la tasa por sede origen y por sede destino. |
+| CA-REP-22 | RF-REP-10 | **Dado** un R5 con más de una página y un título que empieza con `=`, **cuando** se exporta a CSV, **entonces** el archivo trae todas las filas y la celda va con un apóstrofo delante. |

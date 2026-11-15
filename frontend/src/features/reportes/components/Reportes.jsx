@@ -1,5 +1,12 @@
 import { Link } from 'react-router-dom';
-import { FiltroSelect, Pagination, Table } from '../../../components/index.js';
+import {
+  Alert,
+  BusquedaConEspera,
+  FiltroNumero,
+  FiltroSelect,
+  Pagination,
+  Table,
+} from '../../../components/index.js';
 import {
   activosYEnTransito,
   disponibilidadPorSede,
@@ -12,6 +19,7 @@ import { ESTADOS, MOTIVOS_DE_REMITO, TIPOS_DE_PRESTAMO, estadoDe } from '../../.
 import { formatearFecha, formatearMonto } from '../../../utils/formato.js';
 import { useCategorias } from '../../catalogo/hooks/useCatalogo.js';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
+import FiltroSocio from '../../socios/components/FiltroSocio.jsx';
 import {
   BotonCsv,
   FiltroSede,
@@ -19,6 +27,7 @@ import {
   Indicadores,
   Resultado,
   Seccion,
+  todasLasPaginas,
   useFiltrosDeReporte,
   useReporte,
 } from './comunes.jsx';
@@ -29,6 +38,20 @@ const porcentaje = (tasa) => (tasa === null ? '—' : `${Math.round(tasa * 1000)
 /** Columnas compartidas por la tabla y el CSV: `valor` es el texto; `render`, lo que se ve. */
 const aTabla = (columnas) =>
   columnas.map(({ clave, titulo, valor, render }) => ({ clave, titulo, render: render ?? valor }));
+
+/** Opciones de un selector a partir de un mapa `{ VALOR: 'Texto' }`. */
+function Opciones({ todas, mapa }) {
+  return (
+    <>
+      <option value="">{todas}</option>
+      {Object.entries(mapa).map(([valor, texto]) => (
+        <option key={valor} value={valor}>
+          {texto}
+        </option>
+      ))}
+    </>
+  );
+}
 
 function FiltroCategoria({ valor, onCambiar }) {
   const categorias = useCategorias();
@@ -44,11 +67,13 @@ function FiltroCategoria({ valor, onCambiar }) {
   );
 }
 
-function Tabla({ etiqueta, nombre, columnas, filas, idDe }) {
+function Tabla({ etiqueta, nombre, columnas, filas, idDe, obtenerFilas }) {
   return (
     <Seccion
       titulo={etiqueta}
-      acciones={<BotonCsv nombre={nombre} columnas={columnas} filas={filas} />}
+      acciones={
+        <BotonCsv nombre={nombre} columnas={columnas} filas={filas} obtenerFilas={obtenerFilas} />
+      }
     >
       <Table etiqueta={etiqueta} columnas={aTabla(columnas)} filas={filas} idDe={idDe} />
     </Seccion>
@@ -61,7 +86,7 @@ const COLUMNAS_R1 = [
   { clave: 'origen', titulo: 'Origen', valor: (r) => r.sede_origen },
   { clave: 'destino', titulo: 'Destino', valor: (r) => r.sede_destino },
   { clave: 'envios', titulo: 'Envíos', valor: (r) => r.envios },
-  { clave: 'ejemplares', titulo: 'Ejemplares', valor: (r) => r.ejemplares },
+  { clave: 'ejemplares', titulo: 'Ejemplares recibidos', valor: (r) => r.ejemplares },
   {
     clave: 'transito',
     titulo: 'Tránsito promedio (días)',
@@ -70,22 +95,56 @@ const COLUMNAS_R1 = [
 ];
 
 export function MovimientoEntreSedes() {
-  const control = useFiltrosDeReporte(['desde', 'hasta', 'sede_id']);
+  const control = useFiltrosDeReporte([
+    'desde',
+    'hasta',
+    'sede_id',
+    'sede_origen_id',
+    'sede_destino_id',
+    'motivo',
+  ]);
   const { filtros } = control;
   const consulta = useReporte(
     'r1',
     movimientoEntreSedes,
-    { desde: filtros.desde, hasta: filtros.hasta, sede_id: filtros.sede_id },
+    {
+      desde: filtros.desde,
+      hasta: filtros.hasta,
+      sede_id: filtros.sede_id,
+      sede_origen_id: filtros.sede_origen_id,
+      sede_destino_id: filtros.sede_destino_id,
+      motivo: filtros.motivo,
+    },
     { habilitado: !control.rangoInvalido },
   );
   return (
     <div className={estilos.reporte}>
       <p className={estilos.descripcion}>
         Remitos que llegaron a destino en el período, por ruta. El tránsito va del despacho a la
-        recepción; los envíos que siguen en camino no entran.
+        recepción; los envíos que siguen en camino no entran y los ejemplares faltantes no cuentan
+        como recibidos.
       </p>
       <FiltrosConPeriodo etiqueta="Filtros del movimiento entre sedes" control={control}>
         <FiltroSede valor={filtros.sede_id} onCambiar={(sede_id) => control.cambiar({ sede_id })} />
+        <FiltroSede
+          paraTodos
+          etiqueta="Origen"
+          valor={filtros.sede_origen_id}
+          onCambiar={(sede_origen_id) => control.cambiar({ sede_origen_id })}
+        />
+        <FiltroSede
+          paraTodos
+          etiqueta="Destino"
+          valor={filtros.sede_destino_id}
+          onCambiar={(sede_destino_id) => control.cambiar({ sede_destino_id })}
+        />
+        <FiltroSelect
+          etiqueta="Motivo"
+          valor={filtros.motivo ?? ''}
+          onCambiar={(motivo) => control.cambiar({ motivo })}
+        >
+          <Opciones todas="Todos" mapa={MOTIVOS_DE_REMITO} />
+        </FiltroSelect>
       </FiltrosConPeriodo>
       <Resultado consulta={consulta} vacio={(d) => d.rutas.length === 0}>
         {(d) => (
@@ -93,7 +152,7 @@ export function MovimientoEntreSedes() {
             <Indicadores
               items={[
                 { etiqueta: 'Envíos recibidos', valor: d.total_envios },
-                { etiqueta: 'Ejemplares movidos', valor: d.total_ejemplares },
+                { etiqueta: 'Ejemplares recibidos', valor: d.total_ejemplares },
                 { etiqueta: 'Rutas', valor: d.rutas.length },
               ]}
             />
@@ -113,8 +172,8 @@ export function MovimientoEntreSedes() {
 
 // --- R2 --------------------------------------------------------------------------------------
 
-const COLUMNAS_R2 = [
-  { clave: 'sede', titulo: 'Sede origen', valor: (s) => s.sede },
+const columnasR2 = (tituloSede) => [
+  { clave: 'sede', titulo: tituloSede, valor: (s) => s.sede },
   { clave: 'total', titulo: 'Envíos', valor: (s) => s.total_envios },
   { clave: 'recibidos', titulo: 'Recibidos', valor: (s) => s.recibidos },
   { clave: 'extraviados', titulo: 'Extraviados', valor: (s) => s.extraviados },
@@ -154,10 +213,17 @@ export function EnviosEIncidencias() {
               ]}
             />
             <Tabla
-              etiqueta="Envíos por sede"
-              nombre="envios-e-incidencias"
-              columnas={COLUMNAS_R2}
+              etiqueta="Envíos por sede origen"
+              nombre="envios-por-sede-origen"
+              columnas={columnasR2('Sede origen')}
               filas={d.por_sede}
+              idDe={(s) => s.sede_id}
+            />
+            <Tabla
+              etiqueta="Envíos por sede destino"
+              nombre="envios-por-sede-destino"
+              columnas={columnasR2('Sede destino')}
+              filas={d.por_destino}
               idDe={(s) => s.sede_id}
             />
           </>
@@ -183,7 +249,7 @@ const COLUMNAS_R3 = [
 ];
 
 export function LibrosMasSolicitados() {
-  const control = useFiltrosDeReporte(['desde', 'hasta', 'categoria_id', 'limite']);
+  const control = useFiltrosDeReporte(['desde', 'hasta', 'sede_id', 'categoria_id', 'limite']);
   const { filtros } = control;
   const consulta = useReporte(
     'r3',
@@ -191,6 +257,7 @@ export function LibrosMasSolicitados() {
     {
       desde: filtros.desde,
       hasta: filtros.hasta,
+      sede_id: filtros.sede_id,
       categoria_id: filtros.categoria_id,
       limite: filtros.limite,
     },
@@ -202,6 +269,11 @@ export function LibrosMasSolicitados() {
         Ranking por préstamos interbibliotecarios no cancelados solicitados en el período.
       </p>
       <FiltrosConPeriodo etiqueta="Filtros de libros más solicitados" control={control}>
+        <FiltroSede
+          etiqueta="Sede (origen o destino)"
+          valor={filtros.sede_id}
+          onCambiar={(sede_id) => control.cambiar({ sede_id })}
+        />
         <FiltroCategoria
           valor={filtros.categoria_id}
           onCambiar={(categoria_id) => control.cambiar({ categoria_id })}
@@ -246,7 +318,11 @@ const COLUMNAS_VENCIDOS = [
   },
   { clave: 'socio', titulo: 'Socio', valor: (v) => `${v.socio} (${v.numero_socio})` },
   { clave: 'libro', titulo: 'Libro', valor: (v) => v.libro },
-  { clave: 'sede', titulo: 'Sede', valor: (v) => v.sede },
+  {
+    clave: 'sede',
+    titulo: 'Sede',
+    valor: (v) => (v.sede_origen === v.sede ? v.sede : `${v.sede_origen} → ${v.sede}`),
+  },
   { clave: 'vence', titulo: 'Venció', valor: (v) => formatearFecha(v.fecha_vencimiento) },
   { clave: 'dias', titulo: 'Días de atraso', valor: (v) => v.dias_atraso },
   { clave: 'multa', titulo: 'Multa a hoy', valor: (v) => formatearMonto(v.multa_acumulada) },
@@ -277,8 +353,22 @@ const COLUMNAS_MULTAS = [
 ];
 
 export function VencidosYMultas() {
-  const control = useFiltrosDeReporte(['desde', 'hasta', 'sede_id', 'estado_multa']);
+  const control = useFiltrosDeReporte([
+    'desde',
+    'hasta',
+    'sede_id',
+    'socio_id',
+    'estado_multa',
+    'atraso_min',
+    'atraso_max',
+  ]);
   const { filtros } = control;
+  const atrasoInvalido =
+    filtros.atraso_min !== undefined &&
+    filtros.atraso_min !== '' &&
+    filtros.atraso_max !== undefined &&
+    filtros.atraso_max !== '' &&
+    Number(filtros.atraso_max) < Number(filtros.atraso_min);
   const consulta = useReporte(
     'r4',
     vencidosYMultas,
@@ -286,16 +376,24 @@ export function VencidosYMultas() {
       desde: filtros.desde,
       hasta: filtros.hasta,
       sede_id: filtros.sede_id,
+      socio_id: filtros.socio_id,
       estado_multa: filtros.estado_multa,
+      atraso_min: filtros.atraso_min,
+      atraso_max: filtros.atraso_max,
     },
-    { habilitado: !control.rangoInvalido },
+    { habilitado: !control.rangoInvalido && !atrasoInvalido },
   );
   return (
     <div className={estilos.reporte}>
       <p className={estilos.descripcion}>
-        Préstamos vencidos a hoy con la multa que llevan acumulada, y las multas generadas (el
-        período filtra las multas por su fecha).
+        Préstamos vencidos a hoy con la multa que llevan acumulada, y las multas generadas. El
+        estado, el período (fecha de la multa) y los días de atraso acotan las tablas; los totales
+        son siempre la deuda real de la sede o del socio elegidos.
       </p>
+      <FiltroSocio
+        socioId={filtros.socio_id}
+        onCambiar={(socio_id) => control.cambiar({ socio_id })}
+      />
       <FiltrosConPeriodo etiqueta="Filtros de vencidos y multas" control={control}>
         <FiltroSede valor={filtros.sede_id} onCambiar={(sede_id) => control.cambiar({ sede_id })} />
         <FiltroSelect
@@ -310,16 +408,34 @@ export function VencidosYMultas() {
             </option>
           ))}
         </FiltroSelect>
+        <FiltroNumero
+          etiqueta="Atraso desde (días)"
+          valor={filtros.atraso_min}
+          onCambiar={(atraso_min) => control.cambiar({ atraso_min })}
+        />
+        <FiltroNumero
+          etiqueta="Atraso hasta (días)"
+          valor={filtros.atraso_max}
+          onCambiar={(atraso_max) => control.cambiar({ atraso_max })}
+        />
       </FiltrosConPeriodo>
+      {atrasoInvalido && (
+        <Alert tono="danger">El atraso «hasta» no puede ser menor que «desde».</Alert>
+      )}
       <Resultado
         consulta={consulta}
-        vacio={(d) => d.vencidos.length === 0 && d.multas.length === 0}
+        vacio={(d) =>
+          d.vencidos.length === 0 &&
+          d.multas.length === 0 &&
+          d.cantidad_vencidos === 0 &&
+          Number(d.total_adeudado) === 0
+        }
       >
         {(d) => (
           <>
             <Indicadores
               items={[
-                { etiqueta: 'Préstamos vencidos', valor: d.vencidos.length },
+                { etiqueta: 'Préstamos vencidos', valor: d.cantidad_vencidos },
                 {
                   etiqueta: 'Acumulado de vencidos',
                   valor: formatearMonto(d.total_acumulado_vencidos),
@@ -328,6 +444,11 @@ export function VencidosYMultas() {
                 { etiqueta: 'Total adeudado', valor: formatearMonto(d.total_adeudado) },
               ]}
             />
+            {d.vencidos.length === 0 && d.multas.length === 0 && (
+              <p className={estilos.descripcion}>
+                Ningún préstamo vencido ni multa coincide con los filtros.
+              </p>
+            )}
             {d.vencidos.length > 0 && (
               <Tabla
                 etiqueta="Préstamos vencidos"
@@ -372,19 +493,23 @@ const COLUMNAS_R5 = [
 ];
 
 export function DisponibilidadPorSede() {
-  const control = useFiltrosDeReporte(['sede_id', 'categoria_id', 'page']);
+  const control = useFiltrosDeReporte(['q', 'sede_id', 'categoria_id', 'page']);
   const { filtros } = control;
-  const consulta = useReporte('r5', disponibilidadPorSede, {
-    sede_id: filtros.sede_id,
-    categoria_id: filtros.categoria_id,
-    page: filtros.page,
-  });
+  const params = { q: filtros.q, sede_id: filtros.sede_id, categoria_id: filtros.categoria_id };
+  const consulta = useReporte('r5', disponibilidadPorSede, { ...params, page: filtros.page });
+  const limpios = Object.fromEntries(Object.entries(params).filter(([, v]) => v));
   return (
     <div className={estilos.reporte}>
       <p className={estilos.descripcion}>
-        Ejemplares activos de cada libro en su sede: cuántos hay y en qué situación están.
+        Ejemplares activos de cada libro en su sede: cuántos hay y en qué situación están. «Otros»
+        son los apartados para un préstamo o un retorno y los que están en revisión.
       </p>
       <FiltrosConPeriodo etiqueta="Filtros de disponibilidad" control={control} conPeriodo={false}>
+        <BusquedaConEspera
+          etiqueta="Buscar por título, autor o ISBN"
+          valor={filtros.q ?? ''}
+          onBuscar={(q) => control.cambiar({ q, page: '' })}
+        />
         <FiltroSede
           paraTodos
           valor={filtros.sede_id}
@@ -404,6 +529,7 @@ export function DisponibilidadPorSede() {
               columnas={COLUMNAS_R5}
               filas={d.items}
               idDe={(f) => `${f.libro_id}-${f.sede_id}`}
+              obtenerFilas={() => todasLasPaginas(disponibilidadPorSede, limpios)}
             />
             <Pagination
               page={d.page}
@@ -478,10 +604,19 @@ const COLUMNAS_REMITOS = [
   },
 ];
 
+const REMITOS_ABIERTOS = Object.fromEntries(
+  ['GENERADO', 'EMPAQUETADO', 'DESPACHADO', 'EN_TRANSITO'].map((e) => [e, ESTADOS.remito[e].texto]),
+);
+
 export function ActivosYEnTransito() {
-  const control = useFiltrosDeReporte(['sede_id']);
+  const control = useFiltrosDeReporte(['sede_id', 'estado', 'tipo', 'estado_remito']);
   const { filtros } = control;
-  const consulta = useReporte('r6', activosYEnTransito, { sede_id: filtros.sede_id });
+  const consulta = useReporte('r6', activosYEnTransito, {
+    sede_id: filtros.sede_id,
+    estado: filtros.estado,
+    tipo: filtros.tipo,
+    estado_remito: filtros.estado_remito,
+  });
   return (
     <div className={estilos.reporte}>
       <p className={estilos.descripcion}>
@@ -493,6 +628,27 @@ export function ActivosYEnTransito() {
         conPeriodo={false}
       >
         <FiltroSede valor={filtros.sede_id} onCambiar={(sede_id) => control.cambiar({ sede_id })} />
+        <FiltroSelect
+          etiqueta="Préstamos"
+          valor={filtros.estado ?? ''}
+          onCambiar={(estado) => control.cambiar({ estado })}
+        >
+          <Opciones todas="Todos" mapa={{ ACTIVO: 'Al día', VENCIDO: 'Vencidos' }} />
+        </FiltroSelect>
+        <FiltroSelect
+          etiqueta="Tipo de préstamo"
+          valor={filtros.tipo ?? ''}
+          onCambiar={(tipo) => control.cambiar({ tipo })}
+        >
+          <Opciones todas="Todos" mapa={TIPOS_DE_PRESTAMO} />
+        </FiltroSelect>
+        <FiltroSelect
+          etiqueta="Estado del remito"
+          valor={filtros.estado_remito ?? ''}
+          onCambiar={(estado_remito) => control.cambiar({ estado_remito })}
+        >
+          <Opciones todas="Todos" mapa={REMITOS_ABIERTOS} />
+        </FiltroSelect>
       </FiltrosConPeriodo>
       <Resultado
         consulta={consulta}
@@ -505,7 +661,8 @@ export function ActivosYEnTransito() {
                 { etiqueta: 'Préstamos en curso', valor: d.prestamos.length },
                 {
                   etiqueta: 'Vencidos',
-                  valor: d.prestamos.filter((p) => p.estado === 'VENCIDO').length,
+                  // Por fecha, como R4: aunque la tarea diaria todavía no los haya marcado.
+                  valor: d.prestamos.filter((p) => p.dias_para_vencer < 0).length,
                 },
                 { etiqueta: 'Remitos abiertos', valor: d.remitos.length },
               ]}

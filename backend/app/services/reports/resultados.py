@@ -67,7 +67,8 @@ class EnviosDeSede(ConteoDeEnvios):
 class EnviosEIncidencias(ConteoDeEnvios):
     desde: date | None = None
     hasta: date | None = None
-    por_sede: list[EnviosDeSede] = field(default_factory=list)
+    por_sede: list[EnviosDeSede] = field(default_factory=list)  # por sede origen
+    por_destino: list[EnviosDeSede] = field(default_factory=list)
 
 
 # --- R3. Libros más solicitados entre sedes --------------------------------------------------
@@ -101,7 +102,8 @@ class PrestamoVencido:
     socio: str
     numero_socio: str
     libro: str
-    sede: str
+    sede: str  # donde el socio retiró el libro (destino)
+    sede_origen: str  # dueña del ejemplar (la misma en un préstamo local)
     fecha_vencimiento: date
     dias_atraso: int
     multa_acumulada: Decimal
@@ -125,8 +127,10 @@ class MultaDelReporte:
 class VencidosYMultas:
     fecha: date
     monto_por_dia: Decimal
-    vencidos: list[PrestamoVencido]
-    multas: list[MultaDelReporte]
+    vencidos: list[PrestamoVencido]  # con los filtros de la lista
+    multas: list[MultaDelReporte]  # con los filtros de la lista
+    # Totales del alcance (sede y socio), sin los filtros de la lista.
+    cantidad_vencidos: int
     total_acumulado_vencidos: Decimal
     total_multas_pendientes: Decimal
     total_adeudado: Decimal

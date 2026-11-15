@@ -287,3 +287,201 @@ def test_r6_lista_prestamos_activos_y_remitos_abiertos_de_la_sede(cliente, mundo
         403,
         "FORBIDDEN",
     )
+
+
+# --- Filtros y correcciones (CA-REP-16 a 21) ------------------------------------------------
+
+
+def _vencido_entre_sedes(sesion, m, numero, ejemplar, dias, estado="VENCIDO"):
+    """Préstamo A → B de Juan vencido hace ``dias`` (con ``estado`` ACTIVO, la tarea diaria
+    todavía no lo marcó)."""
+    _prestamo_sql(sesion, m, numero, ejemplar, estado, destino="b")
+    sesion.execute(
+        text("UPDATE prestamo SET fecha_vencimiento = CAST(:v AS date) WHERE numero = :n"),
+        {"v": HOY - timedelta(days=dias), "n": numero},
+    )
+    sesion.commit()
+
+
+def _r(cliente, m, ruta, headers="h_admin", **params):
+    r = cliente.get(f"{API}/{ruta}", params=params, headers=m[headers])
+    assert r.status_code == 200, r.json()
+    return r.json()
+
+
+@pytest.mark.ca("CA-REP-16")
+def test_r1_filtra_por_motivo_origen_y_destino(cliente, mundo, sesion):  # noqa: F811
+    ej = mundo["ej_a"]
+    a_b = _traslado(cliente, mundo, "b", ej[1])
+    assert _recibir(cliente, mundo["h_b"], a_b, (ej[1]["id"], "BUENO", {})).status_code == 200
+    a_c = _traslado(cliente, mundo, "c", ej[2])
+    # La sede C no tiene bibliotecario: se da por recibido en la base.
+    sesion.execute(
+        text("UPDATE remito SET estado = 'RECIBIDO', fecha_recepcion = now() WHERE id = :id"),
+        {"id": a_c["id"]},
+    )
+    sesion.commit()
+
+    def rutas(**params):
+        datos = _r(cliente, mundo, "movimiento-entre-sedes", **params)
+        return [(x["sede_origen"], x["sede_destino"]) for x in datos["rutas"]]
+
+    assert len(rutas(motivo="TRASLADO")) == 2
+    assert rutas(motivo="RETORNO") == []
+    assert rutas(sede_destino_id=mundo["c"]["id"]) == [("Sede SEDE_A", "Sede SEDE_C")]
+    assert rutas(sede_origen_id=mundo["b"]["id"]) == []
+
+
+@pytest.mark.ca("CA-REP-17")
+def test_r1_no_cuenta_los_faltantes_como_movidos(cliente, mundo):  # noqa: F811
+    ej = mundo["ej_a"]
+    remito = _traslado(cliente, mundo, "b", ej[1], ej[2])
+    falta = {"faltante": True, "observacion": "No venía en la caja"}
+    r = _recibir(
+        cliente, mundo["h_b"], remito, (ej[1]["id"], "BUENO", {}), (ej[2]["id"], None, falta)
+    )
+    assert r.json()["estado"] == "INCOMPLETO"
+
+    datos = _r(cliente, mundo, "movimiento-entre-sedes")
+
+    assert (datos["total_envios"], datos["total_ejemplares"]) == (1, 1)
+
+
+@pytest.mark.ca("CA-REP-21")
+def test_r2_detalla_por_sede_destino(cliente, mundo, sesion):  # noqa: F811
+    for i in range(3):
+        _remito_sql(sesion, mundo, f"D-B-{i}", "RECIBIDO", destino="b")
+    _remito_sql(sesion, mundo, "D-C-0", "EXTRAVIADO", destino="c")
+    sesion.commit()
+
+    datos = _r(cliente, mundo, "envios-e-incidencias")
+
+    assert [(s["sede"], s["total_envios"]) for s in datos["por_sede"]] == [("Sede SEDE_A", 4)]
+    assert [(s["sede"], s["total_envios"], s["tasa_exito"]) for s in datos["por_destino"]] == [
+        ("Sede SEDE_B", 3, 1.0),
+        ("Sede SEDE_C", 1, 0.0),
+    ]
+
+
+@pytest.mark.ca("CA-REP-16")
+def test_r3_filtra_por_la_sede_que_interviene(cliente, mundo, sesion):  # noqa: F811
+    x, y = mundo["ej_a"][0], mundo["ej_a"][1]
+    for i in range(4):
+        _prestamo_sql(sesion, mundo, f"X-{i}", x, "DEVUELTO", destino="b")
+    for i in range(2):
+        _prestamo_sql(sesion, mundo, f"Y-{i}", y, "DEVUELTO", destino="c")
+    sesion.commit()
+
+    datos = _r(cliente, mundo, "libros-mas-solicitados", sede_id=mundo["c"]["id"])
+
+    assert [(x["titulo"], x["prestamos"]) for x in datos["libros"]] == [("Libro 1", 2)]
+
+
+@pytest.mark.ca("CA-REP-18")
+def test_r4_el_total_adeudado_no_depende_de_los_filtros_de_la_lista(cliente, mundo, sesion):  # noqa: F811
+    p = _entregado(
+        cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(4)
+    )
+    _devolver(cliente, mundo["h_b"], p)  # multa pendiente de $800
+    _vencido_entre_sedes(sesion, mundo, "IB-1", mundo["ej_a"][0], 2)  # $400 acumulados
+    viejo = (HOY - timedelta(days=60)).isoformat()
+    ruta = "vencidos-y-multas"
+
+    for params in (
+        {},
+        {"estado_multa": "SALDADA"},
+        {"desde": viejo, "hasta": viejo},
+        {"atraso_min": 5},
+    ):
+        datos = _r(cliente, mundo, ruta, **params)
+        assert (datos["total_multas_pendientes"], datos["total_acumulado_vencidos"]) == (
+            "800.00",
+            "400.00",
+        ), params
+        assert (datos["total_adeudado"], datos["cantidad_vencidos"]) == ("1200.00", 1), params
+
+    assert _r(cliente, mundo, ruta, estado_multa="SALDADA")["multas"] == []
+    filtrado = _r(cliente, mundo, ruta, atraso_min=3, atraso_max=4)
+    assert (filtrado["vencidos"], len(filtrado["multas"])) == ([], 1)
+    _error(
+        cliente.get(
+            f"{API}/{ruta}", params={"atraso_min": 5, "atraso_max": 2}, headers=mundo["h_admin"]
+        ),
+        422,
+        "VALIDACION",
+    )
+
+
+@pytest.mark.ca("CA-REP-16")
+def test_r4_filtra_por_socio(cliente, mundo, sesion):  # noqa: F811
+    _entregado(
+        cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0], vence=HOY - timedelta(4)
+    )
+    _vencido_entre_sedes(sesion, mundo, "IB-1", mundo["ej_a"][0], 2)
+
+    de_juan = _r(cliente, mundo, "vencidos-y-multas", socio_id=mundo["juan"]["id"])
+
+    assert [v["numero"] for v in de_juan["vencidos"]] == ["IB-1"]
+    assert de_juan["total_adeudado"] == "400.00"
+
+
+@pytest.mark.ca("CA-REP-19")
+def test_r4_la_sede_duena_ve_su_ejemplar_vencido_en_otra_sede(cliente, mundo, sesion):  # noqa: F811
+    _vencido_entre_sedes(sesion, mundo, "IB-1", mundo["ej_a"][0], 3)
+
+    de_a = _r(cliente, mundo, "vencidos-y-multas", headers="h_a")
+    de_c = _r(cliente, mundo, "vencidos-y-multas", sede_id=mundo["c"]["id"])
+
+    assert [(v["numero"], v["sede_origen"], v["sede"]) for v in de_a["vencidos"]] == [
+        ("IB-1", "Sede SEDE_A", "Sede SEDE_B")
+    ]
+    assert de_c["vencidos"] == []
+
+
+@pytest.mark.ca("CA-REP-20")
+def test_r5_cuenta_igual_que_la_ficha_del_libro(cliente, mundo, sesion):  # noqa: F811
+    sesion.execute(
+        text("UPDATE ejemplar SET estado = 'APARTADO' WHERE id = :id"),
+        {"id": mundo["ej_a"][0]["id"]},
+    )
+    sesion.commit()
+    libro_id = mundo["libros"][0]["id"]
+
+    r5 = _r(cliente, mundo, "disponibilidad-por-sede", libro_id=libro_id)["items"]
+    ficha = cliente.get(
+        f"/api/v1/libros/{libro_id}/disponibilidad", headers=mundo["h_admin"]
+    ).json()["por_sede"]
+
+    claves = ("sede_id", "totales", "disponibles", "prestados", "reservados", "en_transito")
+    assert [{k: f[k] for k in (*claves, "otros")} for f in r5] == [
+        {k: f[k] for k in (*claves, "otros")} for f in ficha
+    ]
+    de_a = next(f for f in r5 if f["sede"] == "Sede SEDE_A")
+    assert (de_a["reservados"], de_a["otros"]) == (0, 1)
+
+
+@pytest.mark.ca("CA-REP-16")
+def test_r5_busca_por_titulo(cliente, mundo):  # noqa: F811
+    datos = _r(cliente, mundo, "disponibilidad-por-sede", q="libro 1")
+
+    assert {f["titulo"] for f in datos["items"]} == {"Libro 1"}
+
+
+@pytest.mark.ca("CA-REP-16")
+def test_r6_filtra_por_estado_tipo_y_estado_del_remito(cliente, mundo, sesion):  # noqa: F811
+    local = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
+    # Vencido por fecha aunque la tarea diaria todavía no lo marcó.
+    _vencido_entre_sedes(sesion, mundo, "IB-1", mundo["ej_a"][0], 2, estado="ACTIVO")
+    remito = _traslado(cliente, mundo, "c", mundo["ej_a"][1])
+    ruta = "prestamos-activos-y-en-transito"
+
+    def numeros(**params):
+        return [p["numero"] for p in _r(cliente, mundo, ruta, **params)["prestamos"]]
+
+    assert numeros(estado="VENCIDO") == ["IB-1"]
+    assert numeros(estado="ACTIVO") == [local["numero"]]
+    assert numeros(tipo="INTERBIBLIOTECARIO") == ["IB-1"]
+    assert _r(cliente, mundo, ruta, estado_remito="EN_TRANSITO")["remitos"] == []
+    assert [
+        x["numero"] for x in _r(cliente, mundo, ruta, estado_remito="DESPACHADO")["remitos"]
+    ] == [remito["numero"]]

@@ -4,7 +4,6 @@ import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
   Button,
-  Card,
   ConfirmDialog,
   EmptyState,
   ErrorState,
@@ -27,8 +26,7 @@ import { PERMISOS } from '../../../utils/roles.js';
 import EstadoBadge from '../../prestamos/components/EstadoBadge.jsx';
 import BotonComprobante from '../components/BotonComprobante.jsx';
 import estilos from '../../sedes/components/Sedes.module.css';
-import ElegirSocio from '../../socios/components/ElegirSocio.jsx';
-import { useSocio } from '../../socios/hooks/useSocios.js';
+import FiltroSocio from '../../socios/components/FiltroSocio.jsx';
 import { useIniciarPago, useMultas, useSaldarMulta } from '../hooks/useDevoluciones.js';
 
 function Saldar({ multa, onCerrar }) {
@@ -122,20 +120,6 @@ function SituacionDelPago({ multa }) {
     );
   }
   return multa.pago_en_curso ? 'Pago en línea en curso' : 'Sin pagar';
-}
-
-/** El personal busca al socio para ver y saldar sus multas (CU-DEV-05). */
-function FiltroSocio({ socioId, onCambiar }) {
-  const socio = useSocio(socioId, { enabled: Boolean(socioId) });
-  if (socioId && socio.isPending) return <Skeleton alto={32} />;
-  return (
-    <Card titulo="Socio">
-      <ElegirSocio
-        elegido={socioId ? socio.data : null}
-        onElegir={(elegido) => onCambiar(elegido ? elegido.id : '')}
-      />
-    </Card>
-  );
 }
 
 /**

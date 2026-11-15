@@ -104,6 +104,57 @@ def _libro_a_dominio(
     )
 
 
+def condiciones_de_libros(filtro: FiltroLibros) -> list[ColumnElement[bool]]:
+    """Condiciones de la búsqueda de libros (catálogo y reporte R5): ``texto`` normalizado en
+    título, autores e ISBN, categoría y tipo de material."""
+    condiciones: list[ColumnElement[bool]] = []
+    if filtro.categoria_id is not None:
+        condiciones.append(LibroORM.categoria_id == filtro.categoria_id)
+    if filtro.tipo_material is not None:
+        condiciones.append(LibroORM.tipo_material == filtro.tipo_material.value)
+    if filtro.texto:
+        por_autor = (
+            select(LibroAutorORM.libro_id)
+            .join(AutorORM, AutorORM.id == LibroAutorORM.autor_id)
+            .where(AutorORM.nombre_normalizado.contains(filtro.texto, autoescape=True))
+        )
+        alternativas = [
+            LibroORM.titulo_normalizado.contains(filtro.texto, autoescape=True),
+            LibroORM.id.in_(por_autor),
+        ]
+        digitos = filtro.texto.replace("-", "").replace(" ", "").upper()
+        if _PARTE_DE_ISBN.match(digitos):
+            alternativas.append(LibroORM.isbn.contains(digitos, autoescape=True))
+        condiciones.append(or_(*alternativas))
+    return condiciones
+
+
+def columnas_de_disponibilidad() -> tuple[Any, ...]:
+    """Conteos de la disponibilidad: totales, disponibles, prestados, reservados y en tránsito.
+
+    Una sola definición para la ficha del libro y el reporte R5, así muestran los mismos
+    números. Lo que no entra en ninguna columna (apartados, en revisión) es la diferencia con el
+    total («otros»).
+    """
+
+    def contar(estado: EstadoEjemplarEnum) -> Any:
+        return func.count(case((EjemplarORM.estado == estado.value, 1)))
+
+    return (
+        func.count(EjemplarORM.id),
+        contar(EstadoEjemplarEnum.DISPONIBLE),
+        contar(EstadoEjemplarEnum.PRESTADO),
+        contar(EstadoEjemplarEnum.RESERVADO),
+        contar(EstadoEjemplarEnum.EN_TRANSITO),
+    )
+
+
+def condiciones_de_disponibilidad() -> list[ColumnElement[bool]]:
+    """Ejemplares que cuentan en la disponibilidad: sin dar de baja, de sedes activas (la
+    consulta tiene que unir ``SedeORM`` por la sede propietaria)."""
+    return [EjemplarORM.estado != _BAJA, SedeORM.estado == "ACTIVA"]
+
+
 class SqlAlchemyLibroRepository:
     """Implementa ``LibroRepository``."""
 
@@ -139,7 +190,7 @@ class SqlAlchemyLibroRepository:
         return self._uno(consulta)
 
     def listar(self, filtro: FiltroLibros, page: int, size: int) -> tuple[list[Libro], int]:
-        condiciones = self._condiciones(filtro)
+        condiciones = condiciones_de_libros(filtro)
         total = self._sesion.scalar(select(func.count(LibroORM.id)).where(*condiciones))
         filas = list(
             self._sesion.scalars(
@@ -156,25 +207,10 @@ class SqlAlchemyLibroRepository:
         libro = self._sesion.get(LibroORM, libro_id)
         assert libro is not None
 
-        def contar(estado: EstadoEjemplarEnum) -> Any:
-            return func.count(case((EjemplarORM.estado == estado.value, 1)))
-
         filas = self._sesion.execute(
-            select(
-                SedeORM.id,
-                SedeORM.nombre,
-                func.count(EjemplarORM.id),
-                contar(EstadoEjemplarEnum.DISPONIBLE),
-                contar(EstadoEjemplarEnum.PRESTADO),
-                contar(EstadoEjemplarEnum.RESERVADO),
-                contar(EstadoEjemplarEnum.EN_TRANSITO),
-            )
+            select(SedeORM.id, SedeORM.nombre, *columnas_de_disponibilidad())
             .join(SedeORM, SedeORM.id == EjemplarORM.sede_propietaria_id)
-            .where(
-                EjemplarORM.libro_id == libro_id,
-                EjemplarORM.estado != _BAJA,
-                SedeORM.estado == "ACTIVA",
-            )
+            .where(EjemplarORM.libro_id == libro_id, *condiciones_de_disponibilidad())
             .group_by(SedeORM.id, SedeORM.nombre)
             .order_by(SedeORM.nombre)
         ).all()
@@ -301,29 +337,6 @@ class SqlAlchemyLibroRepository:
             ).all()
         }
         return [_libro_a_dominio(f, nombres, conteos.get(f.id, (0, 0, 0))) for f in filas]
-
-    @staticmethod
-    def _condiciones(filtro: FiltroLibros) -> list[ColumnElement[bool]]:
-        condiciones: list[ColumnElement[bool]] = []
-        if filtro.categoria_id is not None:
-            condiciones.append(LibroORM.categoria_id == filtro.categoria_id)
-        if filtro.tipo_material is not None:
-            condiciones.append(LibroORM.tipo_material == filtro.tipo_material.value)
-        if filtro.texto:
-            por_autor = (
-                select(LibroAutorORM.libro_id)
-                .join(AutorORM, AutorORM.id == LibroAutorORM.autor_id)
-                .where(AutorORM.nombre_normalizado.contains(filtro.texto, autoescape=True))
-            )
-            alternativas = [
-                LibroORM.titulo_normalizado.contains(filtro.texto, autoescape=True),
-                LibroORM.id.in_(por_autor),
-            ]
-            digitos = filtro.texto.replace("-", "").replace(" ", "").upper()
-            if _PARTE_DE_ISBN.match(digitos):
-                alternativas.append(LibroORM.isbn.contains(digitos, autoescape=True))
-            condiciones.append(or_(*alternativas))
-        return condiciones
 
 
 # --- ejemplares ----------------------------------------------------------------------------------
