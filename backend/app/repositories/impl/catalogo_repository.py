@@ -93,6 +93,7 @@ def _libro_a_dominio(
         anio_edicion=orm.anio_edicion,
         categoria=CategoriaRef(orm.categoria.id, orm.categoria.nombre),
         tipo_material=TipoMaterial(orm.tipo_material),
+        portada_url=orm.portada_url,
     )
     return Libro(
         id=orm.id,
@@ -269,6 +270,7 @@ class SqlAlchemyLibroRepository:
         orm.titulo_normalizado = normalizar(datos.titulo)
         orm.editorial = datos.editorial
         orm.anio_edicion = datos.anio_edicion
+        orm.portada_url = datos.portada_url
         orm.categoria_id = datos.categoria.id
         orm.tipo_material = datos.tipo_material.value
         orm.clave_natural = datos.clave_natural

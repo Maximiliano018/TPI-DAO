@@ -70,3 +70,35 @@ def test_datos_faltantes_o_fuera_de_rango_se_rechazan(over, campo):
     with pytest.raises(ErrorDeValidacion) as error:
         datos(**over)
     assert error.value.detalles[0]["campo"] == campo
+
+
+@pytest.mark.parametrize(
+    ("enlace", "esperado"),
+    [
+        (None, None),
+        ("   ", None),
+        (
+            " https://covers.openlibrary.org/b/id/1-M.jpg ",
+            "https://covers.openlibrary.org/b/id/1-M.jpg",
+        ),
+        ("/portadas/rayuela.jpg", "/portadas/rayuela.jpg"),
+    ],
+)
+def test_la_portada_es_opcional_y_se_guarda_sin_espacios(enlace, esperado):
+    assert datos(portada_url=enlace).portada_url == esperado
+
+
+@pytest.mark.parametrize(
+    "enlace",
+    [
+        "javascript:alert(1)",
+        "ftp://servidor/tapa.jpg",
+        "tapa.jpg",
+        "https://a b.jpg",
+        "https://" + "x" * 300,
+    ],
+)
+def test_una_portada_que_no_es_un_enlace_web_se_rechaza(enlace):
+    with pytest.raises(ErrorDeValidacion) as error:
+        datos(portada_url=enlace)
+    assert error.value.detalles[0]["campo"] == "portada_url"

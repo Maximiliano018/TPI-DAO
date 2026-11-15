@@ -75,6 +75,7 @@ class LibroORM(ConAuditoriaDeTiempo, Base):
     titulo: Mapped[str] = mapped_column(String(200), nullable=False)
     titulo_normalizado: Mapped[str] = mapped_column(String(200), nullable=False)
     editorial: Mapped[str | None] = mapped_column(String(100))
+    portada_url: Mapped[str | None] = mapped_column(String(300))
     anio_edicion: Mapped[int | None] = mapped_column(SmallInteger)
     categoria_id: Mapped[int] = mapped_column(ForeignKey("categoria.id"), nullable=False)
     tipo_material: Mapped[str] = mapped_column(String(20), nullable=False)
