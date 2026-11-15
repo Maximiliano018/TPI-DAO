@@ -6,7 +6,7 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
-| RF-REP-01 | **R1.** El sistema debe emitir el movimiento de ejemplares entre sedes: por par origen → destino, cantidad de envíos, de ejemplares recibidos (sin los faltantes) y tiempo promedio de tránsito (recepción − despacho) sobre remitos `Recibido`. | Obligatorio |
+| RF-REP-01 | **R1.** El sistema debe emitir el movimiento de ejemplares entre sedes: por par origen → destino, cantidad de envíos, de ejemplares recibidos (sin los faltantes) y tiempo promedio de tránsito (fecha de recepción − fecha de despacho del remito) sobre los remitos recibidos (`Recibido`, `Dañado`, `Destruido` o `Incompleto`). | Obligatorio |
 | RF-REP-02 | **R2.** El sistema debe emitir la tasa de envíos exitosos e incidencias: total, % `Recibido`, % `Extraviado`, `Dañado`, `Destruido` e `Incompleto` (recibido con faltantes), con detalle por sede origen y por sede destino. Excluye `Anulado` y los remitos abiertos. | Obligatorio |
 | RF-REP-03 | **R3.** El sistema debe emitir el ranking de libros más solicitados en préstamos interbibliotecarios no cancelados, con sedes origen y destino más frecuentes. | Obligatorio |
 | RF-REP-04 | **R4.** El sistema debe emitir los préstamos vencidos con socio, libro, sede, días de atraso y multa acumulada a la fecha, el total adeudado y las multas pendientes. Los totales son la deuda real de la sede o del socio elegidos: no cambian con los filtros de la lista (estado de la multa, período, rango de atraso). | Obligatorio |
@@ -15,7 +15,7 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 | RF-REP-07 | Cada reporte debe permitir los filtros definidos en [negocio](../negocio/08-reportes.md) y mostrar un mensaje claro si no hay datos: R1, período, sede, origen, destino y motivo; R2, período y sede; R3, período, sede y categoría; R4, sede, socio, estado de la multa, período y rango de atraso; R5, sede, título, autor o ISBN y categoría; R6, sede, estado (al día o vencido), tipo de préstamo y estado del remito. | Obligatorio |
 | RF-REP-08 | El acceso a cada reporte debe respetar los roles: R1, R4 y R6 para el administrador y el bibliotecario (su sede, como origen o destino); R2 y R3 para el administrador; R5 para todos. | Obligatorio |
 | RF-REP-09 | Los reportes deben calcularse sobre datos registrados (historial de estados, préstamos, multas), sin datos cargados a mano. | Obligatorio |
-| RF-REP-10 | El sistema debe permitir exportar el resultado de un reporte (por ejemplo, a CSV). En un reporte paginado, el archivo trae todas las filas, y ninguna celda se ejecuta como fórmula al abrirlo en una planilla. | Opcional |
+| RF-REP-10 | Cada reporte debe ofrecer «Exportar CSV» en su pantalla (archivo UTF-8 con separador `;`, generado en el navegador con los filtros aplicados). En un reporte paginado, el archivo trae todas las filas, y ninguna celda se ejecuta como fórmula al abrirlo en una planilla. | Opcional |
 
 ## Casos de uso
 
@@ -36,7 +36,7 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 
 ### CU-REP-02. Interpretar R1: tiempo de tránsito
 
-- **Flujo normal:** el sistema toma, de cada remito `Recibido` del período, las fechas de `Despachado` y `Recibido` del historial de estados, promedia por ruta y muestra los envíos de cada ruta.
+- **Flujo normal:** el sistema toma cada remito recibido en el período (`Recibido`, `Dañado`, `Destruido` o `Incompleto`) con sus fechas de despacho y de recepción (que se completan con cada movimiento del remito), promedia el tránsito por ruta y muestra los envíos de cada ruta.
 - **Flujos alternativos:**
   - **A1:** remitos sin fecha de despacho (anulados); se excluyen.
   - **A2:** una ruta con un solo envío; el promedio es ese valor.
@@ -67,3 +67,4 @@ Origen: [negocio/08-reportes.md](../negocio/08-reportes.md). El enunciado exige 
 | CA-REP-20 | RF-REP-05 | **Dado** un ejemplar `Apartado`, **cuando** se emite R5, **entonces** muestra los mismos números que la ficha del libro (el apartado va en «otros»). |
 | CA-REP-21 | RF-REP-02 | **Dado** remitos de A hacia B y hacia C, **cuando** se emite R2, **entonces** el detalle muestra la tasa por sede origen y por sede destino. |
 | CA-REP-22 | RF-REP-10 | **Dado** un R5 con más de una página y un título que empieza con `=`, **cuando** se exporta a CSV, **entonces** el archivo trae todas las filas y la celda va con un apóstrofo delante. |
+| CA-REP-23 | RF-REP-08 | **Dado** un socio, **cuando** abre los reportes, **entonces** solo puede emitir R5 y el resto se rechaza. |

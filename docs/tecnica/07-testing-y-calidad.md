@@ -13,15 +13,15 @@
 | Unitarias de dominio | Entidades, estados, políticas, factory, objetos de valor | Ninguna | `tests/unit/` | 60 % |
 | De servicios | Casos de uso completos con repositorios en memoria | Repositorios en memoria | `tests/services/` | 20 % |
 | De integración | Repositorios, restricciones, índices parciales, bloqueos y migraciones | PostgreSQL | `tests/integration/` | 10 % |
-| De API | Endpoints, autorización por rol, formato de errores, contrato OpenAPI | `TestClient` + PostgreSQL | `tests/controllers/` | 10 % |
-| De contrato entre módulos | Que cada módulo cumpla lo que el resto espera (verificadores de baja, esquema OpenAPI) | Según el caso | `tests/contract/` | puntual |
+| De API | Endpoints, autorización por rol, formato de errores, registro por solicitud | `TestClient` + PostgreSQL | `tests/controllers/` | 10 % |
+| De contrato | Que cada módulo cumpla lo que el resto espera (verificadores de baja de sede) y que toda la API esté documentada en OpenAPI | Según el caso | `tests/contract/` | puntual |
 
-Herramientas: **pytest**, **pytest-cov**, **httpx/TestClient**, **factory_boy** (datos de prueba) y un **reloj inyectable** (`Reloj`) para fechas; `freezegun` solo en pruebas de borde (API) donde no se puede inyectar.
+Herramientas: **pytest**, **pytest-cov**, **httpx/TestClient**, **factory_boy** (datos de prueba) y un **reloj inyectable** (`Reloj`) para fechas: las pruebas de API reemplazan el reloj con `app.dependency_overrides`. `freezegun` está instalado pero ninguna prueba lo usa.
 
 ### Reglas
 
 - El dominio **no** usa mocks de la base: se prueba con objetos reales y repositorios en memoria.
-- Las pruebas de integración corren contra **PostgreSQL** (servicio en CI y en `docker-compose`); no se reemplazan por SQLite porque los índices parciales y los bloqueos de fila se comportan distinto.
+- Las pruebas de integración corren contra **PostgreSQL** (servicio en CI y contenedor local de `docker-compose`); no se reemplazan por SQLite porque los índices parciales y los bloqueos de fila se comportan distinto.
 - Cada prueba es independiente: crea sus datos y no depende del orden.
 - El tiempo es una dependencia inyectada (`Reloj`); ningún test usa la fecha real.
 - Nombres descriptivos: `test_no_se_presta_un_ejemplar_prestado`, no `test_1`.
@@ -33,16 +33,17 @@ Herramientas: **pytest**, **pytest-cov**, **httpx/TestClient**, **factory_boy** 
 
 ```
 backend/tests/
-├── conftest.py              # fixtures globales: reloj, settings de prueba, marcador `ca`
-├── unit/                    # dominio puro; una carpeta por agregado (sede/, usuario/, ...)
+├── conftest.py              # fixtures globales (reloj) y marcado automático de `integration`
+├── base_datos.py            # base de prueba (`<nombre>_test`), migraciones una vez por sesión,
+│                            #   transacción revertida por prueba
+├── unit/                    # dominio puro; una carpeta por módulo (sede/, socio/, catalogo/, prestamos/, ...)
 ├── services/                # casos de uso con repositorios y verificadores en memoria
-├── integration/             # PostgreSQL real: repositorios, restricciones, bloqueos, migraciones
-│   └── conftest.py          # base de prueba, sesión por test, migraciones aplicadas una vez
+├── integration/             # PostgreSQL real: repositorios, restricciones, concurrencia
 ├── controllers/             # HTTP: autorización por rol, formato de errores, esquemas
-│   └── conftest.py          # TestClient, usuarios de cada rol, `autenticar(usuario)`
-├── contract/                # contratos entre módulos y con OpenAPI
-├── fakes/                   # RepositorioSedesEnMemoria, VerificadorBajaFalso, RelojFijo
-└── factories/               # SedeFactory, UsuarioFactory, ... (factory_boy)
+│   └── conftest.py          # TestClient, reloj de pruebas, usuarios de cada rol, `autenticar(usuario)`
+├── contract/                # contrato de los verificadores de baja de sede
+├── fakes/                   # repositorios en memoria, UnitOfWorkEnMemoria, RelojFijo, VerificadorFalso
+└── factories/               # SedeFactory, UsuarioFactory, ... (factory_boy) y datos del ORM
 ```
 
 Un archivo de pruebas por unidad probada, con el mismo nombre que el módulo (`test_sede.py`, `test_sede_service.py`).
@@ -53,8 +54,10 @@ Un archivo de pruebas por unidad probada, con el mismo nombre que el módulo (`t
 frontend/src/**/<Componente>.test.jsx   # pruebas junto al componente
 frontend/tests/
 ├── setup.js                 # jest-dom, jest-axe, servidor MSW
-├── render.jsx               # renderConProveedores(ui, { usuario, ruta }): router, query y sesión
-└── mocks/                   # handlers de MSW por feature (sedes.js, auth.js) y datos de ejemplo
+├── servidor.js              # servidor MSW con los handlers por defecto
+├── handlers.js              # responder(), registrar(), error() y sesionDe(): handlers por prueba
+├── datos.js                 # datos de ejemplo con el formato de la API (sede, socio, préstamo, multa, pago…)
+└── render.jsx               # renderizarApp(ruta, { conSesion }): app completa con router, query y sesión
 ```
 
 ## Base de datos en las pruebas
@@ -62,39 +65,40 @@ frontend/tests/
 | Tema | Decisión |
 |------|----------|
 | Motor | PostgreSQL 16 (servicio en CI; `docker compose up -d db` local). **Sin SQLite** |
-| Base de prueba | Una base distinta de la de desarrollo (`tpi_dao_test`), creada si no existe por el fixture de sesión; la URL sale de `DATABASE_URL_TEST` |
+| Base de prueba | Una base distinta de la de desarrollo, creada si no existe (`tests/base_datos.py`): `DATABASE_URL_TEST` si está definida; si no, la de `DATABASE_URL` con sufijo `_test` (`tpi_dao_test`) |
 | Esquema | Se aplica con `alembic upgrade head` **una vez por sesión de pruebas**; así las migraciones se prueban de verdad |
 | Aislamiento | Cada prueba corre dentro de una transacción que se revierte al terminar (savepoint). Las pruebas de concurrencia, que necesitan transacciones reales, usan un marcador `@pytest.mark.concurrencia` y limpian con `TRUNCATE ... CASCADE` |
 | Datos | Cada prueba crea lo que necesita con las fábricas; el seed de demostración no se usa |
-| Reloj | `RelojFijo` inyectado; ninguna prueba usa la fecha real |
+| Reloj | `RelojFijo` o `RelojDePruebas` inyectado; ninguna prueba usa la fecha real |
 
 ## Autenticación en las pruebas
 
 - Las pruebas de servicio construyen el `Usuario` de dominio directamente (`UsuarioFactory(rol=Rol.ADMIN)`), sin token.
 - Las pruebas de API usan `autenticar(usuario)`, que emite un token real con la clave de prueba, así se ejercita toda la cadena de seguridad.
-- Cada endpoint tiene una prueba parametrizada **rol × endpoint** (matriz de permisos): administrador, bibliotecario de la sede, bibliotecario de otra sede, socio, sin token y token vencido.
+- Las pruebas de API de cada módulo verifican los permisos por rol (administrador, bibliotecario de la sede, de otra sede, socio) y la autenticación (sin token, token vencido, usuario dado de baja).
 
 ## Marcadores
 
 | Marcador | Uso |
 |----------|-----|
 | `@pytest.mark.ca("CA-SED-05")` | Declara el criterio de aceptación que la prueba cubre (puede recibir varios) |
-| `@pytest.mark.integration` | Necesita PostgreSQL (se aplica solo por carpeta) |
+| `@pytest.mark.integration` | Necesita PostgreSQL (lo agrega `conftest.py` a lo que está en `tests/integration/` o usa la base) |
 | `@pytest.mark.concurrencia` | Transacciones reales y varios hilos |
 
 `pytest -m "not integration"` corre la parte rápida (sin base) en el ciclo de desarrollo; CI corre todo.
 
 ## Comandos
 
-Se documentan en `CLAUDE.md` y en el README del backend y del frontend cuando existan.
+Están en `CLAUDE.md` (sección Comandos).
 
 | Acción | Backend | Frontend |
 |--------|---------|----------|
 | Pruebas rápidas | `pytest -m "not integration"` | `npm test` |
-| Pruebas completas con cobertura | `pytest --cov=app` | `npm test -- --coverage` |
+| Pruebas completas con cobertura | `pytest --cov=app` (falla por debajo del 90 %) | `npm run test:coverage` (falla por debajo de los mínimos de `vite.config.js`) |
 | Lint y formato | `ruff check . && ruff format --check .` | `npm run lint && npm run format:check` |
 | Tipos | `mypy app/models app/services` | — |
-| Trazabilidad de criterios | `python scripts/verificar_trazabilidad_ca.py` | — |
+| Trazabilidad de criterios | `python scripts/verificar_trazabilidad_ca.py --prefijos SED,ACC,SOC,CAT,PRE,REM,RES,DEV,REP --estricto` | — |
+| Diccionario de datos | `python scripts/generar_diccionario_datos.py --verificar` | — |
 
 ## Convenciones de nombre y forma
 
@@ -118,7 +122,9 @@ Se documentan en `CLAUDE.md` y en el README del backend y del frontend cuando ex
 
 Un criterio puede tener pruebas en más de un nivel; el marcador `ca` se repite en cada una.
 
-### Plan de pruebas de sedes y acceso (esta iteración)
+### Plan de pruebas de sedes y acceso (histórico: primera iteración)
+
+Plan con el que se probó el primer módulo; los siguientes siguieron el mismo criterio por nivel.
 
 | Criterios | Nivel principal | Notas |
 |-----------|-----------------|-------|
@@ -127,7 +133,7 @@ Un criterio puede tener pruebas en más de un nivel; el marcador `ca` se repite 
 | `CA-SED-04` | Unitaria + integración | Dominio y exclusión `btree_gist` |
 | `CA-SED-05` a `07`, `16` a `23` | Servicio con verificadores falsos; integración para el verificador de usuarios | Cada tipo de impedimento y su combinación; `CA-SED-07` verifica que no cambia ningún estado |
 | `CA-SED-08` a `10`, `15`, `47` | Unitaria + servicio | Baja, reactivación, edición bloqueada, repetición |
-| `CA-SED-09`, `24`, `25` | Servicio (los consumidores reales llegan con sus módulos) | Contrato `validar_operativa` / `obtener_para_operar` |
+| `CA-SED-09`, `24`, `25` | Servicio | Contrato `validar_operativa` / `obtener_para_operar` |
 | `CA-SED-11`, `37`, `43` a `46` | API | Visibilidad por rol, paginación, 404 del socio |
 | `CA-SED-29` a `33` | Unitaria + servicio + API | Excepciones y `abierta_ahora` con reloj fijo |
 | `CA-SED-41`, `42` | Integración (`concurrencia`) | Dos transacciones reales |
@@ -135,14 +141,14 @@ Un criterio puede tener pruebas en más de un nivel; el marcador `ca` se repite 
 
 ### Pruebas de contrato
 
-`tests/contract/test_verificadores_baja_sede.py`: cada `TipoImpedimento` tiene un verificador registrado o figura en `TIPOS_PENDIENTES_DE_MODULO`; la lista de pendientes solo puede achicarse (una segunda prueba compara con el valor del último PR). `tests/contract/test_openapi.py`: todo endpoint documentado, con `summary`, `response_model` y errores.
+`tests/contract/test_verificadores_baja_sede.py`: cada `TipoImpedimento` tiene un verificador registrado o figura en `TIPOS_PENDIENTES_DE_MODULO`; la lista de pendientes solo puede achicarse y hoy está vacía. `tests/contract/test_openapi.py`: recorre `app.openapi()` y exige en cada endpoint `summary`, `description` (su docstring) y `tags`; una respuesta exitosa con esquema (salvo `204` y archivos); y los errores que puede dar documentados: `401` en las rutas protegidas, `403` en las que exigen un permiso que algún rol no tiene, `404` en las que reciben un identificador y `422` en las que reciben parámetros o cuerpo.
 
 ## Definición de terminado de un PR de código
 
 1. Cada criterio de aceptación que toca tiene prueba con su marcador `ca`.
 2. Pruebas que fallarían sin el cambio (no solo líneas cubiertas).
 3. `ruff`, `mypy` y las pruebas en verde localmente y en CI.
-4. Cobertura sin bajar de los mínimos por capa.
+4. Cobertura sin bajar de los mínimos que controla CI (backend 90 %; frontend 88 % de líneas).
 5. Migraciones aplicables sobre una base vacía y sin diferencias contra el modelo.
 6. Documentación (`docs/`) y ejemplos de la API al día.
 7. Sin secretos ni datos de demostración en las pruebas.
@@ -182,8 +188,9 @@ Un script de CI compara los `CA` de la documentación con los marcadores del có
 
 ## Calidad de la API
 
-- Un test recorre `app.openapi()` y falla si algún endpoint no tiene `summary`, `response_model` o respuestas de error documentadas.
-- Tests de contrato: la respuesta real de cada endpoint se valida contra su esquema.
+- Cada endpoint declara `response_model`, así FastAPI valida la respuesta real contra su esquema.
+- `tests/contract/test_openapi.py` falla si algún endpoint queda sin `summary`, descripción, esquema de respuesta o errores documentados (ver [Pruebas de contrato](#pruebas-de-contrato)).
+- **Registro por solicitud:** el middleware de `app/main.py` (`app/utils/registro.py`) asigna a cada solicitud un identificador (`X-Request-ID`, el del cliente o uno nuevo), lo devuelve en la respuesta, lo agrega a cada línea de log emitida durante la solicitud y deja una línea final con método, ruta, estado, duración y el id del usuario. Lo verifica `tests/controllers/test_registro_solicitudes.py`. El nivel se configura con `LOG_LEVEL`.
 - Los ejemplos de [API REST](06-api.md) se mantienen sincronizados con los `examples` de los esquemas.
 
 ## Frontend
@@ -193,14 +200,23 @@ Un script de CI compara los `CA` de la documentación con los marcadores del có
 | Unitarias | Vitest | Funciones auxiliares, validaciones de formularios, formateo |
 | Componentes | React Testing Library | Componentes del design system y pantallas con la API simulada (MSW) |
 | Accesibilidad | jest-axe | Sin violaciones automáticas en componentes base y pantallas |
-| Extremo a extremo (opcional) | Playwright | Flujo completo: préstamo interbibliotecario de punta a punta |
+| Extremo a extremo (opcional, no implementado) | Playwright | Flujo completo: préstamo interbibliotecario de punta a punta |
 
 Se prueba lo que el usuario ve y hace (texto, roles ARIA, interacción), no detalles internos de implementación.
 
 ## Cobertura
 
-| Alcance | Mínimo |
-|---------|--------|
+CI **controla** la cobertura con mínimos fijados unos puntos por debajo de la medida, para que una regresión haga fallar el PR:
+
+| Alcance | Medida | Mínimo en CI | Dónde se configura |
+|---------|--------|--------------|--------------------|
+| Backend (`app/`) | 94 % de sentencias | 90 % | `backend/pyproject.toml`, `[tool.coverage.report] fail_under` (lo aplica `pytest --cov=app`) |
+| Frontend (`src/`) | 91 % de líneas y sentencias, 88 % de ramas, 84 % de funciones | 88 %, 85 %, 80 % | `frontend/vite.config.js`, `test.coverage.thresholds` (`npm run test:coverage`, con `@vitest/coverage-v8`) |
+
+Además, por capa se mantienen estas metas (no las controla CI):
+
+| Alcance | Meta |
+|---------|------|
 | `models/` | 90 % de líneas, 100 % de transiciones de estado |
 | `services/` | 85 % |
 | Backend en total | 80 % |
@@ -215,18 +231,18 @@ La cobertura es un piso, no un objetivo: se revisa que las pruebas verifiquen co
 |-------------|-----|
 | ruff | Lint y formato del backend (reemplaza flake8, isort y black) |
 | mypy (estricto en `models/` y `services/`) | Tipos del backend |
-| ESLint + Prettier | Lint y formato del frontend |
-| pre-commit | Ejecuta ruff, ESLint y detección de secretos antes de cada commit |
-| gitleaks | Ya activo en el repositorio |
+| ESLint (reglas de React y hooks) + Prettier | Lint y formato del frontend |
+| gitleaks | Detección de secretos en cada PR (workflow propio) |
+| pre-commit | **Pendiente**: no hay ganchos locales; los controles corren en CI |
 
 ## Integración continua
 
-Se suma un workflow de GitHub Actions que corre en cada PR:
+`.github/workflows/ci.yml` corre en cada PR y en cada push a `main`:
 
-1. Backend: instalar, `ruff check`, `ruff format --check`, `mypy`, `pytest --cov` con PostgreSQL 16 como servicio y `DATABASE_URL_TEST`.
-2. Frontend: instalar, `eslint`, `prettier --check`, `vitest run --coverage` y el build.
-3. Verificación de trazabilidad de criterios de aceptación.
-4. Verificación de que las migraciones de Alembic aplican sobre una base vacía y que no quedan cambios de modelo sin migración.
+1. **Backend**, con PostgreSQL 16 como servicio y `DATABASE_URL` (las pruebas usan esa base con sufijo `_test`): `pip install -e ".[dev]"`, `ruff check`, `ruff format --check`, `mypy app/models app/services`, `pytest --cov=app --cov-report=term-missing` (falla por debajo del 90 %), `alembic upgrade head` + `alembic check` (las migraciones aplican sobre una base vacía y no quedan cambios de modelo sin migrar) y la trazabilidad estricta de criterios de aceptación.
+2. **Frontend**, con la versión de Node de `.nvmrc`: `npm ci`, `npm run lint`, `npm run format:check`, `npm run test:coverage` (pruebas con los mínimos de cobertura) y `npm run build`.
+
+Además corren `gitleaks` (secretos) y `titulo-y-rama` (título de PR convencional y prefijo de rama), en workflows propios.
 
 El PR no se mergea con la integración continua en rojo, de acuerdo con `CONTRIBUTING.md`.
 

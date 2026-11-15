@@ -14,7 +14,8 @@ Una **reserva** es un lugar en la cola de espera de un libro que no tiene ejempl
 | Sede de retiro | Sede donde el socio quiere retirar |
 | Fecha y hora de reserva | Define el orden en la cola |
 | Ejemplar asignado | Se completa cuando hay uno disponible |
-| Fecha de aviso y de vencimiento | Para el retiro |
+| Vencimiento del retiro | Último día para retirar el ejemplar asignado (la fecha de asignación queda en el historial) |
+| Préstamo | El préstamo con el que se cumplió |
 | Estado | `Pendiente`, `Disponible para retiro`, `Cumplida`, `Cancelada`, `Vencida` |
 | Registrada por | El socio o el bibliotecario que la cargó en su nombre |
 | Historial | Cada cambio de estado con fecha, autor y motivo |
@@ -25,7 +26,7 @@ La reserva es **sobre el libro** (cualquier ejemplar), no sobre un ejemplar conc
 
 El **Socio** (por sí mismo, nunca a nombre de otro) y el **Bibliotecario** (en nombre del socio).
 
-**Cancelar** la puede el socio (la propia) o el bibliotecario de la **sede de retiro**, que es quien la entrega. El administrador consulta las reservas pero no las opera.
+**Cancelar** la puede el socio (la propia) o el bibliotecario de la **sede de retiro**, que es quien la entrega. El administrador, que tiene los permisos completos, también puede cancelarlas y entregarlas en cualquier sede.
 
 ## ¿Se puede reservar un ejemplar de otra sede?
 
@@ -55,6 +56,7 @@ Pendiente ──▶ Disponible para retiro ──▶ Cumplida
 ## Validaciones y reglas
 
 - Solo se reserva un libro que **no tiene ejemplares disponibles en la red**: si hay en la sede de retiro corresponde un préstamo local, y si hay en otra sede, un préstamo entre sedes.
+- No se reserva un libro sin ningún ejemplar activo en la red (todos dados de baja o ninguno cargado): no hay qué esperar.
 - No reservar a un socio `Inhabilitado`. *(enunciado)*
 - No reservar con destino a una sede en `Baja`. *(enunciado)*
 - Un socio no puede tener dos reservas activas del mismo libro.

@@ -12,7 +12,7 @@
 | Frontend | React 18 + JavaScript + Vite | Ecosistema amplio y arranque rápido |
 | Calidad Python | pytest, ruff, mypy | Estándar actual del ecosistema |
 | Calidad JS | Vitest, React Testing Library, ESLint, Prettier | Pruebas de componentes y estilo consistente |
-| Entrega | docker-compose | Una sola orden levanta todo el sistema |
+| Entrega | docker-compose con base, backend y frontend | `docker compose up -d --build` levanta todo (frontend servido por nginx con proxy a la API); para desarrollar, solo `db` y los comandos de `CLAUDE.md` |
 
 ## Decisiones y justificación
 
@@ -65,7 +65,7 @@ Las reglas viven en el dominio y no en la interfaz, como pide el enunciado. Deta
 
 ### D7. Tareas periódicas
 
-Dos procesos deben correr solos: marcar préstamos vencidos y vencer reservas no retiradas. Se resuelven con **APScheduler** dentro del proceso del backend (una tarea al día más una ejecución al iniciar), y las mismas funciones se pueden invocar desde un endpoint administrativo o desde tests. No se agrega una cola de mensajes porque no hace falta a esta escala.
+Tres procesos deben correr solos: marcar préstamos vencidos (e inhabilitar al socio), cancelar los préstamos solicitados que no se retiraron a tiempo y vencer las reservas no retiradas. Se resuelven con **APScheduler** dentro del proceso del backend: todos los días a las 00:05 en la zona de negocio y una vez al iniciar. Las mismas funciones se invocan desde un endpoint administrativo o desde las pruebas. No se agrega una cola de mensajes porque no hace falta a esta escala.
 
 Implementación: `app/tareas.py` arranca el programador en el ciclo de vida de FastAPI (salvo con `ENTORNO=test`) y cada tarea usa su propia sesión y transacción; el administrador las ejecuta a mano con `POST /admin/tareas/...`.
 
@@ -77,26 +77,27 @@ Implementación: `app/tareas.py` arranca el programador en el ciclo de vida de F
 
 ### D9. Verificación de baja de sede mediante un puerto
 
-La baja de una sede debe consultar datos de procesos que todavía no existen (préstamos, remitos, reservas, ejemplares). Para no acoplar `SedeService` a ellos ni reescribirlo cada vez, el dominio define un **puerto** y cada módulo aporta su propia verificación. Detalle y patrón en [Patrones de diseño](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede).
+La baja de una sede consulta datos de otros procesos (usuarios, ejemplares, préstamos, remitos, reservas), que se construyeron después que las sedes. Para no acoplar `SedeService` a ellos, el dominio define un **puerto** y cada módulo aporta su propia verificación; hoy están los seis verificadores (`services/verificadores_baja_sede.py`). Detalle y patrón en [Patrones de diseño](05-patrones-de-diseno.md#4-strategy--composite-verificación-de-baja-de-sede).
 
 ### D10. Catálogo geográfico como tabla de referencia
 
 Provincias y localidades son tablas de referencia cargadas por migración, no texto libre ni enumerados en código: la lista cerrada se puede ampliar sin cambiar la aplicación, y la sede guarda una clave foránea a la localidad.
 
-### D11. Dependencias nuevas de esta iteración
+### D11. Dependencias
 
 | Capa | Paquetes | Uso |
 |------|----------|-----|
-| Backend | `sqlalchemy>=2`, `alembic`, `psycopg[binary]` 3, `pydantic-settings`, `email-validator`, `argon2-cffi`, `PyJWT` | Persistencia, migraciones, configuración, validación de correo, hash y token |
-| Backend (desarrollo) | `pytest-cov`, `factory-boy`, `freezegun`, `mypy` | Cobertura, datos de prueba, reloj, tipos |
-| Frontend | `@tanstack/react-query`, `react-hook-form`, `zod`, `@hookform/resolvers`, `date-fns` | Datos del servidor, formularios y validación, fechas |
-| Frontend (desarrollo) | `msw`, `jest-axe`, `@testing-library/user-event` | API simulada, accesibilidad, interacción |
+| Backend | `fastapi`, `uvicorn`, `sqlalchemy>=2`, `alembic`, `psycopg[binary]` 3, `pydantic-settings`, `email-validator`, `argon2-cffi`, `PyJWT`, `APScheduler` | API, persistencia, migraciones, configuración, validación de correo, hash, token y tareas periódicas |
+| Backend (desarrollo) | `pytest`, `pytest-cov`, `httpx`, `ruff`, `mypy`, `factory-boy`, `freezegun` | Pruebas, cobertura, cliente de pruebas, estilo, tipos y datos de prueba (`freezegun` está instalado pero las pruebas usan el reloj inyectable) |
+| Frontend | `react`, `react-dom`, `react-router-dom`, `@tanstack/react-query`, `react-hook-form`, `zod`, `@hookform/resolvers`, `date-fns` | Interfaz, rutas, datos del servidor, formularios y validación, fechas |
+| Frontend (desarrollo) | `msw`, `jest-axe`, `@testing-library/user-event`, `@vitest/coverage-v8` | API simulada, accesibilidad, interacción, cobertura |
+| Contenedores | `python:3.12-slim`, `node:20-alpine` (compilación), `nginx:1.27-alpine`, `postgres:16` | Imágenes de backend, frontend y base |
 
-Las versiones se fijan en `pyproject.toml` y `package.json` y las actualiza Dependabot.
+Las versiones se fijan en `pyproject.toml` y `package.json`. Dependabot (`.github/dependabot.yml`) propone cada semana actualizaciones de `pip`, `npm`, las imágenes de los `Dockerfile` y las GitHub Actions; las menores y los parches de `pip` y `npm` llegan agrupadas en un solo PR.
 
 ### D12. Pago en línea de multas simulado
 
-El pago en línea del socio es una simulación (checkout del propio sistema donde se elige aprobar o rechazar), sin pasarela externa ni dependencias nuevas: alcanza para demostrar el flujo y no exige cuentas ni credenciales. Ver [12. Pago de multas](12-pago-de-multas.md).
+El pago en línea del socio es una simulación (checkout del propio sistema en tres pasos; la tarjeta de prueba terminada en `0002` simula un rechazo), sin pasarela externa ni dependencias nuevas: alcanza para demostrar el flujo y no exige cuentas ni credenciales. Ver [12. Pago de multas](12-pago-de-multas.md).
 
 ## Alternativas descartadas
 
@@ -106,7 +107,7 @@ El pago en línea del socio es una simulación (checkout del propio sistema dond
 | MongoDB | El dominio es relacional y exige integridad referencial y restricciones |
 | TypeScript en el frontend | El frontend se hace en JavaScript |
 | Redux | El estado del servidor lo maneja TanStack Query y el resto es local; Redux agrega código sin beneficio |
-| Celery y Redis | Excesivo para dos tareas diarias |
+| Celery y Redis | Excesivo para tres tareas diarias |
 | SQLite para tests | No soporta exclusiones, índices parciales ni bloqueo de filas |
 | Tabla de permisos y roles en base | Los roles son fijos; sumaría complejidad sin necesidad |
 | Sesiones con cookies | Se eligió JWT con cabecera `Authorization` para simplificar CORS y pruebas |
@@ -118,13 +119,14 @@ TPI-DAO/
 ├── backend/            # API en Python (ver arquitectura)
 ├── frontend/           # Aplicación React
 ├── docs/               # Esta documentación
-├── docker-compose.yml  # Base de datos, backend y frontend
+├── database/           # Documentación de la base, diccionario de datos y script de init
+├── docker-compose.yml  # Base (PostgreSQL 16), backend y frontend
 └── .github/            # Workflows y plantillas
 ```
 
 ## Entrega del trabajo práctico
 
-1. `docker compose up` levanta PostgreSQL, aplica las migraciones, carga datos de ejemplo y expone backend (puerto 8000) y frontend (puerto 5173).
-2. La documentación interactiva de la API queda en `/docs`.
-3. Los datos de ejemplo incluyen sedes, socios, libros, ejemplares y usuarios de cada rol para demostrar los flujos sin cargar nada a mano.
-4. El README raíz explica la instalación con Docker y también sin Docker.
+1. `CARGAR_SEED=1 docker compose up -d --build` levanta el sistema completo: PostgreSQL, el backend (`backend/Dockerfile`: aplica `alembic upgrade head` al arrancar y, con `CARGAR_SEED=1`, el seed) y el frontend (`frontend/Dockerfile`: compila con Vite y lo sirve nginx en el puerto 8080, con `/api` redirigido al backend). Para desarrollar, `docker compose up -d db` y los comandos de [`CLAUDE.md`](../../CLAUDE.md).
+2. La documentación interactiva de la API queda en `http://localhost:8000/docs`.
+3. Los datos de ejemplo incluyen sedes, socios, libros, ejemplares, usuarios de cada rol y 45 días de actividad, para demostrar los flujos y los reportes sin cargar nada a mano ([seed](04-modelo-de-datos.md#seed-de-demostración)).
+4. La instalación paso a paso está en el [README raíz](../../README.md) y la de la base en [`database/README.md`](../../database/README.md).

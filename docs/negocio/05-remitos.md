@@ -53,12 +53,12 @@ Generado ──▶ Empaquetado ──▶ Despachado ──▶ En tránsito ─�
 | `Empaquetado` | Preparado físicamente | Sigue en la sede origen |
 | `Despachado` | Salió de la sede origen | `En tránsito` |
 | `En tránsito` | Viajando hacia la sede destino | `En tránsito` |
-| `Recibido` | La sede destino lo recibió y verificó | `Disponible` o `Prestado` en destino, según el motivo |
-| `Extraviado` | No llegó en un plazo máximo; se da por perdido | Se evalúa baja del ejemplar |
+| `Recibido` | La sede destino lo recibió y verificó | Según el motivo: en un **envío** queda `Apartado` en destino hasta que el socio lo retira (empieza el plazo de retiro); en un **retorno**, `Disponible` en su sede; en un **traslado**, `Disponible` y pasa a la nueva sede propietaria |
+| `Extraviado` | No llegó dentro del plazo máximo de tránsito; se da por perdido | Cada ejemplar pasa a `Baja` por extravío, con incidencia a cargo de la sede origen; si era un envío, el préstamo se cancela. Se puede recuperar si aparece |
 | `Dañado` | Llegó con daño reparable | Ejemplar a revisión en su sede propietaria: si era un envío, vuelve con un remito de retorno; si era un traslado, la revisa la nueva propietaria |
 | `Destruido` | Llegó inutilizable | Baja del ejemplar |
 | `Incompleto` | Llegó, pero faltaba al menos un ejemplar | Los que llegaron se reciben normalmente; cada faltante se da de baja por extravío |
-| `Anulado` | Cancelado antes de salir | El ejemplar vuelve a `Disponible` |
+| `Anulado` | Cancelado antes de salir | El ejemplar vuelve a `Disponible`, los préstamos del remito se cancelan y el ejemplar se ofrece a la cola de reservas |
 
 **La revisión y la reparación las hace la sede dueña del ejemplar.** Si un envío por préstamo llega dañado, la sede destino no lo repara: el préstamo se cancela y el ejemplar vuelve a su sede con un remito de retorno, igual que cuando el socio lo devuelve dañado en otra sede.
 
@@ -86,6 +86,7 @@ La sede propietaria lo **recupera**: vuelve a `Disponible` en su sede (o a `En r
 - Estados **finales**: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` y `Anulado`.
 - Un remito `Despachado` ya no se puede anular.
 - La anulación solo es posible antes del despacho.
+- Un remito de **retorno** no se anula (el ejemplar tiene que volver a su sede) y no se genera a mano: lo genera el sistema.
 
 ## ¿Quién gestiona los remitos? ¿Quién puede crear, operar y consultar?
 
@@ -95,9 +96,10 @@ La sede propietaria lo **recupera**: vuelve a `Disponible` en su sede (o a `En r
 | Despachar | Bibliotecario de la sede origen |
 | Marcar en tránsito | Bibliotecario de la sede origen (si no lo hace, el sistema lo completa al recibir) |
 | Recibir y verificar | Bibliotecario de la **sede destino** |
-| Registrar incidencia | Bibliotecario de la sede destino |
+| Registrar incidencia en la recepción (daño, destrucción, faltante) | Bibliotecario de la sede destino |
+| Marcar extraviado (vencido el plazo de tránsito) | Bibliotecario de la sede origen o de la destino, o el Administrador |
 | Anular | Bibliotecario de la sede origen, antes del despacho |
-| Consultar | Bibliotecarios de las dos sedes involucradas; el Administrador ve todos; el socio ve el estado del remito de su propio préstamo |
+| Consultar | Bibliotecarios de las dos sedes involucradas; el Administrador ve todos; el socio no consulta remitos: ve el estado del envío y sus movimientos en el detalle de su préstamo |
 
 ## Casos de uso y flujos
 
@@ -106,9 +108,9 @@ La sede propietaria lo **recupera**: vuelve a `Disponible` en su sede (o a `En r
 3. **Seguimiento** del estado y del historial.
 4. **Recepción:** el destino verifica contenido y estado físico, y confirma por línea.
 5. **Incidencia:** extravío (vencido el plazo máximo de tránsito, o un ejemplar que no llegó), daño o destrucción.
-8. **Recuperación** de un ejemplar extraviado que aparece después (ver [Catálogo](03-catalogo.md)).
 6. **Anulación** antes del despacho.
-7. **Remito de retorno** al registrar la devolución en una sede distinta de la propietaria.
+7. **Remito de retorno**, que genera el sistema en tres casos: al registrar la devolución en una sede distinta de la propietaria; al cancelar un préstamo entre sedes que ya llegó y nadie retiró (a mano o por plazo de retiro vencido); y cuando un envío llega dañado.
+8. **Recuperación** de un ejemplar extraviado que aparece después (ver [Catálogo](03-catalogo.md)).
 
 ## Validaciones y reglas
 
@@ -118,7 +120,7 @@ La sede propietaria lo **recupera**: vuelve a `Disponible` en su sede (o a `En r
 - Todos los ejemplares de un remito comparten origen y destino.
 - Un ejemplar no puede estar en dos remitos abiertos a la vez.
 - No se puede recibir un remito en una sede distinta del destino.
-- Plazo máximo de tránsito (parámetro, valor 7 días): vencido, se puede marcar `Extraviado`.
+- Plazo máximo de tránsito (parámetro, valor 7 días desde el despacho): vencido, se puede marcar `Extraviado`.
 - Plazo de despacho (parámetro, valor 3 días desde la generación): vencido sin despachar, el remito figura **atrasado** para que la sede origen lo despache o lo anule.
 - Número de remito único.
 

@@ -11,14 +11,14 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | RF-DEV-03 | La fecha de devolución no puede ser anterior al inicio del préstamo ni futura. | Obligatorio |
 | RF-DEV-04 | Una devolución es fuera de término cuando la fecha supera el vencimiento; el día de vencimiento es el último día válido. | Obligatorio |
 | RF-DEV-05 | Si es fuera de término, el sistema debe generar una multa de días de atraso × monto por día ($200, configurable), mediante una política de cálculo intercambiable, en estado `Pendiente`. | Obligatorio |
-| RF-DEV-06 | El sistema debe permitir marcar una multa como `Saldada` (sin gestionar el cobro). | Obligatorio |
+| RF-DEV-06 | El sistema debe permitir al personal saldar una multa `Pendiente` registrando su cobro en el mostrador; no hay cobro real. El medio de pago, el pago en línea y el comprobante son extensiones opcionales (RF-DEV-17 a 22). | Obligatorio |
 | RF-DEV-07 | Al devolver, el préstamo debe pasar a `Devuelto` y el sistema debe reevaluar al socio (rehabilitar si ya no tiene causas de inhabilitación). | Obligatorio |
 | RF-DEV-08 | En una devolución local, el ejemplar debe quedar `Disponible` en la misma sede si el estado físico lo permite. | Obligatorio |
 | RF-DEV-09 | En una devolución interbibliotecaria, el sistema debe generar el remito de retorno hacia la sede propietaria y dejar el ejemplar `En tránsito` al despacharse. | Obligatorio |
-| RF-DEV-10 | Según el estado recibido: `Bueno` o `Regular` actualizan el estado físico; `Dañado` deja el ejemplar en revisión, no disponible; `Extraviado` lo pasa a `Baja` con incidencia. | Obligatorio |
+| RF-DEV-10 | Según el estado recibido: `Bueno` o `Regular` actualizan el estado físico; `Dañado` deja el ejemplar en revisión, no disponible (en un préstamo local, en el acto; en uno interbibliotecario, vuelve con el remito de retorno y la sede propietaria lo deja en revisión al recibirlo); `Extraviado` lo pasa a `Baja` con incidencia. | Obligatorio |
 | RF-DEV-11 | Al liberarse el ejemplar, el sistema debe revisar la cola de reservas del libro (ver [Reservas](06-reservas.md)). | Obligatorio |
-| RF-DEV-12 | El sistema debe registrar una incidencia asociada al socio ante daño o extravío (la multa, si corresponde, la define RF-DEV-23). | Opcional |
-| RF-DEV-13 | El sistema debe permitir consultar devoluciones y multas por préstamo y por socio; el personal busca las multas de un socio desde la página de multas o desde su ficha. | Obligatorio |
+| RF-DEV-12 | Al registrar una devolución `Dañado` o `Extraviado`, el sistema debe registrar una incidencia asociada al socio y al préstamo; queda como antecedente y habilita recuperar el ejemplar si aparece (RF-CAT-13). La multa, si corresponde, la define RF-DEV-23. | Opcional |
+| RF-DEV-13 | El sistema debe permitir consultar la devolución desde el préstamo (y los préstamos devueltos de un socio desde el listado de préstamos) y las multas por socio; el personal busca las multas de un socio desde la página de multas o desde su ficha. | Obligatorio |
 | RF-DEV-14 | Una devolución con fecha anterior al día en que se registra debe exigir un motivo (de 5 a 300 caracteres) y dejar en el historial del préstamo la fecha de devolución, la de registro y el motivo. | Obligatorio |
 | RF-DEV-15 | El sistema debe permitir configurar un tope de multa por préstamo (0 = sin tope); la política de cálculo lo aplica. | Opcional |
 | RF-DEV-16 | El socio debe ver sus devoluciones y multas sin la identidad del personal que las registró o saldó; el personal sí la ve. | Obligatorio |
@@ -35,7 +35,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 
 ### CU-DEV-01. Registrar una devolución en término
 
-- **Actor:** Bibliotecario de la sede destino.
+- **Actor:** Bibliotecario de la sede destino. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Identifica el préstamo `Activo` (por socio, ejemplar o número).
   2. Registra fecha, estado físico `Bueno` o `Regular` y observaciones.
@@ -52,7 +52,7 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 
 ### CU-DEV-02. Registrar una devolución fuera de término
 
-- **Actor:** Bibliotecario.
+- **Actor:** Bibliotecario. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Igual a CU-DEV-01 hasta el paso 3, pero el préstamo está `Vencido` o la fecha supera el vencimiento.
   2. El sistema calcula los días de atraso y la multa.
@@ -65,21 +65,21 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 
 ### CU-DEV-03. Registrar una devolución con daño o extravío
 
-- **Actor:** Bibliotecario.
+- **Actor:** Bibliotecario. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Registra la devolución con estado `Dañado` y observaciones.
-  2. El sistema deja el ejemplar en revisión, no disponible, y registra la incidencia.
+  2. El sistema registra la incidencia y deja el ejemplar no disponible: en un préstamo local pasa a `En revisión`; en uno interbibliotecario queda `Apartado` y vuelve a su sede con el remito de retorno, donde pasa a `En revisión` al recibirse.
   3. Si el monto por daño está configurado, genera la multa por daño (RF-DEV-23) y el socio queda inhabilitado hasta pagarla.
   4. Si hay atraso, se genera además la multa por atraso (CU-DEV-02).
 - **Flujos alternativos:**
   - **A1:** estado `Extraviado` (el socio no puede entregarlo); el préstamo se cierra como `Devuelto` con incidencia, el ejemplar pasa a `Baja` y, si el monto está configurado, se genera la multa por extravío.
-  - **A4:** el monto por daño o extravío es 0 (valor inicial); queda solo la incidencia, sin multa.
   - **A2:** observaciones vacías; rechaza (el daño o extravío exige descripción).
-  - **A3:** el ejemplar en revisión se repara; el bibliotecario lo pasa a `Disponible` actualizando el estado físico; si no, se da de baja.
+  - **A3:** el ejemplar en revisión se repara: el personal de la sede propietaria lo marca reparado y vuelve a `Disponible` con estado físico `Regular` (CU-CAT-08); si el daño es irreparable, se da de baja.
+  - **A4:** el monto por daño o extravío es 0 (valor inicial); queda solo la incidencia, sin multa.
 
 ### CU-DEV-04. Devolver un préstamo interbibliotecario
 
-- **Actor:** Bibliotecario de la sede destino.
+- **Actor:** Bibliotecario de la sede destino. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Registra la devolución del socio (CU-DEV-01/02/03).
   2. El sistema genera un remito de retorno `Generado` hacia la sede propietaria (ver [Remitos](05-remitos.md)).
@@ -96,6 +96,8 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
   - **A1:** la multa ya está saldada; informa.
   - **A2:** el socio tiene otras causas de inhabilitación; sigue inhabilitado.
   - **A3:** el socio había iniciado un pago en línea; se cancela.
+
+> **CU-DEV-06** (consultar devoluciones y multas) se retiró al agregar el pago de multas: la devolución se consulta desde el préstamo (CU-PRE-06) y las multas desde la página de multas (RF-DEV-13). El ID no se reutiliza.
 
 ### CU-DEV-07. Pagar una multa en línea (simulado)
 
@@ -128,8 +130,8 @@ Origen: [negocio/07-devoluciones.md](../negocio/07-devoluciones.md). Proceso obl
 | CA-DEV-10 | RF-DEV-06 | **Dado** una multa `Pendiente` que era la única causa, **cuando** se marca `Saldada`, **entonces** el socio se rehabilita. |
 | CA-DEV-11 | RF-DEV-08 | **Dado** una devolución local con estado `Bueno`, **cuando** se registra, **entonces** el ejemplar queda `Disponible` en la misma sede. |
 | CA-DEV-12 | RF-DEV-09 | **Dado** una devolución interbibliotecaria, **cuando** se registra, **entonces** existe un remito de retorno distinto del de ida, con destino en la sede propietaria. |
-| CA-DEV-13 | RF-DEV-10 | **Dado** una devolución con estado `Dañado`, **cuando** se registra, **entonces** el ejemplar no queda `Disponible` y se registra la incidencia. |
-| CA-DEV-14 | RF-DEV-10 | **Dado** una devolución `Extraviado`, **cuando** se registra, **entonces** el ejemplar pasa a `Baja`. |
+| CA-DEV-13 | RF-DEV-10, RF-DEV-12 | **Dado** una devolución con estado `Dañado`, **cuando** se registra, **entonces** el ejemplar no queda `Disponible` y se registra la incidencia. |
+| CA-DEV-14 | RF-DEV-10, RF-DEV-12 | **Dado** una devolución `Extraviado`, **cuando** se registra, **entonces** el ejemplar pasa a `Baja`. |
 | CA-DEV-15 | RF-DEV-11 | **Dado** un libro con una reserva pendiente, **cuando** se devuelve un ejemplar, **entonces** se asigna a esa reserva. |
 | CA-DEV-16 | RF-DEV-13 | **Dado** un socio, **cuando** consulta sus multas, **entonces** ve solo las propias con su estado. |
 | CA-DEV-17 | RF-DEV-14 | **Dado** un préstamo vencido, **cuando** se registra la devolución con una fecha anterior a hoy sin motivo, **entonces** se rechaza; con motivo se acepta y el historial muestra las dos fechas y el motivo. |

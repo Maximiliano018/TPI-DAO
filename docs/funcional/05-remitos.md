@@ -17,7 +17,7 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` 
 
 | ID | Requerimiento | Prioridad |
 |----|---------------|-----------|
-| RF-REM-01 | El sistema debe generar remitos con número único, sede origen, sede destino, motivo (`Envío por préstamo`, `Retorno por devolución`, `Traslado`) y estado `Generado`. | Obligatorio |
+| RF-REM-01 | El sistema debe generar remitos con número único, sede origen, sede destino, motivo (`Envío por préstamo`, `Retorno`, `Traslado`) y estado `Generado`. El bibliotecario genera envíos y traslados; los retornos los genera el sistema: al devolver un préstamo interbibliotecario, al cancelar uno que ya llegó a destino y al recibir dañado un envío. | Obligatorio |
 | RF-REM-02 | Un remito debe tener un detalle con una línea por ejemplar. Todos los ejemplares comparten origen y destino. | Obligatorio |
 | RF-REM-03 | Cada línea de un remito por préstamo o retorno debe asociarse a su préstamo; los remitos de traslado no tienen préstamo. | Obligatorio |
 | RF-REM-04 | La ida y la vuelta de un préstamo interbibliotecario deben tener remitos distintos. | Obligatorio |
@@ -25,20 +25,20 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` 
 | RF-REM-06 | Cada transición debe registrar un movimiento con estado anterior, estado nuevo, fecha y hora, responsable y observación. | Obligatorio |
 | RF-REM-07 | Empaquetar, despachar y anular solo pueden hacerlo bibliotecarios de la sede origen; recibir y registrar incidencias, la sede destino. | Obligatorio |
 | RF-REM-08 | Al despachar, los ejemplares del remito deben pasar a `En tránsito`. | Obligatorio |
-| RF-REM-09 | Al recibir, el destino debe verificar cada línea y registrar su estado físico; los ejemplares quedan `Disponible` o `Prestado` en destino según el motivo. | Obligatorio |
+| RF-REM-09 | Al recibir, el destino debe verificar cada línea y registrar su estado físico; los ejemplares quedan `Apartado` hasta la entrega al socio (envío por préstamo) o `Disponible` (retorno o traslado; en el traslado cambia la sede propietaria). | Obligatorio |
 | RF-REM-10 | El sistema debe rechazar remitos con una sede en `Baja` como origen o destino, ejemplares que no pertenezcan o no estén en la sede origen, o ejemplares ya incluidos en otro remito abierto. | Obligatorio |
-| RF-REM-11 | El sistema debe permitir anular un remito solo antes del despacho, liberando los ejemplares. | Obligatorio |
-| RF-REM-12 | El sistema debe permitir marcar `Extraviado` un remito despachado cuando venció el plazo máximo de tránsito (7 días). | Obligatorio |
+| RF-REM-11 | El sistema debe permitir anular un remito de envío o traslado solo antes del despacho, liberando los ejemplares. Un retorno no se anula: el ejemplar tiene que volver a su sede. | Obligatorio |
+| RF-REM-12 | El sistema debe permitir al administrador o a un bibliotecario de la sede origen o destino marcar `Extraviado` un remito `Despachado` o `En tránsito` cuando venció el plazo máximo de tránsito (parámetro `transito_maximo_dias`, 7 días por defecto): sus ejemplares pasan a `Baja` con incidencia a cargo de la sede origen y los préstamos del envío se cancelan. Es parte de la revisión de recepción, proceso opcional del enunciado. | Opcional |
 | RF-REM-13 | El sistema debe registrar la revisión de recepción: ejemplar dañado o destruido, con efecto sobre el ejemplar (revisión o baja). La revisión la hace siempre la sede propietaria: un envío dañado vuelve a su sede con un remito de retorno, y un traslado dañado queda en revisión en la nueva sede propietaria. Las incidencias de un remito quedan a cargo de la **sede origen** (que lo despachó) y nunca del socio. | Opcional |
 | RF-REM-14 | El sistema debe permitir consultar un remito y su historial completo de movimientos, con la visibilidad que corresponda a cada rol. | Obligatorio |
 | RF-REM-15 | Un remito sin despachar debe tener un plazo de despacho (parámetro, 3 días desde la generación). Vencido, el sistema debe marcarlo como atrasado en el listado y en su ficha, y permitir filtrar los atrasados. | Obligatorio |
-| RF-REM-16 | Al recibir, el sistema debe permitir marcar una línea como faltante (no llegó). El ejemplar se da de baja por extravío con incidencia, su préstamo se cancela, el resto se recibe y el remito queda `Incompleto`. Si no llegó ninguno, rechaza la recepción. | Obligatorio |
+| RF-REM-16 | Al recibir, el sistema debe permitir marcar una línea como faltante (no llegó). El ejemplar se da de baja por extravío con incidencia, su préstamo se cancela, el resto se recibe y el remito queda `Incompleto`. Si no llegó ninguno, rechaza la recepción. Es parte de la revisión de recepción, proceso opcional del enunciado. | Opcional |
 
 ## Casos de uso
 
 ### CU-REM-01. Generar un remito de envío
 
-- **Actor:** Bibliotecario de la sede origen.
+- **Actor:** Bibliotecario de la sede origen. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Precondición:** hay préstamos interbibliotecarios en `Solicitado` con el mismo origen y destino, o un traslado a realizar.
 - **Flujo normal:**
   1. Selecciona uno o más ejemplares con igual origen y destino.
@@ -46,31 +46,34 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` 
   3. Crea el remito `Generado` con su número y su detalle, y registra el primer movimiento.
   4. Los préstamos asociados pasan a `En envío`.
 - **Flujos alternativos:**
-  - **A1 (paso 2): destinos distintos.** El sistema propone un remito por cada destino.
+  - **A1 (paso 2): destinos distintos.** El sistema agrupa los pendientes por destino y se genera un remito por destino.
   - **A2 (paso 2): ejemplar ya en un remito abierto.** Rechaza ese ejemplar.
   - **A3 (paso 2): sede origen o destino en `Baja`.** Rechaza.
   - **A4 (paso 2): ejemplar que no está físicamente en la sede origen.** Rechaza.
+  - **A5 (paso 1): motivo retorno.** Rechaza: los retornos los genera el sistema (RF-REM-01).
 
 ### CU-REM-02. Empaquetar y despachar
 
-- **Actor:** Bibliotecario de la sede origen.
+- **Actor:** Bibliotecario de la sede origen. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Abre un remito `Generado` y confirma el empaquetado: pasa a `Empaquetado`.
   2. Confirma el despacho: pasa a `Despachado` y los ejemplares a `En tránsito`.
-  3. El remito pasa a `En tránsito` (automático o manual).
+  3. El remito pasa a `En tránsito` cuando la sede origen lo marca, o al recibirse (CU-REM-04, A3).
 - **Flujos alternativos:**
   - **A1:** intenta despachar un remito `Generado` sin empaquetar; rechaza (sin saltos).
   - **A2:** bibliotecario de otra sede; rechaza.
 
 ### CU-REM-03. Anular un remito
 
-- **Actor:** Bibliotecario de la sede origen.
+- **Actor:** Bibliotecario de la sede origen. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:** anula un remito `Generado` o `Empaquetado` con motivo; pasa a `Anulado`, los ejemplares quedan `Disponible` y los préstamos asociados se cancelan.
-- **Flujo alternativo A1:** el remito ya fue despachado; rechaza.
+- **Flujos alternativos:**
+  - **A1:** el remito ya fue despachado; rechaza.
+  - **A2:** es un remito de retorno; rechaza: el ejemplar tiene que volver a su sede.
 
 ### CU-REM-04. Recibir un remito
 
-- **Actor:** Bibliotecario de la sede destino.
+- **Actor:** Bibliotecario de la sede destino. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Abre el remito `En tránsito` dirigido a su sede.
   2. Verifica cada línea y registra su estado físico.
@@ -84,7 +87,7 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` 
 
 ### CU-REM-05. Registrar una incidencia de recepción
 
-- **Actor:** Bibliotecario de la sede destino.
+- **Actor:** Bibliotecario de la sede destino. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:** al verificar, marca la línea como dañada, destruida o faltante con observaciones; el remito queda `Dañado`, `Destruido` o `Incompleto` (gana el faltante, después la destrucción) y se registra la incidencia, a cargo de la sede origen. En un envío, el préstamo asociado pasa a `Cancelado`. El ejemplar:
   - **faltante:** pasa a `Baja` por extravío (se puede recuperar si aparece);
   - **destruido:** pasa a `Baja`;
@@ -105,7 +108,7 @@ Estados finales: `Recibido`, `Extraviado`, `Dañado`, `Destruido`, `Incompleto` 
 
 ### CU-REM-07. Consultar un remito
 
-- **Actores:** Bibliotecario (sedes involucradas), Administrador, Socio (remito de su préstamo).
+- **Actores:** Bibliotecario (sedes involucradas), Administrador. El socio no consulta remitos: ve el estado y los movimientos del envío en el detalle de su préstamo (CU-PRE-06).
 - **Flujo normal:** busca por número, préstamo o ejemplar; ve estado actual, detalle y movimientos ordenados en el tiempo.
 - **Flujo alternativo A1:** sede ajena al remito; rechaza.
 - **Flujo alternativo A2:** el remito pasó el plazo de despacho sin salir; se muestra como atrasado y se puede filtrar.

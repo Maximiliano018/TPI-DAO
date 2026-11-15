@@ -1,8 +1,8 @@
 # 02. Modelo de clases
 
-Diagramas UML en Mermaid (se visualizan en GitHub). Muestran el dominio; los nombres siguen la convención T2 (dominio en español sin tildes). Los patrones se detallan en [Patrones de diseño](05-patrones-de-diseno.md).
+Diagramas UML en Mermaid (se visualizan en GitHub) de las clases reales de `backend/app/models/`, `services/` y `repositories/`. Muestran los atributos y operaciones públicos más relevantes; los nombres siguen la convención T2 (dominio en español sin tildes). Los patrones se detallan en [Patrones de diseño](05-patrones-de-diseno.md) y las tablas, en el [diccionario de datos](../../database/diccionario-de-datos.md).
 
-## Entidades del dominio
+## Sedes, usuarios y socios
 
 ```mermaid
 classDiagram
@@ -15,14 +15,16 @@ classDiagram
         +list~FranjaHoraria~ horarios
         +list~ExcepcionHorario~ excepciones
         +EstadoSede estado
+        +DatosBaja baja
         +int version
-        +dar_de_baja(motivo, usuario, impedimentos)
-        +reactivar(usuario)
-        +modificar(datos, usuario)
-        +reemplazar_horarios(franjas)
-        +agregar_excepcion(excepcion, hoy)
-        +quitar_excepcion(id, hoy)
-        +esta_abierta(momento) bool
+        +crear(...)$ Sede
+        +modificar(..., horarios, actor, ahora)
+        +dar_de_baja(motivo, actor, ahora, impedimentos)
+        +reactivar(actor, ahora)
+        +agregar_excepciones(nuevas, actor, ahora, hoy)
+        +quitar_excepcion(id, actor, ahora, hoy)
+        +esta_abierta(momento_local) bool
+        +excepciones_vigentes(hoy) list
         +esta_activa() bool
         +validar_operativa()
     }
@@ -41,17 +43,16 @@ classDiagram
     }
     class FranjaHoraria {
         <<value object>>
-        +DiaSemana dia
+        +int dia_semana
         +time apertura
         +time cierre
-        +se_solapa_con(otra) bool
     }
     class ExcepcionHorario {
         <<value object>>
         +date fecha
         +TipoExcepcion tipo
-        +time desde
-        +time hasta
+        +time hora_desde
+        +time hora_hasta
         +str motivo
     }
     class EventoSede {
@@ -60,190 +61,326 @@ classDiagram
         +list~Cambio~ cambios
         +str motivo
     }
-    class Impedimento {
-        <<value object>>
-        +TipoImpedimento tipo
-        +int cantidad
-        +list elementos
-    }
-    class VerificadorImpedimentoBaja {
-        <<interface>>
-        +verificar(sede_id) Impedimento
-    }
-    class VerificadorBajaSede {
-        +verificar(sede_id) list~Impedimento~
-    }
     class Usuario {
         +int id
         +str username
+        +str nombre
         +Rol rol
         +bool activo
-        +int sede_id
+        +SedeRef sede
+        +int socio_id
+        +crear_personal(...)$ Usuario
+        +crear_cuenta_socio(...)$ Usuario
+        +modificar(nombre, sede, actor, ahora)
+        +dar_de_baja(actor, ahora)
+        +reactivar(actor, ahora)
         +puede(permiso) bool
+        +exigir(permiso)
         +opera_en(sede_id) bool
     }
     class Socio {
         +int id
         +str numero_socio
+        +DatosPersonales datos
+        +int sede_alta_id
+        +EstadoSocio estado
+        +set~MotivoInhabilitacion~ causas
+        +TipoBaja tipo_baja
+        +SolicitudReactivacion solicitud
+        +registrar(...)$ Socio
+        +modificar(datos, actor, ahora)
+        +reevaluar(situacion, actor, ahora, origen)
+        +inhabilitar(motivo, actor, ahora)
+        +rehabilitar(situacion, actor, es_administrador, ahora)
+        +dar_de_baja(situacion, tipo, motivo, actor, es_administrador, ahora)
+        +solicitar_reactivacion(mensaje, actor, ahora)
+        +rechazar_solicitud(motivo, actor, es_administrador, ahora)
+        +reactivar(actor, es_administrador, ahora, origen)
+        +validar_puede_operar()
+    }
+    class DatosPersonales {
+        <<value object>>
         +Documento documento
         +str nombre
         +str apellido
-        +EstadoSocio estado
-        +inhabilitar(motivo)
-        +rehabilitar()
-        +puede_pedir_prestamo() bool
-        +dar_de_baja()
+        +date fecha_nacimiento
+        +Email email
+        +Telefono telefono
     }
+    Sede "1" *-- "1..*" FranjaHoraria
+    Sede "1" *-- "*" ExcepcionHorario
+    Sede "1" *-- "1" Direccion
+    Sede "1" *-- "1" Contacto
+    Sede "1" --> "*" EventoSede : historial
+    Usuario "*" --> "0..1" Sede : bibliotecario de
+    Usuario "0..1" --> "0..1" Socio : cuenta de
+    Socio "1" *-- "1" DatosPersonales
+```
+
+## Catálogo
+
+```mermaid
+classDiagram
     class Libro {
         +int id
-        +str isbn
+        +DatosLibro datos
+        +int version
+        +crear(datos, actor, ahora)$ Libro
+        +modificar(datos, actor, ahora)
+        +validar_version(version)
+        +eliminable() bool
+    }
+    class DatosLibro {
+        <<value object>>
+        +Isbn isbn
         +str titulo
+        +tuple~str~ autores
         +str editorial
         +int anio_edicion
-        +TipoMaterial tipo
+        +CategoriaRef categoria
+        +TipoMaterial tipo_material
+        +clave_natural() str
     }
-    class Autor {
-        +int id
-        +str nombre
-    }
-    class Categoria {
+    class CategoriaRef {
+        <<value object>>
         +int id
         +str nombre
     }
     class Ejemplar {
         +int id
         +str codigo_inventario
+        +int libro_id
+        +int sede_propietaria_id
+        +int sede_actual_id
         +EstadoFisico estado_fisico
         +EstadoEjemplar estado
-        +apartar()
-        +reservar()
-        +prestar()
-        +poner_en_transito()
-        +liberar()
-        +enviar_a_revision()
-        +dar_de_baja(motivo)
-        +pertenece_a(sede) bool
+        +int version
+        +registrar(...)$ Ejemplar
+        +apartar(actor, ahora, obs)
+        +reservar(actor, ahora, obs)
+        +prestar(actor, ahora, obs)
+        +poner_en_transito(actor, ahora, obs)
+        +recibir_en(sede_id, estado_fisico, trasladar, actor, ahora, obs)
+        +liberar(actor, ahora, obs)
+        +enviar_a_revision(actor, ahora, obs)
+        +reparar(actor, ahora)
+        +dar_de_baja(motivo, actor, ahora)
+        +registrar_baja(motivo, actor, ahora)
+        +recuperar(estado_fisico, observacion, actor, ahora)
+        +pertenece_a(sede_id) bool
     }
+    class MovimientoEjemplar {
+        +EstadoEjemplarEnum estado_anterior
+        +EstadoEjemplarEnum estado_nuevo
+        +datetime fecha_hora
+        +tuple~Cambio~ cambios
+    }
+    Libro "1" *-- "1" DatosLibro
+    DatosLibro --> CategoriaRef
+    Libro "1" --> "*" Ejemplar
+    Ejemplar "1" *-- "*" MovimientoEjemplar : historial
+```
+
+Los autores son una lista de nombres dentro de `DatosLibro`; en la base son las tablas `autor` y `libro_autor`, y la categoría sale del catálogo cerrado `categoria`.
+
+## Préstamos, remitos y reservas
+
+```mermaid
+classDiagram
     class Prestamo {
         +int id
         +str numero
         +TipoPrestamo tipo
+        +int socio_id
+        +int ejemplar_id
+        +int libro_id
+        +int sede_origen_id
+        +int sede_destino_id
         +EstadoPrestamo estado
-        +date fecha_solicitud
+        +datetime fecha_solicitud
         +date fecha_inicio
         +date fecha_vencimiento
-        +date fecha_devolucion
+        +datetime fecha_devolucion
+        +date fecha_limite_retiro
         +int renovaciones
-        +enviar()
-        +entregar(fecha, politica_plazo)
-        +renovar(politica_plazo)
-        +marcar_vencido(hoy)
-        +devolver(fecha)
-        +cancelar()
+        +registrar_alta(actor, ahora)
+        +habilitar_retiro(hasta, actor, ahora)
+        +enviar(actor, ahora, remito)
+        +entregar(hoy, politica, actor, ahora)
+        +renovar(hoy, politica, maximo, hay_reservas, actor, ahora)
+        +marcar_vencido(hoy, ahora) bool
+        +devolver(fecha, actor, ahora, observacion)
+        +cancelar(motivo, actor, ahora)
         +dias_de_atraso(fecha) int
+        +retiro_vencido(hoy) bool
     }
     class Remito {
         +int id
         +str numero
+        +int sede_origen_id
+        +int sede_destino_id
         +MotivoRemito motivo
+        +list~LineaRemito~ lineas
         +EstadoRemito estado
-        +empaquetar(usuario)
-        +despachar(usuario)
-        +pasar_a_transito(usuario)
-        +recibir(usuario)
-        +anular(usuario, motivo)
-        +marcar_extraviado(usuario)
-        +registrar_dano(usuario, linea)
-        +agregar_ejemplar(ejemplar, prestamo)
+        +datetime fecha_despacho
+        +datetime fecha_recepcion
+        +int version
+        +generar(...)$ Remito
+        +empaquetar(actor, ahora)
+        +despachar(actor, ahora)
+        +pasar_a_transito(actor, ahora)
+        +recibir(recepcion, actor, ahora)
+        +anular(motivo, actor, ahora)
+        +marcar_extraviado(plazo_dias, observacion, actor, ahora)
+        +limite_de_despacho(plazo, zona) date
     }
-    class DetalleRemito {
-        +EstadoFisico estado_salida
-        +EstadoFisico estado_llegada
+    class LineaRemito {
+        +int ejemplar_id
+        +int prestamo_id
+        +EstadoFisico estado_fisico_salida
+        +EstadoFisico estado_fisico_llegada
+        +ResultadoLinea resultado
         +str observacion
     }
     class MovimientoRemito {
-        +EstadoRemito estado_anterior
-        +EstadoRemito estado_nuevo
+        +EstadoRemitoEnum estado_anterior
+        +EstadoRemitoEnum estado_nuevo
         +datetime fecha_hora
         +str observacion
-    }
-    class Reserva {
-        +int id
-        +str numero
-        +EstadoReserva estado
-        +datetime fecha_reserva
-        +date vencimiento_retiro
-        +asignar(ejemplar, hoy, vigencia)
-        +cumplir()
-        +cancelar()
-        +vencer(hoy)
-    }
-    class Devolucion {
-        +datetime fecha_hora
-        +EstadoFisico estado_recibido
-        +int dias_atraso
-        +str observaciones
-    }
-    class Multa {
-        +int id
-        +int dias_atraso
-        +Decimal monto_por_dia
-        +Decimal monto_total
-        +EstadoMulta estado
-        +saldar()
     }
     class Incidencia {
         +TipoIncidencia tipo
         +OrigenIncidencia origen
+        +int ejemplar_id
+        +int socio_id
+        +int remito_id
+        +int sede_responsable_id
         +str descripcion
-        +datetime fecha
+        +de_remito(...)$ Incidencia
+        +resolver(resolucion, actor, ahora)
     }
+    class Reserva {
+        +int id
+        +str numero
+        +int socio_id
+        +int libro_id
+        +int sede_retiro_id
+        +EstadoReserva estado
+        +datetime fecha_reserva
+        +int ejemplar_id
+        +date vencimiento_retiro
+        +int prestamo_id
+        +registrar(...)$ Reserva
+        +asignar(ejemplar_id, hoy, vigencia_dias, ahora, codigo)
+        +convertir_en_prestamo(ejemplar_id, prestamo_id, ahora, numero)
+        +cumplir(prestamo_id, actor, ahora, numero)
+        +vencer(hoy, ahora) bool
+        +cancelar(ahora, actor, motivo)
+    }
+    Prestamo "*" --> "1" Ejemplar
+    Remito "1" *-- "1..*" LineaRemito
+    Remito "1" *-- "*" MovimientoRemito : historial
+    LineaRemito "*" --> "0..1" Prestamo
+    Incidencia "*" --> "0..1" Remito
+    Incidencia "*" --> "0..1" Prestamo
+    Reserva "*" --> "0..1" Prestamo : se cumple con
+```
 
-    Sede "1" *-- "1..*" FranjaHoraria
-    Sede "1" *-- "*" ExcepcionHorario
-    Sede "1" *-- "1" Direccion
-    Sede "1" *-- "1" Contacto
-    Sede "1" --> "*" EventoSede : historial
-    VerificadorBajaSede o-- "*" VerificadorImpedimentoBaja
-    VerificadorImpedimentoBaja ..> Impedimento : produce
-    Sede ..> Impedimento : rechaza la baja si hay
-    Sede "1" --> "*" Ejemplar : propietaria
-    Sede "1" --> "*" Usuario : bibliotecarios
-    Libro "1" --> "*" Ejemplar
-    Libro "*" --> "*" Autor
-    Libro "*" --> "1" Categoria
-    Socio "1" --> "*" Prestamo
-    Socio "1" --> "*" Reserva
-    Ejemplar "1" --> "*" Prestamo
-    Prestamo "*" --> "1" Sede : origen
-    Prestamo "*" --> "1" Sede : destino
+## Devoluciones, multas y pagos
+
+```mermaid
+classDiagram
+    class Devolucion {
+        +int id
+        +int prestamo_id
+        +int sede_id
+        +datetime fecha_hora
+        +EstadoRecibido estado_recibido
+        +int dias_atraso
+        +str observaciones
+        +datetime registrada_en
+        +str motivo_fecha
+        +registrar(prestamo, ..., politica, politica_incidencia)$ tuple
+        +texto_del_historial(devuelto, registro) str
+    }
+    class Multa {
+        +int id
+        +int prestamo_id
+        +int socio_id
+        +TipoMulta tipo
+        +int dias_atraso
+        +Decimal monto_por_dia
+        +Decimal monto_total
+        +EstadoMulta estado
+        +concepto() str
+        +saldar(actor, ahora)
+    }
+    class Pago {
+        +int id
+        +int multa_id
+        +MedioPago medio
+        +EstadoPago estado
+        +Decimal monto
+        +FormaEnLinea forma_en_linea
+        +str tarjeta_ultimos4
+        +datetime acreditado_en
+        +manual(multa_id, monto, medio, comprobante, actor, ahora)$ Pago
+        +en_linea(multa_id, monto, actor, ahora)$ Pago
+        +pagar_en_linea(forma, tarjeta_ultimos4, ahora) bool
+        +aprobar(ahora)
+        +rechazar(motivo)
+        +cancelar(motivo)
+        +numero_comprobante() str
+    }
+    class TipoMulta {
+        <<enumeration>>
+        ATRASO
+        DANIO
+        EXTRAVIO
+    }
+    class MedioPago {
+        <<enumeration>>
+        EFECTIVO
+        DEBITO
+        CREDITO
+        TRANSFERENCIA
+        EN_LINEA
+        NO_REGISTRADO
+    }
+    class EstadoPago {
+        <<enumeration>>
+        PENDIENTE
+        APROBADO
+        RECHAZADO
+        CANCELADO
+    }
+    class FormaEnLinea {
+        <<enumeration>>
+        TARJETA_CREDITO
+        TARJETA_DEBITO
+        DINERO_EN_CUENTA
+    }
     Prestamo "1" --> "0..1" Devolucion
-    Devolucion "1" --> "0..1" Multa
-    Remito "*" --> "1" Sede : origen
-    Remito "*" --> "1" Sede : destino
-    Remito "1" *-- "1..*" DetalleRemito
-    Remito "1" *-- "*" MovimientoRemito
-    DetalleRemito "*" --> "1" Ejemplar
-    DetalleRemito "*" --> "0..1" Prestamo
-    Reserva "*" --> "1" Libro
-    Reserva "*" --> "1" Sede : retiro
-    Reserva "*" --> "0..1" Ejemplar : asignado
-    Incidencia "*" --> "1" Ejemplar
-    Incidencia "*" --> "0..1" Socio
+    Prestamo "1" --> "*" Multa : una por tipo
+    Multa "1" --> "*" Pago : un solo aprobado
+    Multa --> TipoMulta
+    Pago --> MedioPago
+    Pago --> EstadoPago
+    Pago --> FormaEnLinea
 ```
 
 ### Notas del modelo
 
-- **La sede decide.** `Sede.dar_de_baja(...)` recibe los impedimentos ya calculados y lanza `SedeConActividadPendiente` si hay alguno; `Sede.validar_operativa()` lanza `SedeEnBaja` y es la guarda que usan los demás módulos antes de operar con una sede. `Sede.modificar`, `reemplazar_horarios`, `agregar_excepcion` y `quitar_excepcion` rechazan con `SedeEnBaja` si la sede está dada de baja.
-- **Permisos.** `Permiso` es una enumeración y `ROL_PERMISOS` el mapa rol → permisos; `Usuario.puede(permiso)` consulta el mapa. Los roles son tres y fijos.
-- **`esta_abierta(momento)`** combina horario semanal y excepciones en la zona de negocio; el reloj se inyecta.
-
-- **Libro y ejemplar son clases distintas.** El libro es la obra; el ejemplar es la copia física con sede, estado físico y estado de disponibilidad.
+- **La sede decide.** `Sede.dar_de_baja(...)` recibe los impedimentos ya calculados y lanza `SedeConActividadPendiente` si hay alguno; `Sede.validar_operativa()` lanza `SedeEnBaja` y es la guarda que usan los demás módulos antes de operar con una sede. Los horarios se reemplazan con `Sede.modificar(..., horarios=...)`; `modificar`, `agregar_excepciones` y `quitar_excepcion` rechazan con `SedeEnBaja` si la sede está dada de baja.
+- **Permisos.** `Permiso` es una enumeración y `ROL_PERMISOS` el mapa rol → permisos (`models/usuario.py`); `Usuario.puede(permiso)` consulta el mapa y `exigir` lanza `PermisoDenegado`. Los roles son tres y fijos; el rol y el usuario no cambian después del alta.
+- **`esta_abierta(momento_local)`** combina horario semanal y excepciones en la zona de negocio; el reloj se inyecta.
+- **El socio se reevalúa.** `Socio.reevaluar(situacion, ...)` recalcula las causas automáticas (préstamo vencido, multa impaga) a partir de una `SituacionSocio`; la inhabilitación administrativa solo la decide el administrador.
+- **Libro y ejemplar son clases distintas.** El libro es la obra; el ejemplar es la copia física con sede propietaria, sede actual, estado físico y estado de disponibilidad.
 - **Un préstamo tiene un solo ejemplar** y dos sedes: origen (donde está el ejemplar) y destino (donde lo retira el socio). En el préstamo local coinciden.
-- **El remito agrupa ejemplares** mediante `DetalleRemito`; todos comparten origen y destino. Cada línea referencia su préstamo, salvo los traslados.
-- **`MovimientoRemito`** es el historial que da la trazabilidad y alimenta los reportes de tránsito. Préstamo y ejemplar tienen historiales equivalentes (`MovimientoPrestamo`, `MovimientoEjemplar`).
-- **`Multa`** nace al registrar una devolución fuera de término.
-- Los **objetos de valor** (`Direccion`, `Contacto`, `Documento`, `Dinero`) son inmutables y se validan al construirlos.
+- **El remito agrupa ejemplares** con `LineaRemito`; todos comparten origen y destino. Cada línea referencia su préstamo, salvo los traslados. La recepción llega como una lista de `RecepcionLinea` (estado físico, destruido o faltante).
+- **Historiales.** Remito, préstamo, ejemplar y reserva acumulan `movimientos_pendientes` (`MovimientoRemito`, `MovimientoPrestamo`, `MovimientoEjemplar`, `MovimientoReserva`) y sede y socio, `eventos_pendientes`; el repositorio los guarda en tablas de solo inserción.
+- **`Multa`** cuelga del préstamo: nace al registrar la devolución, por atraso (con días y monto por día) o por daño o extravío (monto fijo); un préstamo tiene a lo sumo una de cada tipo. Se salda con un `Pago` aprobado, del mostrador (`Pago.manual`) o en línea simulado (`Pago.en_linea` y `pagar_en_linea`).
+- Los **objetos de valor** (`CodigoSede`, `Direccion`, `Contacto`, `Telefono`, `Email`, `FranjaHoraria`, `ExcepcionHorario`, `Documento`, `DatosPersonales`, `Isbn`, `DatosLibro`) son inmutables y se validan al construirlos. Los montos son `Decimal`.
 
 ## Estados, políticas y fábrica (patrones)
 
@@ -251,65 +388,65 @@ classDiagram
 classDiagram
     class EstadoRemito {
         <<abstract>>
-        +empaquetar(remito)
-        +despachar(remito)
-        +pasar_a_transito(remito)
-        +recibir(remito)
-        +anular(remito)
-        +marcar_extraviado(remito)
-        +registrar_dano(remito)
+        +nombre: EstadoRemitoEnum
+        +empaquetar() EstadoRemito
+        +despachar() EstadoRemito
+        +pasar_a_transito() EstadoRemito
+        +recibir() EstadoRemito
+        +recibir_con_dano() EstadoRemito
+        +recibir_destruido() EstadoRemito
+        +recibir_con_faltantes() EstadoRemito
+        +anular() EstadoRemito
+        +marcar_extraviado() EstadoRemito
     }
-    class Generado
-    class Empaquetado
-    class Despachado
-    class EnTransito
-    class Recibido
-    class Extraviado
-    class Danado
-    class Destruido
-    class Anulado
     EstadoRemito <|-- Generado
     EstadoRemito <|-- Empaquetado
     EstadoRemito <|-- Despachado
     EstadoRemito <|-- EnTransito
     EstadoRemito <|-- Recibido
-    EstadoRemito <|-- Extraviado
     EstadoRemito <|-- Danado
     EstadoRemito <|-- Destruido
+    EstadoRemito <|-- Incompleto
+    EstadoRemito <|-- Extraviado
     EstadoRemito <|-- Anulado
     Remito --> EstadoRemito : estado actual
 
     class PoliticaMulta {
         <<interface>>
-        +calcular(dias_atraso) Dinero
+        +monto_por_dia: Decimal
+        +calcular(dias_atraso) Decimal
     }
     class MultaFijaPorDia {
-        +Dinero monto_por_dia
-        +Dinero tope
+        +Decimal monto_por_dia
+        +Decimal tope
     }
     PoliticaMulta <|.. MultaFijaPorDia
 
     class PoliticaMultaPorIncidencia {
         <<interface>>
-        +calcular(tipo) Dinero
+        +calcular(tipo) Decimal
     }
     class MontoFijoPorIncidencia {
-        +Dinero danio
-        +Dinero extravio
+        +Decimal danio
+        +Decimal extravio
     }
     PoliticaMultaPorIncidencia <|.. MontoFijoPorIncidencia
 
     class PoliticaPlazo {
         <<interface>>
+        +dias: int
         +vencimiento(inicio) date
     }
-    class PlazoLocal
-    class PlazoInterbibliotecario
-    PoliticaPlazo <|.. PlazoLocal
-    PoliticaPlazo <|.. PlazoInterbibliotecario
+    PoliticaPlazo <|.. PlazoEnDias
+    PlazoEnDias <|-- PlazoLocal
+    PlazoEnDias <|-- PlazoInterbibliotecario
 
     class PrestamoFactory {
-        +crear(socio, ejemplar, sede_destino, parametros) Prestamo
+        +PrestamoFactory(parametros)
+        +politica(tipo) PoliticaPlazo
+        +validar_socio(socio, abiertos_del_socio, libro_id)
+        +limite_de_retiro(desde) date
+        +crear(numero, socio, ejemplar, sede_origen, sede_destino, abiertos_del_socio, actor, ahora, reservado, hoy) Prestamo
     }
     PrestamoFactory ..> Prestamo : crea
     PrestamoFactory ..> PoliticaPlazo : elige
@@ -318,57 +455,84 @@ classDiagram
     Devolucion ..> PoliticaMultaPorIncidencia
 ```
 
-Los estados de préstamo, ejemplar y reserva siguen la misma estructura que `EstadoRemito` (una clase por estado que define qué operaciones admite). Ver [Máquinas de estado](03-maquinas-de-estado.md). La sede no usa State: su estado es el enum `EstadoSede` ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)).
+Los estados de préstamo, ejemplar y reserva siguen la misma estructura que `EstadoRemito`: una clase por estado que define qué operaciones admite y devuelve el estado siguiente. Ver [Máquinas de estado](03-maquinas-de-estado.md). La sede no usa State: su estado es el enum `EstadoSede` ([por qué](05-patrones-de-diseno.md#por-qué-la-sede-no-usa-state)).
 
-La verificación de baja de sede (Strategy + Composite: `VerificadorImpedimentoBaja`, sus seis verificadores concretos y el compuesto `VerificadorBajaSede`) tiene su diagrama y la tabla de roles en [Patrones de diseño](05-patrones-de-diseno.md#10-strategy--composite-verificación-de-baja-de-sede).
+La verificación de baja de sede (Strategy + Composite: `VerificadorImpedimentoBaja`, sus seis verificadores concretos y el compuesto `VerificadorBajaSede`) tiene su diagrama y la tabla de roles en [Patrones de diseño](05-patrones-de-diseno.md#4-strategy--composite-verificación-de-baja-de-sede).
 
 ## Capa de aplicación y persistencia
 
 ```mermaid
 classDiagram
     class PrestamoService {
-        +registrar(datos, usuario) Prestamo
-        +entregar(id, usuario)
-        +renovar(id, usuario)
-        +cancelar(id, usuario)
-        +detectar_vencidos(hoy)
+        +registrar(actor, socio_id, ejemplar_id, sede_destino_id) Prestamo
+        +proponer(actor, libro_id, sede_destino_id, socio_id)
+        +solicitar(actor, libro_id, sede_destino_id, socio_id, sede_origen_esperada_id) Prestamo
+        +entregar(actor, id)
+        +renovar(actor, id)
+        +cancelar(actor, id, motivo)
+        +vencer_retiros(actor) int
+        +detectar_vencidos(actor) int
+        +detalle(actor, id)
+        +listar(actor, ...)
     }
     class RemitoService {
-        +generar(datos, usuario) Remito
-        +empaquetar(id, usuario)
-        +despachar(id, usuario)
-        +recibir(id, lineas, usuario)
-        +anular(id, motivo, usuario)
+        +generar(actor, sede_destino_id, motivo, lineas, observaciones) Remito
+        +generar_retorno(prestamo, ejemplar, actor) Remito
+        +empaquetar(actor, id)
+        +despachar(actor, id)
+        +pasar_a_transito(actor, id)
+        +recibir(actor, id, recepcion)
+        +anular(actor, id, motivo)
+        +marcar_extraviado(actor, id, observacion)
     }
     class DevolucionService {
-        +registrar(prestamo_id, datos, usuario) Devolucion
-        +saldar_multa(multa_id, usuario)
+        +registrar(actor, prestamo_id, estado, observaciones, fecha_hora, motivo_fecha)
+        +listar_multas(actor, socio_id, estado, page, size)
     }
-    class ReservaService
+    class PagoService {
+        +saldar_en_mostrador(actor, multa_id, medio, comprobante) Multa
+        +iniciar_en_linea(actor, multa_id) Pago
+        +pagar_en_linea(actor, pago_id, forma, tarjeta_ultimos4) Pago
+        +comprobante(actor, pago_id) tuple
+        +detalle(actor, pago_id) Pago
+    }
+    class ReservaService {
+        +reservar(actor, libro_id, sede_retiro_id, socio_id)
+        +retirar(actor, id)
+        +cancelar(actor, id, motivo)
+        +vencer_reservas(actor) int
+    }
     class UnitOfWork {
         <<interface>>
         +prestamos PrestamoRepository
         +remitos RemitoRepository
         +ejemplares EjemplarRepository
+        +multas MultaRepository
+        +pagos PagoRepository
         +commit()
         +rollback()
     }
     class PrestamoRepository {
         <<interface>>
         +obtener(id) Prestamo
+        +obtener_para_modificar(id) Prestamo
+        +agregar(prestamo)
         +guardar(prestamo)
         +abiertos_de_socio(socio_id) list
-        +vencidos(hoy) list
+        +activos_vencidos(hoy) list
+        +retiros_vencidos(hoy) list
+        +en_curso_de_sede(sede_id)
     }
     class SqlAlchemyUnitOfWork
     class SqlAlchemyPrestamoRepository
     PrestamoService --> UnitOfWork
     RemitoService --> UnitOfWork
     DevolucionService --> UnitOfWork
+    PagoService --> UnitOfWork
     ReservaService --> UnitOfWork
     UnitOfWork --> PrestamoRepository
     UnitOfWork <|.. SqlAlchemyUnitOfWork
     PrestamoRepository <|.. SqlAlchemyPrestamoRepository
 ```
 
-Los servicios dependen de interfaces (`UnitOfWork`, repositorios) definidas en el dominio. Las implementaciones con SQLAlchemy viven en `repositories/impl` y se inyectan, lo que permite probar los servicios con repositorios en memoria.
+Los servicios dependen de interfaces (`Protocol`): la `UnitOfWork` (`repositories/unit_of_work.py`) y los repositorios (`repositories/interfaces/`). Las implementaciones con SQLAlchemy viven en `repositories/impl/` y se inyectan, lo que permite probar los servicios con repositorios en memoria (`tests/fakes/`). El resto de los servicios (sedes, socios, usuarios, catálogo, parámetros, reportes) sigue la misma estructura.

@@ -12,7 +12,7 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 | RF-PRE-02 | El préstamo debe referenciar un único ejemplar. Si el socio se lleva varios libros, se registra un préstamo por ejemplar. | Obligatorio |
 | RF-PRE-03 | El sistema debe rechazar el préstamo de un ejemplar que no esté `Disponible`. | Obligatorio |
 | RF-PRE-04 | El sistema debe rechazar el préstamo a un socio `Inhabilitado`. | Obligatorio |
-| RF-PRE-05 | El sistema debe rechazar el préstamo de un ejemplar que no pertenezca a la sede origen del préstamo. | Obligatorio |
+| RF-PRE-05 | El sistema debe rechazar el préstamo de un ejemplar que no esté en su sede propietaria. La sede origen no se elige: es la sede donde está el ejemplar. | Obligatorio |
 | RF-PRE-06 | El sistema debe rechazar préstamos con una sede en `Baja` como origen o destino. | Obligatorio |
 | RF-PRE-07 | El sistema debe rechazar el préstamo que supere el máximo de préstamos simultáneos del socio, o que repita un libro que el socio ya tiene prestado. | Obligatorio |
 | RF-PRE-08 | Al registrar un préstamo válido, el sistema debe apartar el ejemplar para que no pueda pedirlo otro socio. | Obligatorio |
@@ -20,7 +20,7 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 | RF-PRE-10 | Los préstamos interbibliotecarios deben generar el envío con remito (ver [Remitos](05-remitos.md)) y pasar a `En envío`. | Obligatorio |
 | RF-PRE-11 | El sistema debe gestionar el ciclo de vida del préstamo: `Solicitado → En envío → Activo → Devuelto`, con `Vencido` y `Cancelado`, sin transiciones inválidas, y registrar cada cambio. | Obligatorio |
 | RF-PRE-12 | El sistema debe detectar los préstamos cuya fecha de vencimiento pasó sin devolución y marcarlos `Vencido`. | Obligatorio |
-| RF-PRE-13 | El sistema debe permitir cancelar un préstamo antes de la entrega, liberando el ejemplar. | Obligatorio |
+| RF-PRE-13 | El sistema debe permitir cancelar un préstamo antes de la entrega, liberando el ejemplar, o devolviéndolo a su sede con un remito de retorno si ya llegó a la sede destino. Un préstamo en camino (remito sin recibir) no se cancela: si el remito no salió, se anula (CU-REM-03). | Obligatorio |
 | RF-PRE-14 | El sistema debe permitir renovar un préstamo `Activo` hasta el máximo configurado, si no está vencido y no hay reservas pendientes sobre el libro. | Obligatorio |
 | RF-PRE-15 | El sistema debe permitir consultar el estado y el historial de un préstamo, con el estado del remito en los interbibliotecarios. | Obligatorio |
 | RF-PRE-16 | El sistema debe permitir al socio pedir un préstamo **para sí** indicando el libro y la sede de retiro (por defecto, su sede de alta). El sistema elige el ejemplar: si hay `Disponible` en la sede de retiro, el préstamo es local; si no, es interbibliotecario desde la sede activa con más disponibles (con empate, la de menor id). | Obligatorio |
@@ -51,7 +51,7 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 
 ### CU-PRE-01. Registrar un préstamo local
 
-- **Actor:** Bibliotecario.
+- **Actor:** Bibliotecario. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Precondición:** el socio existe y el bibliotecario está en una sede activa.
 - **Flujo normal:**
   1. Identifica al socio y busca el libro.
@@ -70,7 +70,7 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 
 ### CU-PRE-02. Registrar un préstamo interbibliotecario
 
-- **Actor:** Bibliotecario de la sede destino (donde está el socio).
+- **Actor:** Bibliotecario de la sede destino (donde está el socio). El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:**
   1. Identifica al socio y al libro; el sistema no encuentra disponibles en la sede, pero sí en otra sede activa.
   2. Elige un ejemplar `Disponible` de la sede origen.
@@ -84,22 +84,23 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
   - **A2 (paso 3): ejemplar de otra sede distinta de la origen.** Rechaza.
   - **A3 (paso 3): socio inhabilitado, máximo alcanzado o ejemplar no disponible.** Rechaza (mismos criterios que CU-PRE-01).
   - **A4 (pasos 5-6): el remito se anula antes del despacho.** El préstamo pasa a `Cancelado` y el ejemplar vuelve a `Disponible`.
-  - **A5 (paso 6): el remito termina `Extraviado`, `Dañado` o `Destruido`.** El préstamo pasa a `Cancelado`, se registra la incidencia sobre el ejemplar (ver [Remitos](05-remitos.md)) y se informa al socio.
+  - **A5 (paso 6): el remito termina `Extraviado`, `Dañado`, `Destruido` o `Incompleto` (el ejemplar faltó).** El préstamo pasa a `Cancelado`, se registra la incidencia sobre el ejemplar (ver [Remitos](05-remitos.md)) y se informa al socio.
   - **A6 (paso 7): el socio no retira.** El bibliotecario cancela; el ejemplar vuelve a la sede origen por remito de retorno.
 - **Postcondición:** préstamo `Activo` con remito de ida asociado.
 
 ### CU-PRE-03. Renovar un préstamo
 
-- **Actor:** Bibliotecario.
+- **Actor:** Bibliotecario de la sede destino (donde el socio retiró el libro). El socio no renueva. El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:** selecciona el préstamo `Activo`; el sistema valida y extiende el vencimiento con un nuevo plazo, sumando una renovación.
 - **Flujos alternativos:**
   - **A1:** préstamo `Vencido`; rechaza.
   - **A2:** hay reservas pendientes del libro; rechaza.
   - **A3:** alcanzó el máximo de renovaciones; rechaza.
+  - **A4:** un bibliotecario de otra sede; rechaza.
 
 ### CU-PRE-04. Detectar préstamos vencidos
 
-- **Actor:** Sistema (proceso periódico o al consultar).
+- **Actor:** Sistema (tarea diaria a las 00:05 y al iniciar el sistema); el administrador también puede ejecutarla.
 - **Flujo normal:**
   1. El sistema identifica préstamos `Activo` con vencimiento anterior a hoy.
   2. Los pasa a `Vencido` y registra el cambio.
@@ -108,23 +109,24 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 
 ### CU-PRE-05. Cancelar un préstamo
 
-- **Actores:** Bibliotecario (de la sede origen o destino), Socio (los propios, solo `Solicitado`).
+- **Actores:** Bibliotecario (de la sede origen o destino), Socio (los propios, solo `Solicitado`). El administrador puede hacerlo en cualquier sede (RF-ACC-13).
 - **Flujo normal:** selecciona un préstamo `Solicitado`, confirma; pasa a `Cancelado` y el ejemplar vuelve a `Disponible`.
 - **Flujos alternativos:**
   - **A0:** el socio intenta cancelar un préstamo que ya salió de la sede origen; se rechaza (lo maneja el personal). Un préstamo ajeno responde como inexistente.
-  - **A1:** préstamo `En envío` con remito ya despachado; no se cancela, se espera la recepción y se devuelve.
+  - **A1:** préstamo `En envío` con el remito todavía sin recibir; se rechaza: si el remito no salió, se anula (CU-REM-03); si ya salió, se espera la recepción.
+  - **A3:** préstamo `En envío` que ya llegó a la sede destino (nadie lo retiró); se cancela y el ejemplar vuelve a su sede con un remito de retorno.
   - **A2:** préstamo `Activo` o posterior; no se puede cancelar, solo devolver.
-
-### CU-PRE-07. Cancelar préstamos no retirados
-
-- **Actor:** Sistema (tarea diaria); el administrador también puede ejecutarla.
-- **Flujo normal:** busca los préstamos `Solicitado` o `En envío` cuya fecha límite de retiro pasó y los cancela. Un local libera el ejemplar y lo ofrece a la cola de reservas; un interbibliotecario que ya llegó vuelve a su sede con un remito de retorno. El historial lo registra como «Sistema».
 
 ### CU-PRE-06. Consultar un préstamo
 
 - **Actores:** Bibliotecario, Administrador, Socio (los propios).
 - **Flujo normal:** busca por número, socio o ejemplar; el sistema muestra estado, fechas (incluida la límite de retiro), historial y remito asociado. El socio no ve la identidad del personal.
-- **Flujo alternativo A1:** el bibliotecario consulta préstamos de otra sede donde no es origen ni destino; el sistema lo rechaza.
+- **Flujo alternativo A1:** el bibliotecario consulta préstamos de otra sede donde no es origen ni destino; el sistema responde como si no existiera.
+
+### CU-PRE-07. Cancelar préstamos no retirados
+
+- **Actor:** Sistema (tarea diaria); el administrador también puede ejecutarla.
+- **Flujo normal:** busca los préstamos `Solicitado` o `En envío` cuya fecha límite de retiro pasó y los cancela. Un local libera el ejemplar y lo ofrece a la cola de reservas; un interbibliotecario que ya llegó vuelve a su sede con un remito de retorno. El historial lo registra como «Sistema».
 
 ## Criterios de aceptación
 
@@ -132,7 +134,7 @@ Origen: [negocio/04-prestamos.md](../negocio/04-prestamos.md). Proceso obligator
 |----|----|----------|
 | CA-PRE-01 | RF-PRE-03 | **Dado** un ejemplar `Prestado`, **cuando** se intenta prestar, **entonces** se rechaza. |
 | CA-PRE-02 | RF-PRE-04 | **Dado** un socio `Inhabilitado`, **cuando** se registra un préstamo, **entonces** se rechaza. |
-| CA-PRE-03 | RF-PRE-05 | **Dado** un ejemplar de la sede B, **cuando** se registra un préstamo con origen A, **entonces** se rechaza. |
+| CA-PRE-03 | RF-PRE-05 | **Dado** un ejemplar de la sede A que está en la sede B, **cuando** se registra un préstamo, **entonces** se rechaza. |
 | CA-PRE-04 | RF-PRE-06 | **Dado** una sede destino en `Baja`, **cuando** se registra un préstamo, **entonces** se rechaza. |
 | CA-PRE-05 | RF-PRE-06 | **Dado** una sede origen en `Baja`, **cuando** se registra un préstamo, **entonces** se rechaza. |
 | CA-PRE-06 | RF-PRE-07 | **Dado** un socio con 3 préstamos activos, **cuando** se registra otro, **entonces** se rechaza. |

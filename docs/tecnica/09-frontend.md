@@ -25,15 +25,18 @@ frontend/
 │   ├── app/                 # providers, rutas, layout principal
 │   ├── api/                 # cliente HTTP, manejo de token y de errores
 │   ├── components/          # design system: Button, Input, Table, Badge, Modal...
-│   ├── features/            # una carpeta por proceso
-│   │   ├── sedes/           # páginas, componentes, hooks de datos
+│   ├── features/            # una carpeta por proceso (pages/, components/, hooks/)
+│   │   ├── inicio/          # inicio por rol
+│   │   ├── sedes/
+│   │   ├── usuarios/        # personal (administrador)
 │   │   ├── socios/
-│   │   ├── catalogo/
+│   │   ├── catalogo/        # libros y ejemplares
 │   │   ├── prestamos/
 │   │   ├── remitos/
 │   │   ├── reservas/
-│   │   ├── devoluciones/
-│   │   └── reportes/
+│   │   ├── devoluciones/    # devolución, multas, pago simulado y comprobante
+│   │   ├── reportes/
+│   │   └── sistema/         # parámetros y versión
 │   ├── auth/                # contexto de sesión, login, rutas protegidas
 │   ├── hooks/               # hooks compartidos
 │   ├── utils/               # formateo, constantes, mapas de estados
@@ -55,22 +58,37 @@ Se organiza **por funcionalidad** y no por tipo de archivo: todo lo de remitos v
 
 - El token vive en memoria y en `sessionStorage`; se descarta al cerrar la pestaña. Se aceptó `sessionStorage` (y no solo memoria) para sobrevivir a una recarga, a costa de la exposición a XSS; se mitiga con la política de contenido y sin HTML inyectado.
 - Al iniciar, si hay token guardado se llama a `GET /auth/me` para restaurar la sesión (con una pantalla de carga); si responde `401`, se descarta.
-- `RutaProtegida` recibe los roles permitidos; las rutas y las opciones de menú se muestran según el rol.
+- `RutaProtegida` recibe el permiso que exige la ruta (`permiso=`; también admite `roles=`, que hoy no se usa); las rutas y las opciones de menú se muestran según los permisos del usuario.
 - **El frontend no es la barrera de seguridad:** ocultar un botón mejora la experiencia, pero la autorización real está en el backend.
 
 ## Rutas
 
+Rutas de `app/App.jsx` (A administrador, B bibliotecario, S socio; entre paréntesis, el permiso que exige la ruta). Las pantallas sin permiso propio muestran a cada rol lo que su API le devuelve.
+
 | Ruta | Pantalla | Acceso |
 |------|----------|--------|
 | `/login` | Inicio de sesión | Público (redirige a `/` si ya hay sesión) |
-| `/` | Inicio (dashboard) | Autenticado |
-| `/sedes` | Listado de sedes | A, B, S |
-| `/sedes/nueva` | Alta de sede | A |
-| `/sedes/:id` | Detalle (pestañas Datos, Horarios, Historial) | A, B, S |
-| `/sedes/:id/editar` | Edición | A |
-| `/usuarios` | Listado de usuarios del personal | A |
-| `/usuarios/nuevo` | Alta de personal | A |
-| `/usuarios/:id/editar` | Edición y reasignación de sede | A |
+| `/version` | Estado y versión del backend | Público |
+| `/` | Inicio por rol | Autenticado |
+| `/sedes`, `/sedes/:id` | Listado y detalle de sedes (pestañas Datos, Horarios, Historial) | A, B, S |
+| `/sedes/nueva`, `/sedes/:id/editar` | Alta y edición de sede | A (`SEDE_ADMINISTRAR`) |
+| `/usuarios`, `/usuarios/nuevo`, `/usuarios/:id/editar` | Personal: listado, alta, edición y reasignación de sede | A (`USUARIO_ADMINISTRAR`) |
+| `/socios`, `/socios/:id` | Búsqueda y ficha del socio | A, B (`SOCIO_LEER`) |
+| `/socios/nuevo`, `/socios/:id/editar` | Alta y edición del socio | A, B (`SOCIO_REGISTRAR`) |
+| `/mis-datos` | Ficha propia del socio (situación, cuenta, solicitud de reactivación) | S (`SOCIO_VER_PROPIO`) |
+| `/catalogo`, `/catalogo/:id` | Catálogo y ficha del libro (disponibilidad por sede, cola de reservas, pedir o reservar) | A, B, S (`CATALOGO_LEER`) |
+| `/catalogo/nuevo`, `/catalogo/:id/editar` | Alta y edición de libro | A (`CATALOGO_ADMINISTRAR`) |
+| `/ejemplares`, `/ejemplares/:id` | Listado y ficha del ejemplar con historial | A, B (`EJEMPLAR_LEER`) |
+| `/ejemplares/nuevo` | Alta de ejemplar | A, B (`EJEMPLAR_ADMINISTRAR`) |
+| `/prestamos`, `/prestamos/:id` | Préstamos («Mis préstamos» para el socio) y ficha con historial, remitos, devolución y multas | A, B, S |
+| `/prestamos/nuevo` | Registrar un préstamo en el mostrador (el administrador elige la sede de retiro) | A, B (`PRESTAMO_REGISTRAR`) |
+| `/remitos`, `/remitos/:id` | Listado y ficha del remito con su línea de tiempo | A, B (`REMITO_LEER`) |
+| `/remitos/nuevo` | Generar remito (el administrador elige la sede origen) | A, B (`REMITO_OPERAR`) |
+| `/reservas`, `/reservas/:id` | Reservas («Mis reservas» para el socio) y ficha con historial | A, B, S |
+| `/multas` | Multas («Mis multas» para el socio): cobrar en el mostrador o pagar en línea | A, B, S |
+| `/pagos/simulado?pago=ID` | Checkout simulado del pago en línea | S |
+| `/reportes` | Reportes R1 a R6 (pestañas según permiso) | A, B, S |
+| `/parametros` | Parámetros de negocio y tareas del sistema | A (`PARAMETROS_ADMINISTRAR`) |
 | `*` | No encontrado | Autenticado |
 
 `RutaProtegida` redirige a `/login` guardando la ruta de origen (se vuelve a ella tras ingresar) y muestra «sin permiso» si el rol no alcanza. Las rutas se cargan con `React.lazy`.
@@ -98,7 +116,7 @@ Estructura de toda pantalla autenticada (`app/AppLayout.jsx`):
 | **Main** | Región `<main>` con salto de contenido, ancho máximo 1200 px y `PageHeader` |
 | **Salir** | Descarta el token, limpia la caché de TanStack Query y lleva a `/login` |
 
-Los ítems que todavía no tienen módulo (socios, catálogo, préstamos…) **no se muestran**: el menú crece con cada iteración.
+El menú (`app/navegacion.js`) muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
 
 ## Inicio de sesión
 
@@ -109,7 +127,7 @@ Los ítems que todavía no tienen módulo (socios, catálogo, préstamos…) **n
 
 ## Inicio (dashboard) por rol
 
-Se compone de tarjetas con los datos que ya expone la API; las tarjetas de procesos que no existen aún no se muestran.
+Se compone de tarjetas sobre las sedes (`features/inicio/`). Indicadores operativos en el inicio (vencidos, remitos abiertos, reservas por retirar): pendiente; hoy esos datos están en los reportes (R4 y R6).
 
 | Rol | Contenido |
 |-----|-----------|
@@ -227,28 +245,30 @@ Detalles de implementación:
 
 | Pantalla | Administrador | Bibliotecario | Socio |
 |----------|:---:|:---:|:---:|
-| Inicio con indicadores (vencidos, remitos abiertos, reservas por retirar) | ✔ | ✔ (su sede) | resumen propio |
+| Inicio: sedes de la red (resumen por estado para el administrador, su sede para el bibliotecario) | ✔ | ✔ | ✔ |
 | Sedes: listado, alta, edición, baja | ✔ | consulta | consulta |
-| Socios: búsqueda, alta, ficha, inhabilitación | ✔ | ✔ | su ficha |
+| Socios: búsqueda, alta, ficha, cuenta, baja y reactivación | ✔ (además inhabilita, y baja administrativa o por fallecimiento) | ✔ (rehabilita; baja y reactivación a pedido) | su ficha y pedir la reactivación |
 | Catálogo: libros y disponibilidad por sede | ✔ | ✔ | ✔ |
 | Ejemplares: alta, estado, baja, historial | ✔ | ✔ (su sede) | |
-| Préstamos: registrar, detalle con historial y remito, entregar, renovar, cancelar | consulta | ✔ | los propios |
-| Devolución: registro con estado físico y resultado (multa, retorno) | consulta | ✔ | |
-| Remitos: listado, generar, empaquetar, despachar, recibir, anular | consulta | ✔ | estado del propio |
-| Reservas: reservar, cola por libro, ficha con historial, cancelar, retirar | consulta | ✔ (cancela y entrega las de su sede) | ✔ (las propias) |
-| Multas: listado y saldar | ✔ | ✔ | las propias |
+| Préstamos: registrar, detalle con historial y remito, entregar, renovar, cancelar | ✔ (en cualquier sede; elige la sede de retiro) | ✔ (su sede) | los propios |
+| Devolución: registro con estado físico y resultado (multa, retorno) | ✔ (en cualquier sede) | ✔ (su sede) | |
+| Remitos: listado, generar, empaquetar, despachar, recibir, anular, marcar extraviado | ✔ (desde cualquier sede; elige la sede origen) | ✔ (su sede) | (ve el envío en la ficha de su préstamo) |
+| Reservas: reservar, cola por libro, ficha con historial, cancelar, retirar | ✔ (en cualquier sede) | ✔ (cancela y entrega las de su sede) | ✔ (las propias) |
+| Multas: listado, cobro en el mostrador y comprobante | ✔ | ✔ | las propias: pago en línea simulado y comprobante |
 | Reportes R1 a R6 | ✔ | R1, R4, R5, R6 | R5 |
-| Usuarios y parámetros | ✔ | | |
+| Usuarios, parámetros y tareas del sistema | ✔ | | |
+
+El administrador tiene los permisos completos (RF-ACC-13): las acciones se habilitan con `operaEn(usuario, sedeId)` (`utils/roles.js`), que vale para el bibliotecario en su sede y para el administrador en cualquiera. En el alta de préstamo y de remito el administrador elige la sede con `SedeDeOperacion` (`features/sedes/components/`).
 
 ### Flujos que merecen diseño propio
 
 1. **Registrar un préstamo.** Buscar socio → buscar libro → elegir ejemplar (mostrando disponibilidad por sede) → el sistema indica si es local o interbibliotecario → confirmar. Si el socio está inhabilitado se informa antes de avanzar.
 2. **Detalle de remito.** Línea de tiempo con cada movimiento (estado, fecha y hora, responsable) y botones que aparecen solo para las acciones válidas en ese estado y para el rol y la sede del usuario.
 3. **Recepción de remito.** Lista de ejemplares con estado físico por línea y observación obligatoria si hay daño.
-4. **Devolución.** Antes de confirmar avisa los días de atraso (se genera la multa). Una fecha anterior a hoy pide el motivo. Al registrar, resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio. La página de multas permite elegir un socio, y su ficha enlaza «Ver las multas del socio».
-7. **Pago de multas.** El bibliotecario cobra eligiendo el medio y el comprobante. El socio, en «Mis multas», toca «Pagar en línea» (o «Continuar el pago» si hay uno en curso) y va al checkout simulado `/pagos/simulado?pago=ID`: elige la forma de pago, completa la tarjeta (validada en el navegador; solo se envían los últimos 4 dígitos), confirma y ve el resultado. Un pago aprobado se puede descargar como comprobante en PDF desde el resultado o desde la lista de multas.
+4. **Devolución.** Antes de confirmar avisa los días de atraso (se genera la multa) y, si llega dañado o se informa extraviado, la multa por daño o extravío (si su monto está configurado). Una fecha anterior a hoy pide el motivo. Al registrar, resume el resultado: días de atraso, multa, remito de retorno y cambios en el socio. La página de multas permite elegir un socio, y su ficha enlaza «Ver las multas del socio».
 5. **Baja de sede.** Si el backend responde `SEDE_CON_ACTIVIDAD_PENDIENTE`, muestra la lista de elementos que lo impiden con enlace a cada uno.
-6. **Reservas.** La ficha del libro ofrece «Reservar» solo si no hay ejemplares disponibles en la red (si hay, corresponde pedir un préstamo) y muestra al personal la **cola de reservas** en orden de llegada. El listado filtra por sede de retiro (el bibliotecario ve por defecto la suya) y cada reserva tiene su ficha (`/reservas/:id`) con el historial: autor y motivo de cada cambio («Sistema» para lo automático). «Cancelar» (con motivo opcional) aparece para el socio en las propias y para el bibliotecario de la sede de retiro; el administrador solo consulta.
+6. **Reservas.** La ficha del libro ofrece «Reservar» solo si no hay ejemplares disponibles en la red (si hay, corresponde pedir un préstamo) y muestra al personal la **cola de reservas** en orden de llegada. El listado filtra por sede de retiro (el bibliotecario ve por defecto la suya) y cada reserva tiene su ficha (`/reservas/:id`) con el historial: autor y motivo de cada cambio («Sistema» para lo automático). «Cancelar» (con motivo opcional) aparece para el socio en las propias y para el bibliotecario de la sede de retiro; el administrador opera en cualquier sede.
+7. **Pago de multas.** El bibliotecario cobra eligiendo el medio y el comprobante. El socio, en «Mis multas», toca «Pagar en línea» (o «Continuar el pago» si hay uno en curso) y va al checkout simulado `/pagos/simulado?pago=ID`: elige la forma de pago, completa la tarjeta (validada en el navegador; solo se envían los últimos 4 dígitos), confirma y ve el resultado. Un pago aprobado se puede descargar como comprobante en PDF desde el resultado o desde la lista de multas.
 
 ## Estados de carga, vacío y error
 

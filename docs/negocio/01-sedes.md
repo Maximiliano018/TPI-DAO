@@ -36,6 +36,7 @@ El **Administrador**. El bibliotecario no da de alta, modifica ni da de baja sed
 - Consulta de horarios, excepciones de horario y contacto.
 - Alta y baja de excepciones de horario por fecha.
 - Historial de cambios de cada sede (solo administrador).
+- Resumen de la red para el inicio del administrador (cantidad de sedes por estado).
 
 ## ¿Quién puede ver esta información?
 
@@ -98,7 +99,7 @@ Una excepción cierra la sede en una fecha puntual aunque el horario semanal ind
 - Se puede cargar un **rango de fechas** de una sola vez (por ejemplo, vacaciones): el sistema crea una excepción por día, hasta 31 días.
 - Dos excepciones de la misma sede y fecha no pueden solaparse; un cierre total excluye cualquier otra ese día.
 - Se pueden eliminar las excepciones de hoy y futuras; las pasadas se conservan como historial.
-- Una excepción **informa** el horario efectivo («abierta ahora», próximos cierres) y la usarán los procesos de envío y retiro. **No bloquea por sí sola** ninguna operación en esta etapa.
+- Una excepción **informa** el horario efectivo («abierta ahora», próximos cierres). **No bloquea ni afecta** otros procesos: los plazos de retiro, despacho y tránsito se cuentan en días corridos.
 - Una sede en `Baja` no admite altas ni bajas de excepciones.
 
 ## Casos de uso y flujos

@@ -13,12 +13,12 @@ Origen: [negocio/01-sedes.md](../negocio/01-sedes.md). Proceso obligatorio 1.
 | RF-SED-05 | El sistema debe impedir que una sede en `Baja` sea origen o destino de préstamos, reservas y envíos, y que reciba ejemplares, socios o bibliotecarios nuevos. | Obligatorio |
 | RF-SED-06 | El sistema debe evitar sedes duplicadas, tanto en el alta como en la modificación: código y nombre únicos (sin distinguir mayúsculas ni tildes; el nombre tampoco distingue puntuación ni espacios de más) y advertencia por dirección repetida, con posibilidad de corregir los datos o confirmar. | Obligatorio |
 | RF-SED-07 | El sistema debe validar los horarios: al menos una franja semanal, sin solapamientos en el mismo día, cierre posterior a la apertura y hasta 4 franjas por día. Al modificar, el conjunto de franjas se reemplaza completo. Un día sin franjas se considera cerrado. | Obligatorio |
-| RF-SED-08 | El sistema debe permitir listar sedes con paginación, filtro por estado, búsqueda por texto y orden, y consultar el detalle, con la visibilidad y los campos que corresponden a cada rol. | Obligatorio |
+| RF-SED-08 | El sistema debe permitir listar sedes con paginación, filtro por estado, búsqueda por texto y orden, y consultar el detalle, con la visibilidad y los campos que corresponden a cada rol. El administrador ve además el total de sedes por estado (activas y en baja). | Obligatorio |
 | RF-SED-09 | El sistema debe permitir al administrador registrar y eliminar excepciones de horario por sede (cierre total o parcial en una fecha, con motivo opcional), y mostrar si la sede está abierta en este momento. | Opcional |
 | RF-SED-10 | El sistema debe registrar un historial de solo inserción por sede, con alta, modificaciones campo a campo, baja, reactivación y excepciones, con usuario y momento, consultable por el administrador. | Opcional |
 | RF-SED-11 | El sistema debe restringir el domicilio a un catálogo cerrado de provincias y localidades (hoy, la provincia de Córdoba). | Opcional |
 | RF-SED-12 | El sistema debe validar el formato de los datos: código (3 a 15 caracteres `A-Z`, `0-9`, `_`, guardado en mayúsculas), teléfono en formato internacional E.164 y correo electrónico válido. | Obligatorio |
-| RF-SED-13 | El sistema debe evitar que cambios simultáneos se pisen: bloqueo de la fila en las operaciones que cambian el estado y control de versión en las modificaciones. | Obligatorio |
+| RF-SED-13 | El sistema debe evitar que cambios simultáneos se pisen: bloqueo de la fila en las operaciones que cambian el estado y control de versión en las modificaciones, la baja y la reactivación. | Obligatorio |
 
 ## Casos de uso
 
@@ -63,13 +63,16 @@ Origen: [negocio/01-sedes.md](../negocio/01-sedes.md). Proceso obligatorio 1.
   - **A1 (paso 2): hay actividad pendiente.** El sistema bloquea la baja con un mensaje general que explica el motivo y el detalle por tipo (préstamos, remitos, reservas, ejemplares alojados, ejemplares propios fuera, bibliotecarios). No cancela nada automáticamente. El administrador debe finalizar esas actividades, transferir los ejemplares y reasignar o desvincular a los bibliotecarios, y reintentar.
   - **A2 (paso 1): sede ya en `Baja`.** El sistema informa que no hay nada que hacer.
   - **A3 (paso 1): motivo vacío o fuera de los 5 a 300 caracteres.** Rechaza.
+  - **A4 (paso 2): la sede cambió desde que se abrió (otra versión).** Rechaza y pide recargar.
 - **Postcondición:** la sede está en `Baja`; no admite nuevas operaciones ni ediciones.
 
 ### CU-SED-04. Reactivar una sede
 
 - **Actor:** Administrador.
 - **Flujo normal:** selecciona una sede en `Baja` y confirma; el sistema la pasa a `Activa`, limpia fecha, motivo y usuario de la baja, conserva el historial y registra el evento `Reactivación`.
-- **Flujo alternativo A1:** la sede ya está activa; no se hace nada.
+- **Flujos alternativos:**
+  - **A1:** la sede ya está activa; no se hace nada.
+  - **A2:** la sede cambió desde que se abrió (otra versión); rechaza y pide recargar.
 
 ### CU-SED-05. Consultar sedes
 
@@ -89,6 +92,7 @@ Origen: [negocio/01-sedes.md](../negocio/01-sedes.md). Proceso obligatorio 1.
   2. Indica fecha (o rango), tipo de cierre (total o parcial con horas) y, opcionalmente, el motivo.
   3. El sistema valida y guarda; registra el evento `Excepción agregada`.
   4. Para quitar una excepción de hoy o futura, la elimina; el sistema registra `Excepción eliminada`.
+  5. Cualquier rol consulta los cierres de hoy y futuros de una sede; el administrador puede pedir también los pasados.
 - **Flujos alternativos:**
   - **A1 (paso 3): fecha en el pasado.** Rechaza.
   - **A2 (paso 3): se superpone con otra excepción** de la misma fecha. Rechaza e indica la existente.

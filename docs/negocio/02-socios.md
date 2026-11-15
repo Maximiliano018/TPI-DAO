@@ -1,6 +1,6 @@
 # 02. Administración de socios
 
-Proceso obligatorio 2 del enunciado. Los puntos marcados como *A consultar* siguen abiertos con la cátedra.
+Proceso obligatorio 2 del enunciado.
 
 ## ¿Qué datos se modelan?
 
@@ -32,7 +32,7 @@ El estado **no se elige**: sale de las causas vigentes. Con al menos una causa, 
 |-------|--------|-----------------|
 | **Decisión administrativa** | La decide el administrador, con un motivo de 5 a 300 caracteres | Solo el administrador |
 | **Préstamo vencido** | Automática: un préstamo pasa a `Vencido` | Sola, al devolver el material |
-| **Multa impaga** | Automática: se genera una multa por atraso | Sola, cuando el personal registra la multa como saldada |
+| **Multa impaga** | Automática: se genera una multa (por atraso, daño o extravío) | Sola, cuando la multa queda saldada (cobro en el mostrador o pago en línea del socio) |
 
 Un socio puede tener varias causas a la vez, y sigue inhabilitado mientras quede alguna. Cuando hay más de una, se muestra primero la de mayor **prioridad**: decisión administrativa, préstamo vencido y multa impaga, en ese orden.
 
@@ -73,7 +73,9 @@ Los usuarios del personal (administradores y bibliotecarios) los ve y administra
 - Reservar un libro no disponible.
 - Cancelar sus reservas.
 - Ver sus préstamos (activos, vencidos, historial), fechas de vencimiento y multas.
+- Pagar sus multas en línea (simulado) y descargar el comprobante en PDF.
 - Ver sus propios datos y su historial, y solicitar su corrección al personal.
+- Si está dado de baja, pedir su reactivación desde su cuenta.
 
 Su cuenta sigue activa aunque esté inhabilitado o dado de baja: puede entrar a ver su situación y hacer lo que lo lleva a habilitarse, pero no las operaciones diarias.
 
@@ -85,10 +87,10 @@ Su cuenta sigue activa aunque esté inhabilitado o dado de baja: puede entrar a 
 | Pedir préstamos, reservar y recibir préstamos | ✔ | — | — |
 | Cancelar sus solicitudes de préstamo sin enviar | ✔ | ✔ | — (la baja exige no tener préstamos en curso) |
 | Cancelar sus reservas | ✔ | ✔ | — (se cancelaron con la baja) |
-| Devolver y saldar multas (en mostrador) | ✔ | ✔ | — (no tiene deudas) |
+| Devolver y pagar multas (en el mostrador o en línea) | ✔ | ✔ | — (no tiene deudas) |
 | Solicitar la reactivación desde su cuenta | — | — | ✔ (si el tipo de baja lo permite) |
 
-**Deudas e inhabilitación.** Las deudas no llevan a la baja sino a la inhabilitación: la baja exige no tener préstamos en curso ni multas, así que un socio en baja nunca debe nada. El socio inhabilitado regulariza su situación así: ve desde su cuenta qué debe, devuelve el material o paga en el mostrador de cualquier sede, el personal registra la multa como saldada y el sistema lo habilita solo. El cobro real de las multas queda fuera del alcance.
+**Deudas e inhabilitación.** Las deudas no llevan a la baja sino a la inhabilitación: la baja exige no tener préstamos en curso ni multas, así que un socio en baja nunca debe nada. El socio inhabilitado regulariza su situación así: ve desde su cuenta qué debe, devuelve el material y paga la multa, en el mostrador de cualquier sede (el personal registra el cobro con su medio de pago) o en línea desde su cuenta (simulado, sin cobro real, con comprobante en PDF; ver [Devoluciones](07-devoluciones.md#cómo-se-paga-una-multa)). Con la multa saldada, el sistema lo habilita solo.
 
 El socio puede **pedir un préstamo para sí** desde su cuenta: elige el libro y la sede donde lo retira, y el sistema decide si es local o entre sedes (ver [Préstamos](04-prestamos.md#qué-usuarios-pueden-solicitar-un-préstamo)). Nunca a nombre de otro socio. En el mostrador, el personal lo registra en su nombre.
 
@@ -155,7 +157,7 @@ Cada socio tiene su propio historial de solo inserción, con quién hizo cada ca
 | Alta | Los datos iniciales |
 | Modificación | Cada dato que cambió, con valor anterior y nuevo |
 | Inhabilitación / rehabilitación manual | Estado anterior y nuevo, causas y motivo |
-| Cambio automático | Estado y causas antes y después, y **qué lo provocó** («Préstamo P-2026-0012 vencido», «Multa del préstamo P-2026-0012 saldada»); lo hace el sistema |
+| Cambio automático | Estado y causas antes y después, y **qué lo provocó** («Préstamo P-2026-000118 vencido», «Multa del préstamo P-2026-000118 saldada»); lo hace el sistema |
 | Baja | Tipo y motivo |
 | Solicitud de reactivación / rechazo | El mensaje del socio / el motivo del rechazo |
 | Reactivación | Cómo se reactivó (en mostrador o por solicitud aprobada) |
@@ -175,7 +177,7 @@ Cada socio tiene su propio historial de solo inserción, con quién hizo cada ca
 **Sí.**
 
 - Con un **préstamo vencido** sin devolver: queda inhabilitado hasta devolver.
-- Con una **multa impaga**: queda inhabilitado hasta saldarla. El sistema solo registra la multa como saldada (el cobro real queda fuera del alcance).
+- Con una **multa impaga** (por atraso, daño o extravío): queda inhabilitado hasta saldarla, en el mostrador o en línea. No hay cobro real: el pago en línea es una simulación.
 - La inhabilitación no borra los préstamos en curso: el socio sigue obligado a devolver.
 
 ## ¿Cómo evitamos socios duplicados?
