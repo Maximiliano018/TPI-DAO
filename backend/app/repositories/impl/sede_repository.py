@@ -1,4 +1,8 @@
-"""Repositorios de sedes y del catálogo geográfico sobre SQLAlchemy."""
+"""Repositorios de sedes y del catálogo geográfico sobre SQLAlchemy.
+
+Patrones Repository y Data Mapper, con bloqueo pesimista y optimista: ver
+``app/repositories/impl/__init__.py``.
+"""
 
 from collections.abc import Iterable, Iterator
 from contextlib import contextmanager

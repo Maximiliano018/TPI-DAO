@@ -1,4 +1,8 @@
-"""Repositorio de usuarios sobre SQLAlchemy."""
+"""Repositorio de usuarios sobre SQLAlchemy.
+
+Patrones Repository y Data Mapper, con bloqueo pesimista y optimista: ver
+``app/repositories/impl/__init__.py``.
+"""
 
 from typing import Any
 

@@ -8,6 +8,10 @@ la demo: el socio lo inicia (queda ``Pendiente``) y en el checkout simulado elig
 De la tarjeta solo se guardan los **últimos 4 dígitos** (el resto nunca sale del navegador). Para
 probar un rechazo, la tarjeta de prueba terminada en ``0002`` se rechaza; cualquier otra se
 aprueba. Todo pago aprobado tiene su comprobante (``numero_comprobante``).
+
+Nace por dos **constructores con nombre** (variante del patrón Factory), que garantizan sus
+invariantes desde el inicio: ``Pago.manual`` (cobro en el mostrador, ya aprobado) y
+``Pago.en_linea`` (pendiente hasta el checkout simulado).
 """
 
 import re

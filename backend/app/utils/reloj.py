@@ -1,4 +1,5 @@
-"""Reloj inyectable: el dominio nunca llama a ``datetime.now()`` directamente."""
+"""Reloj inyectable (**inyección de dependencias**): el dominio nunca llama a ``datetime.now()``
+directamente. En producción es ``RelojSistema``; las pruebas lo reemplazan por un reloj fijo."""
 
 from datetime import UTC, date, datetime
 from typing import Protocol

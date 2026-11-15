@@ -1,4 +1,4 @@
-"""Puerto de acceso a socios."""
+"""Puerto de acceso a socios (patrón Repository)."""
 
 from dataclasses import dataclass
 from datetime import date

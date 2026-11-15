@@ -1,4 +1,8 @@
-"""Comprobante de pago de una multa en PDF (una página A4)."""
+"""Comprobante de pago de una multa en PDF (una página A4).
+
+Es el **director** del patrón Builder: decide el contenido y la posición de cada dato y le pide
+las partes a ``DocumentoPdf`` (``app/utils/pdf.py``), que conoce el formato.
+"""
 
 from datetime import tzinfo
 from decimal import Decimal
