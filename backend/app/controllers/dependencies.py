@@ -1,8 +1,14 @@
-"""Dependencias compartidas de los controladores: sesión, usuario actual y permisos."""
+"""Raíz de composición: **inyección de dependencias** con ``Depends`` de FastAPI.
+
+Arma, una vez por solicitud, la sesión y la ``UnitOfWork``, el reloj, el verificador de baja de
+sede con sus estrategias concretas y cada servicio, y resuelve el usuario actual y sus permisos
+(``requiere``). Es el único lugar que conoce las clases concretas; las pruebas las reemplazan con
+``app.dependency_overrides``. Ver ``docs/tecnica/05-patrones-de-diseno.md``, sección 8.
+"""
 
 from collections.abc import Callable
 
-from fastapi import Depends
+from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -112,8 +118,10 @@ def get_remito_service(
     return RemitoService(uow, reloj)
 
 
-def get_parametro_service(uow: UnitOfWork = Depends(get_uow)) -> ParametroService:
-    return ParametroService(uow)
+def get_parametro_service(
+    uow: UnitOfWork = Depends(get_uow), reloj: Reloj = Depends(get_reloj)
+) -> ParametroService:
+    return ParametroService(uow, reloj)
 
 
 def get_reserva_service(
@@ -141,13 +149,20 @@ def get_reporte_service(
 
 
 def usuario_actual(
+    request: Request,
     credenciales: HTTPAuthorizationCredentials | None = Depends(_esquema_bearer),
     auth: AuthService = Depends(get_auth_service),
 ) -> Usuario:
-    """Usuario autenticado de la solicitud (recargado de la base)."""
+    """Usuario autenticado de la solicitud (recargado de la base).
+
+    Deja su id en ``request.state`` para la línea de log de la solicitud
+    (``app/utils/registro.py``).
+    """
     if credenciales is None:
         raise TokenInvalido("Falta iniciar sesión.")
-    return auth.autenticar(credenciales.credentials)
+    usuario = auth.autenticar(credenciales.credentials)
+    request.state.usuario_id = usuario.id
+    return usuario
 
 
 def requiere(*permisos: Permiso) -> Callable[[Usuario], Usuario]:

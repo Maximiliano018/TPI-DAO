@@ -1,7 +1,11 @@
-"""Repositorios de préstamos, remitos, incidencias y parámetros sobre SQLAlchemy."""
+"""Repositorios de préstamos, remitos, incidencias y parámetros sobre SQLAlchemy.
+
+Patrones Repository y Data Mapper, con bloqueo pesimista y optimista: ver
+``app/repositories/impl/__init__.py``.
+"""
 
 from collections.abc import Iterable
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 from sqlalchemy import ColumnElement, func, select
@@ -10,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.db.models import (
     DetalleRemitoORM,
     EjemplarORM,
+    HistorialParametroORM,
     IncidenciaORM,
     MovimientoPrestamoORM,
     MovimientoRemitoORM,
@@ -42,6 +47,7 @@ from app.models.states.remito import EstadoRemitoEnum, estado_remito
 from app.models.usuario import UsuarioRef
 from app.repositories.impl.consultas import nombres_de_usuarios
 from app.repositories.interfaces.prestamo_repository import (
+    CambioParametro,
     FiltroPrestamos,
     FiltroRemitos,
     Parametro,
@@ -73,16 +79,99 @@ class SqlAlchemyParametroRepository:
         return Parametros.desde_textos({f.clave: f.valor for f in filas})
 
     def listar(self) -> list[Parametro]:
-        filas = self._sesion.scalars(select(ParametroORM).order_by(ParametroORM.clave))
-        return [Parametro(f.clave, f.valor, f.descripcion) for f in filas]
+        filas = list(self._sesion.scalars(select(ParametroORM).order_by(ParametroORM.clave)))
+        ultimos = self._ultimos_cambios()
+        refs = _refs(self._sesion, (u for _, u in ultimos.values()))
+        return [self._a_dominio(f, ultimos.get(f.clave), refs) for f in filas]
 
-    def actualizar(self, clave: str, valor: str) -> Parametro | None:
+    def obtener_para_modificar(self, clave: str) -> Parametro | None:
+        orm = self._sesion.scalars(
+            select(ParametroORM)
+            .where(ParametroORM.clave == clave)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        return None if orm is None else Parametro(orm.clave, orm.valor, orm.descripcion)
+
+    def actualizar(
+        self, clave: str, valor: str, actor: UsuarioRef, ahora: datetime
+    ) -> Parametro | None:
         orm = self._sesion.get(ParametroORM, clave)
         if orm is None:
             return None
+        self._sesion.add(
+            HistorialParametroORM(
+                clave=clave,
+                valor_anterior=orm.valor,
+                valor_nuevo=valor,
+                usuario_id=actor.id,
+                fecha_hora=ahora,
+            )
+        )
         orm.valor = valor
         self._sesion.flush()
-        return Parametro(orm.clave, orm.valor, orm.descripcion)
+        return Parametro(orm.clave, orm.valor, orm.descripcion, ahora, actor)
+
+    def historial(
+        self, clave: str | None, page: int, size: int
+    ) -> tuple[list[CambioParametro], int]:
+        condiciones = [] if clave is None else [HistorialParametroORM.clave == clave]
+        total = self._sesion.scalar(
+            select(func.count(HistorialParametroORM.id)).where(*condiciones)
+        )
+        filas = self._sesion.execute(
+            select(HistorialParametroORM, ParametroORM.descripcion)
+            .join(ParametroORM, ParametroORM.clave == HistorialParametroORM.clave)
+            .where(*condiciones)
+            .order_by(HistorialParametroORM.fecha_hora.desc(), HistorialParametroORM.id.desc())
+            .offset((page - 1) * size)
+            .limit(size)
+        ).all()
+        refs = _refs(self._sesion, (h.usuario_id for h, _ in filas))
+        cambios = [
+            CambioParametro(
+                clave=h.clave,
+                descripcion=descripcion,
+                valor_anterior=h.valor_anterior,
+                valor_nuevo=h.valor_nuevo,
+                usuario=UsuarioRef(h.usuario_id, refs.get(h.usuario_id, "")),
+                fecha_hora=h.fecha_hora,
+            )
+            for h, descripcion in filas
+        ]
+        return cambios, total or 0
+
+    def _ultimos_cambios(self) -> dict[str, tuple[datetime, int]]:
+        """Fecha y autor del último cambio de cada clave."""
+        filas = self._sesion.execute(
+            select(
+                HistorialParametroORM.clave,
+                HistorialParametroORM.fecha_hora,
+                HistorialParametroORM.usuario_id,
+            )
+            .distinct(HistorialParametroORM.clave)
+            .order_by(
+                HistorialParametroORM.clave,
+                HistorialParametroORM.fecha_hora.desc(),
+                HistorialParametroORM.id.desc(),
+            )
+        ).all()
+        return {clave: (fecha, usuario) for clave, fecha, usuario in filas}
+
+    @staticmethod
+    def _a_dominio(
+        orm: ParametroORM, ultimo: tuple[datetime, int] | None, refs: dict[int, str]
+    ) -> Parametro:
+        if ultimo is None:
+            return Parametro(orm.clave, orm.valor, orm.descripcion)
+        fecha, usuario_id = ultimo
+        return Parametro(
+            orm.clave,
+            orm.valor,
+            orm.descripcion,
+            fecha,
+            UsuarioRef(usuario_id, refs.get(usuario_id, "")),
+        )
 
 
 # --- préstamos -----------------------------------------------------------------------------------

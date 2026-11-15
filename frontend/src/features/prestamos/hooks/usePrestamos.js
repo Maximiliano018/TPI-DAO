@@ -4,6 +4,7 @@ import {
   cancelarPrestamo,
   detectarVencidos,
   entregarPrestamo,
+  historialParametros,
   listarParametros,
   listarPrestamos,
   obtenerPrestamo,
@@ -32,6 +33,7 @@ export const claves = {
   remitos: (filtros) => ['remitos', 'lista', filtros],
   remito: (id) => ['remitos', 'detalle', String(id)],
   parametros: ['parametros'],
+  historialParametros: (params) => ['parametros', 'historial', params],
 };
 
 export const usePrestamos = (filtros = {}, opciones = {}) =>
@@ -65,6 +67,14 @@ export const useRemito = (id) =>
 
 export const useParametros = () =>
   useQuery({ queryKey: claves.parametros, queryFn: listarParametros });
+
+/** Auditoría de los cambios de parámetros (del más reciente al más antiguo). */
+export const useHistorialParametros = (params = {}) =>
+  useQuery({
+    queryKey: claves.historialParametros(params),
+    queryFn: () => historialParametros(params),
+    placeholderData: keepPreviousData,
+  });
 
 function useMutacion(mutationFn, extra = []) {
   const queryClient = useQueryClient();

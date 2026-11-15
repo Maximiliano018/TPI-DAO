@@ -1,4 +1,4 @@
-"""Puertos de préstamos, remitos, incidencias y parámetros de negocio."""
+"""Puertos de préstamos, remitos, incidencias y parámetros de negocio (patrón Repository)."""
 
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -12,6 +12,7 @@ from app.models.reserva import MovimientoReserva, Reserva
 from app.models.states.prestamo import EstadoPrestamoEnum
 from app.models.states.remito import EstadoRemitoEnum
 from app.models.states.reserva import EstadoReservaEnum
+from app.models.usuario import UsuarioRef
 
 
 @dataclass(frozen=True)
@@ -40,6 +41,21 @@ class Parametro:
     clave: str
     valor: str
     descripcion: str
+    # Último cambio (auditoría); None si conserva el valor inicial de la migración.
+    actualizado_en: datetime | None = None
+    actualizado_por: UsuarioRef | None = None
+
+
+@dataclass(frozen=True)
+class CambioParametro:
+    """Un cambio de parámetro registrado en la auditoría."""
+
+    clave: str
+    descripcion: str
+    valor_anterior: str
+    valor_nuevo: str
+    usuario: UsuarioRef
+    fecha_hora: datetime
 
 
 class ParametroRepository(Protocol):
@@ -47,10 +63,25 @@ class ParametroRepository(Protocol):
         """Valores actuales, convertidos y validados."""
         ...
 
-    def listar(self) -> list[Parametro]: ...
+    def listar(self) -> list[Parametro]:
+        """Todos los parámetros, con su último cambio."""
+        ...
 
-    def actualizar(self, clave: str, valor: str) -> Parametro | None:
-        """Cambia un valor (ya validado) y lo devuelve; ``None`` si la clave no existe."""
+    def obtener_para_modificar(self, clave: str) -> Parametro | None:
+        """El parámetro bloqueado (``FOR UPDATE``) hasta el fin de la transacción."""
+        ...
+
+    def actualizar(
+        self, clave: str, valor: str, actor: UsuarioRef, ahora: datetime
+    ) -> Parametro | None:
+        """Cambia un valor (ya validado), registra el cambio en la auditoría y lo devuelve;
+        ``None`` si la clave no existe."""
+        ...
+
+    def historial(
+        self, clave: str | None, page: int, size: int
+    ) -> tuple[list[CambioParametro], int]:
+        """Cambios registrados, del más reciente al más antiguo (de una clave o de todas)."""
         ...
 
 
