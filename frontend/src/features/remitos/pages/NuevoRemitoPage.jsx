@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
   Breadcrumb,
@@ -23,6 +22,7 @@ import inicio from '../../inicio/components/Inicio.module.css';
 import { useEjemplares } from '../../catalogo/hooks/useCatalogo.js';
 import { useGenerarRemito, usePrestamos } from '../../prestamos/hooks/usePrestamos.js';
 import { useSedes } from '../../sedes/hooks/useSedes.js';
+import SedeDeOperacion, { useSedeDeOperacion } from '../../sedes/components/SedeDeOperacion.jsx';
 
 /**
  * Envío: préstamos entre sedes solicitados que salen de esta sede, agrupados por destino. El
@@ -150,10 +150,13 @@ function LineasDeTraslado({ sedeId, destinoId, onDestino, elegidos, onElegidos }
   );
 }
 
-/** Generar un remito desde la sede del bibliotecario: envío de préstamos o traslado. */
+/**
+ * Generar un remito desde la sede del bibliotecario (o desde la que elija el administrador):
+ * envío de préstamos o traslado.
+ */
 export default function NuevoRemitoPage() {
   useTituloDePagina('Nuevo remito');
-  const { usuario } = useSesion();
+  const sede = useSedeDeOperacion();
   const navegar = useNavigate();
   const { mostrar } = useToast();
   const generar = useGenerarRemito();
@@ -170,6 +173,7 @@ export default function NuevoRemitoPage() {
     generar.mutate(
       {
         sede_destino_id: destinoId,
+        ...(sede.esAdmin && { sede_origen_id: sede.sedeId }),
         motivo,
         lineas: elegidos,
         observaciones: observaciones || null,
@@ -188,11 +192,24 @@ export default function NuevoRemitoPage() {
     <>
       <PageHeader
         titulo="Nuevo remito"
-        descripcion={`Sale de ${usuario.sede?.nombre ?? 'su sede'}. Todos los ejemplares van al mismo destino.`}
+        descripcion={
+          sede.esAdmin && !sede.sedeId
+            ? 'Elija la sede desde la que sale el remito. Todos los ejemplares van al mismo destino.'
+            : `Sale de ${sede.nombre ?? 'su sede'}. Todos los ejemplares van al mismo destino.`
+        }
         migas={<Breadcrumb items={migas} />}
       />
       <div className={inicio.pagina}>
         {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
+        <SedeDeOperacion
+          control={sede}
+          titulo="Sede origen"
+          etiqueta="Sede desde la que sale el remito"
+          onCambiar={() => {
+            setDestinoId(null);
+            setElegidos([]);
+          }}
+        />
         <Card titulo="Motivo">
           <Select
             etiqueta="Motivo"
@@ -208,13 +225,17 @@ export default function NuevoRemitoPage() {
           </Select>
         </Card>
         <Card titulo="Ejemplares">
-          <Lineas
-            sedeId={usuario.sede_id}
-            destinoId={destinoId}
-            onDestino={setDestinoId}
-            elegidos={elegidos}
-            onElegidos={setElegidos}
-          />
+          {sede.sedeId ? (
+            <Lineas
+              sedeId={sede.sedeId}
+              destinoId={destinoId}
+              onDestino={setDestinoId}
+              elegidos={elegidos}
+              onElegidos={setElegidos}
+            />
+          ) : (
+            <p style={{ margin: 0 }}>Primero elija la sede origen.</p>
+          )}
         </Card>
         <Card titulo="Observaciones">
           <Textarea

@@ -23,7 +23,7 @@ import {
   estadoDe,
 } from '../../../utils/estados.js';
 import { formatearFecha, formatearFechaHora, formatearMonto } from '../../../utils/formato.js';
-import { PERMISOS } from '../../../utils/roles.js';
+import { PERMISOS, operaEn } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
 import DevolucionDialog from '../../devoluciones/components/DevolucionDialog.jsx';
@@ -84,12 +84,12 @@ function Acciones({ prestamo }) {
   if (!tienePermiso(PERMISOS.PRESTAMO_REGISTRAR)) {
     return <AccionesDelSocio prestamo={prestamo} />;
   }
-  const enDestino = usuario.sede_id === prestamo.sede_destino_id;
+  const enDestino = operaEn(usuario, prestamo.sede_destino_id);
   const puedeDevolver =
     enDestino &&
     tienePermiso(PERMISOS.DEVOLUCION_REGISTRAR) &&
     ['ACTIVO', 'VENCIDO'].includes(prestamo.estado);
-  const enSede = enDestino || usuario.sede_id === prestamo.sede_origen_id;
+  const enSede = enDestino || operaEn(usuario, prestamo.sede_origen_id);
   const { estado, tipo } = prestamo;
   const puedeEntregar =
     enDestino &&

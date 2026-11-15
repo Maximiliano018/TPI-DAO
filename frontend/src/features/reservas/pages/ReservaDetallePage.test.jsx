@@ -75,13 +75,13 @@ describe('Ficha de la reserva', () => {
     expect(screen.getByText('Registrada por').nextSibling).toHaveTextContent('Sol Socia');
   });
 
-  it('CA-RES-17: el administrador y el bibliotecario de otra sede solo consultan', async () => {
+  it('CA-ACC-19: el administrador opera en cualquier sede: puede cancelar la reserva', async () => {
     sesionDe(ADMIN);
     responder('get', '/reservas/9', reserva({ historial: HISTORIAL.slice(0, 1) }));
     renderizarApp('/reservas/9', { conSesion: true });
 
     expect(await screen.findByText(/Lugar 2 en la cola/)).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'Cancelar reserva' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar reserva' })).toBeVisible();
   });
 
   it('CA-RES-17: el bibliotecario no cancela una reserva que se retira en otra sede', async () => {

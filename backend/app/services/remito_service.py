@@ -72,8 +72,10 @@ class RemitoService:
         motivo: MotivoRemito,
         lineas: Sequence[LineaNueva],
         observaciones: str | None = None,
+        sede_origen_id: int | None = None,
     ) -> Remito:
-        """Genera un remito desde la sede del bibliotecario (CU-REM-01).
+        """Genera un remito desde la sede del bibliotecario, o desde la que indique el
+        administrador en ``sede_origen_id`` (CU-REM-01).
 
         Un envío lleva préstamos interbibliotecarios ``Solicitado`` con ese origen y destino; un
         traslado lleva ejemplares disponibles de la sede. Los retornos los genera el sistema.
@@ -88,9 +90,9 @@ class RemitoService:
                 "Los remitos de retorno se generan al registrar la devolución.",
                 [{"campo": "motivo", "problema": "retorno_automatico"}],
             )
-        assert actor.sede_id is not None
+        origen_id = actor.sede_de_operacion(sede_origen_id, "sede_origen_id")
         with self._transaccion():
-            origen = self._uow.sedes.obtener_para_operar(actor.sede_id)
+            origen = self._uow.sedes.obtener_para_operar(origen_id)
             destino = self._uow.sedes.obtener_para_operar(sede_destino_id)
             assert origen.id is not None and destino.id is not None
             ahora = self._reloj.ahora()

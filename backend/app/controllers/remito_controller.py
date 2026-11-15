@@ -50,9 +50,15 @@ _409 = {"description": "Salto o retroceso en el ciclo de vida (`TRANSICION_INVAL
 def generar_remito(
     datos: RemitoCrearRequest, response: Response, servicio: Servicio, actor: Operador
 ) -> RemitoResponse:
-    """Desde la sede del bibliotecario: envío de préstamos o traslado de ejemplares."""
+    """Envío de préstamos o traslado de ejemplares, desde la sede del bibliotecario o desde la
+    que indique el administrador (`sede_origen_id`, obligatoria para él: 422 si falta)."""
     remito = servicio.generar(
-        actor, datos.sede_destino_id, datos.motivo, datos.a_lineas(), datos.observaciones
+        actor,
+        datos.sede_destino_id,
+        datos.motivo,
+        datos.a_lineas(),
+        datos.observaciones,
+        datos.sede_origen_id,
     )
     response.headers["Location"] = f"/api/v1/remitos/{remito.id}"
     return RemitoResponse.desde(remito)

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useSesion } from '../../../auth/SesionContext.jsx';
 import {
   Alert,
   Breadcrumb,
@@ -21,6 +20,7 @@ import ElegirSocio from '../../socios/components/ElegirSocio.jsx';
 import SelectorDeLibro from '../../catalogo/components/SelectorDeLibro.jsx';
 import { useEjemplares } from '../../catalogo/hooks/useCatalogo.js';
 import { useRegistrarPrestamo } from '../hooks/usePrestamos.js';
+import SedeDeOperacion, { useSedeDeOperacion } from '../../sedes/components/SedeDeOperacion.jsx';
 
 /**
  * Paso 2: el libro (buscado en todo el catálogo) y un ejemplar disponible: de su sede, local;
@@ -102,11 +102,12 @@ function ElegirEjemplar({ sedeId, elegido, onElegir }) {
 
 /**
  * Registrar un préstamo en nombre del socio (en mostrador). Si el ejemplar es de esta sede el
- * préstamo es local; si es de otra, entre sedes: la sede origen arma el envío.
+ * préstamo es local; si es de otra, entre sedes: la sede origen arma el envío. El administrador
+ * elige la sede donde el socio lo retira.
  */
 export default function NuevoPrestamoPage() {
   useTituloDePagina('Nuevo préstamo');
-  const { usuario } = useSesion();
+  const sede = useSedeDeOperacion();
   const navegar = useNavigate();
   const { mostrar } = useToast();
   const registrar = useRegistrarPrestamo();
@@ -118,7 +119,11 @@ export default function NuevoPrestamoPage() {
   function confirmar() {
     setFallo(null);
     registrar.mutate(
-      { socio_id: socio.id, ejemplar_id: ejemplar.id },
+      {
+        socio_id: socio.id,
+        ejemplar_id: ejemplar.id,
+        ...(sede.esAdmin && { sede_destino_id: sede.sedeId }),
+      },
       {
         onSuccess: (prestamo) => {
           mostrar(`Préstamo ${prestamo.numero} registrado`);
@@ -133,11 +138,21 @@ export default function NuevoPrestamoPage() {
     <>
       <PageHeader
         titulo="Nuevo préstamo"
-        descripcion={`El socio retira y devuelve en ${usuario.sede?.nombre ?? 'su sede'}.`}
+        descripcion={
+          sede.esAdmin && !sede.sedeId
+            ? 'Elija la sede donde el socio retira y devuelve el libro.'
+            : `El socio retira y devuelve en ${sede.nombre ?? 'su sede'}.`
+        }
         migas={<Breadcrumb items={migas} />}
       />
       <div className={inicio.pagina}>
         {fallo && <Alert tono="danger">{mensajeDeError(fallo)}</Alert>}
+        <SedeDeOperacion
+          control={sede}
+          titulo="Sede de retiro"
+          etiqueta="Sede donde el socio retira el libro"
+          onCambiar={() => setEjemplar(null)}
+        />
         <Card titulo="1. Socio">
           <ElegirSocio elegido={socio} onElegir={setSocio} />
           {socio && socio.estado !== 'HABILITADO' && (
@@ -147,10 +162,18 @@ export default function NuevoPrestamoPage() {
           )}
         </Card>
         <Card titulo="2. Libro y ejemplar">
-          <ElegirEjemplar sedeId={usuario.sede_id} elegido={ejemplar} onElegir={setEjemplar} />
+          {sede.sedeId ? (
+            <ElegirEjemplar sedeId={sede.sedeId} elegido={ejemplar} onElegir={setEjemplar} />
+          ) : (
+            <p style={{ margin: 0 }}>Primero elija la sede de retiro.</p>
+          )}
         </Card>
         <div>
-          <Button disabled={!socio || !ejemplar} cargando={registrar.isPending} onClick={confirmar}>
+          <Button
+            disabled={!socio || !ejemplar || !sede.sedeId}
+            cargando={registrar.isPending}
+            onClick={confirmar}
+          >
             Registrar préstamo
           </Button>
         </div>

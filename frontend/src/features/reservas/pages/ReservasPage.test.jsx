@@ -143,7 +143,7 @@ describe('Reservas', () => {
     );
   });
 
-  it('CA-RES-17: el administrador consulta todas las reservas sin cancelarlas', async () => {
+  it('CA-ACC-19: el administrador consulta todas las reservas y puede cancelarlas', async () => {
     sesionDe(ADMIN);
     responder('get', '/sedes', pagina([sedePublica()]));
     responder('get', '/reservas', pagina([reserva()]));
@@ -151,7 +151,7 @@ describe('Reservas', () => {
 
     const tabla = await screen.findByRole('table', { name: 'Reservas' });
     expect(within(tabla).getByRole('link', { name: 'RS-2026-000009' })).toBeVisible();
-    expect(within(tabla).queryByRole('button', { name: /Cancelar/ })).not.toBeInTheDocument();
+    expect(within(tabla).getByRole('button', { name: /Cancelar/ })).toBeVisible();
   });
 
   it('CA-RES-22: el personal ve la cola del libro en su ficha, en orden de llegada', async () => {

@@ -99,10 +99,9 @@ def test_devolucion_local_en_termino(cliente, mundo, sesion):  # noqa: F811
 def test_reglas_al_registrar_la_devolucion(cliente, mundo, sesion):  # noqa: F811
     p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], mundo["ej_b"][0])
 
-    # Otra sede, el socio o el administrador no registran devoluciones.
+    # Otra sede o el socio no registran devoluciones (el administrador sí: CA-ACC-19).
     _error(_devolver(cliente, mundo["h_a"], p), 403, "FORBIDDEN")
     _error(_devolver(cliente, mundo["h_lucia"], p), 403, "FORBIDDEN")
-    _error(_devolver(cliente, mundo["h_admin"], p), 403, "FORBIDDEN")
     futura = datetime.combine(HOY + timedelta(days=1), time(10), ZONA).isoformat()
     _error(_devolver(cliente, mundo["h_b"], p, fecha_hora=futura), 422, "VALIDACION")
     anterior = datetime.combine(HOY - timedelta(days=1), time(10), ZONA).isoformat()
@@ -504,3 +503,26 @@ def test_regular_no_genera_multa_aunque_haya_monto_por_danio(cliente, mundo, ses
     cuerpo = _devolver(cliente, mundo["h_b"], p, "REGULAR", observaciones="Tapa gastada").json()
 
     assert (cuerpo["multas"], cuerpo["socio"]["estado"]) == ([], "HABILITADO")
+
+
+@pytest.mark.ca("CA-CAT-22")
+def test_el_ejemplar_que_el_socio_informo_extraviado_se_recupera_si_aparece(cliente, mundo, sesion):  # noqa: F811
+    ej = mundo["ej_b"][0]
+    p = _entregado(cliente, sesion, mundo["h_b"], mundo["lucia"], ej)
+    _devolver(cliente, mundo["h_b"], p, "EXTRAVIADO", observaciones="Lo perdió en un viaje")
+    ejemplar = _estado_ejemplar(cliente, mundo, ej)
+    assert (ejemplar["estado"], ejemplar["recuperable"]) == ("BAJA", True)
+
+    r = cliente.post(
+        f"{API}/ejemplares/{ej['id']}/recuperar",
+        json={
+            "estado_fisico": "BUENO",
+            "observacion": "El socio lo encontró y lo trajo",
+            "version": ejemplar["version"],
+        },
+        headers=mundo["h_b"],
+    )
+
+    assert r.status_code == 200, r.json()
+    assert r.json()["estado"] == "DISPONIBLE"
+    assert _estado_ejemplar(cliente, mundo, ej)["recuperable"] is False

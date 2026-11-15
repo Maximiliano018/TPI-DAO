@@ -192,6 +192,7 @@ describe('Remitos', () => {
 
   it('el administrador cambia un parámetro', async () => {
     sesionDe(ADMIN);
+    responder('get', '/parametros/historial', { items: [], total: 0, page: 1, size: 10 });
     responder('get', '/parametros', [
       { clave: 'plazo_prestamo_local_dias', valor: '14', descripcion: 'Plazo de préstamo local' },
     ]);

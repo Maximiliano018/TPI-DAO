@@ -2,8 +2,8 @@
 
 import pytest
 
-from app.exceptions import PermisoDenegado
-from app.models.usuario import ROL_PERMISOS, Permiso, Rol
+from app.exceptions import ErrorDeValidacion, PermisoDenegado
+from app.models.usuario import PERMISOS_PROPIOS_DEL_SOCIO, ROL_PERMISOS, Permiso, Rol
 from tests.factories.dominio import BibliotecarioFactory, SocioUsuarioFactory, UsuarioFactory
 
 
@@ -38,13 +38,29 @@ def test_exigir_un_permiso_que_no_se_tiene_lanza_permiso_denegado():
     assert error.value.codigo == "FORBIDDEN"
 
 
-def test_un_bibliotecario_opera_solo_en_su_sede_y_el_administrador_en_ninguna_por_sede():
+@pytest.mark.ca("CA-ACC-19")
+def test_el_bibliotecario_opera_en_su_sede_y_el_administrador_en_cualquiera():
     bibliotecario = BibliotecarioFactory()
+    admin = UsuarioFactory()
 
     assert bibliotecario.opera_en(1) is True
     assert bibliotecario.opera_en(2) is False
-    assert UsuarioFactory().opera_en(1) is False
+    assert (admin.opera_en(1), admin.opera_en(2)) == (True, True)
     assert SocioUsuarioFactory().opera_en(1) is False
+    # Una operación nueva: el bibliotecario en su sede; el administrador indica cuál.
+    assert bibliotecario.sede_de_operacion(None, "sede_id") == 1
+    with pytest.raises(PermisoDenegado):
+        bibliotecario.sede_de_operacion(2, "sede_id")
+    assert admin.sede_de_operacion(3, "sede_id") == 3
+    with pytest.raises(ErrorDeValidacion):
+        admin.sede_de_operacion(None, "sede_id")
+
+
+@pytest.mark.ca("CA-ACC-19")
+def test_el_administrador_tiene_todos_los_permisos_salvo_la_autogestion_del_socio():
+    admin = UsuarioFactory()
+
+    assert admin.permisos == frozenset(Permiso) - PERMISOS_PROPIOS_DEL_SOCIO
 
 
 def test_el_administrador_y_el_socio_no_tienen_sede_asignada():
