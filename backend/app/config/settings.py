@@ -26,6 +26,8 @@ class Settings(BaseSettings):
     tz_negocio: str = "America/Argentina/Cordoba"
     entorno: str = "desarrollo"
     seed_password: str | None = None
+    # Nivel del registro de la aplicación (DEBUG, INFO, WARNING…).
+    log_level: str = "INFO"
 
     @property
     def origenes_cors(self) -> list[str]:

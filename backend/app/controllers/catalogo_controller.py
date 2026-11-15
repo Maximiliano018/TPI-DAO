@@ -129,6 +129,9 @@ def obtener_libro(libro_id: int, servicio: Servicio, actor: Lector) -> LibroResp
 def modificar_libro(
     libro_id: int, datos: LibroModificarRequest, servicio: Servicio, actor: AdministradorCatalogo
 ) -> LibroResponse:
+    """Cambia los datos bibliográficos del libro. Exige la `version` leída (concurrencia
+    optimista) y vuelve a controlar que no duplique otro libro (ISBN o título, autor, editorial
+    y año)."""
     libro = servicio.modificar_libro(actor, libro_id, datos.a_datos(), datos.version)
     return libro_a_response(libro, actor)
 
@@ -218,6 +221,8 @@ def listar_ejemplares(
 def obtener_ejemplar(
     ejemplar_id: int, servicio: Servicio, actor: LectorEjemplares
 ) -> EjemplarDetalleResponse:
+    """Ejemplar con su estado de disponibilidad, estado físico, sedes y el historial de todos sus
+    movimientos (cambios de estado, de sede y de estado físico)."""
     return EjemplarDetalleResponse.desde_detalle(servicio.detalle_ejemplar(actor, ejemplar_id))
 
 

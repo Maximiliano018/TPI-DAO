@@ -133,7 +133,7 @@ describe('Reportes', () => {
     expect(screen.getByRole('region', { name: 'Total adeudado' })).toHaveTextContent(/800,00/);
   });
 
-  it('CA-REP-10: el socio solo emite la disponibilidad por sede', async () => {
+  it('CA-REP-23: el socio solo emite la disponibilidad por sede', async () => {
     sesionDe(SOCIO);
     responder('get', '/sedes', pagina([]));
     responder('get', '/categorias', []);
