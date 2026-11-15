@@ -1,9 +1,10 @@
 /* Separadores de fichero: la pestaña activa es de papel y se funde con el panel */
+/* Si las pestañas no entran en una fila, pasan a la siguiente (ninguna queda cortada). */
 .lista {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-1);
   border-bottom: 1px solid var(--color-border-strong);
-  overflow-x: auto;
   padding: 0 var(--space-2);
 }
 .tab {
