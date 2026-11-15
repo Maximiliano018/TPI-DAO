@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
@@ -110,6 +110,31 @@ describe('LoginPage', () => {
     expect(campo).toHaveAttribute('type', 'text');
     await user.click(screen.getByRole('button', { name: 'Ocultar contraseña' }));
     expect(campo).toHaveAttribute('type', 'password');
+  });
+
+  it('avisa cuando el Bloq Mayús está activado', async () => {
+    renderizarApp('/login');
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByLabelText('Contraseña'));
+    await user.keyboard('{CapsLock}a');
+    expect(screen.getByRole('status')).toHaveTextContent('Bloq Mayús está activado');
+    await user.keyboard('{CapsLock}b');
+    expect(screen.queryByText(/Bloq Mayús/)).not.toBeInTheDocument();
+  });
+
+  it('muestra las cifras de la red al costado del formulario', async () => {
+    responder('get', '/publico/inicio', {
+      sedes_activas: 5,
+      libros: 124,
+      ejemplares: 1350,
+      destacados: [],
+    });
+    renderizarApp('/login');
+
+    const red = await screen.findByRole('region', { name: 'La red de bibliotecas' });
+    expect(await within(red).findByText('1.350')).toBeInTheDocument();
+    expect(within(red).getByText('5')).toBeInTheDocument();
   });
 
   it('tras ingresar vuelve a la ruta de origen', async () => {

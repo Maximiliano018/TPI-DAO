@@ -72,6 +72,7 @@ export function SesionProvider({ children }) {
       aviso,
       iniciar,
       cerrar: () => descartar(),
+      limpiarAviso: () => setAviso(null),
       tienePermiso: (permiso) => Boolean(usuario?.permisos?.includes(permiso)),
     }),
     [estado, usuario, aviso, iniciar, descartar],
@@ -79,7 +80,7 @@ export function SesionProvider({ children }) {
   return <SesionContext.Provider value={valor}>{children}</SesionContext.Provider>;
 }
 
-/** `{ estado, usuario, aviso, iniciar, cerrar, tienePermiso }` */
+/** `{ estado, usuario, aviso, iniciar, cerrar, limpiarAviso, tienePermiso }` */
 export function useSesion() {
   const contexto = useContext(SesionContext);
   if (!contexto) throw new Error('useSesion debe usarse dentro de SesionProvider');

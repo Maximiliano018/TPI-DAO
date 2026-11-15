@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { Alert, PageHeader, Spinner } from '../components/index.js';
+import InicioPublicoPage from '../features/publico/pages/InicioPublicoPage.jsx';
 import { useSesion } from './SesionContext.jsx';
 
 /**
@@ -9,10 +10,15 @@ import { useSesion } from './SesionContext.jsx';
  * @param {{roles?: string[], permiso?: string}} props
  */
 export default function RutaProtegida({ roles, permiso, children }) {
-  const { estado, usuario, tienePermiso } = useSesion();
+  const { estado, usuario, aviso, tienePermiso } = useSesion();
   const ubicacion = useLocation();
 
   if (estado === 'cargando') return <Spinner texto="Restaurando la sesión…" />;
+  // Sin sesión, la raíz muestra el inicio público; el resto de las pantallas pide ingresar. Si la
+  // sesión se acaba de cerrar con un aviso (venció, sin conexión), se va al login para mostrarlo.
+  if (estado !== 'autenticado' && ubicacion.pathname === '/' && !aviso) {
+    return <InicioPublicoPage />;
+  }
   if (estado !== 'autenticado') {
     return (
       <Navigate to="/login" replace state={{ desde: ubicacion.pathname + ubicacion.search }} />

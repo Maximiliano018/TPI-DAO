@@ -28,3 +28,4 @@ export { default as Tabs } from './Tabs.jsx';
 export { ToastProvider, useToast } from './Toast.jsx';
 export { default as Timeline } from './Timeline.jsx';
 export { default as WeekScheduleEditor } from './WeekScheduleEditor.jsx';
+export { default as Portada } from './Portada.jsx';
