@@ -15,12 +15,12 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@hookform/resolvers": "^7.0.5",
+    "@hookform/resolvers": "^7.0.6",
     "@tanstack/react-query": "^5.107.1",
     "date-fns": "^4.4.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-hook-form": "^7.91.0",
+    "react-hook-form": "^7.92.0",
     "react-router-dom": "^6.30.6",
     "zod": "^4.6.7"
   },
@@ -29,7 +29,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.6.9",
+    "@testing-library/user-event": "^14.6.10",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.15.0",
@@ -39,7 +39,7 @@
     "jest-axe": "^11.0.0",
     "jsdom": "^25.0.1",
     "msw": "^2.15.0",
-    "prettier": "^3.4.1",
+    "prettier": "^3.10.1",
     "vite": "^5.4.11",
     "vitest": "^2.1.8"
   }
