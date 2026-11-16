@@ -2,34 +2,35 @@
 
 Design system propio y liviano para el frontend. Es **reemplazable**: todo el aspecto sale de variables CSS (tokens), así que adoptar otro design system implica cambiar los valores de `styles/tokens.css` y revisar los componentes base, sin tocar las pantallas.
 
-## Identidad visual: editorial cálido, con lomos de colores
+## Identidad visual: blanco, turquesa y gris, con libros ilustrados
 
-El aspecto es el de una editorial: papel crema, tinta casi negra, títulos de palo seco gruesos en mayúscula, terracota para las acciones principales y mostaza para los detalles. El sello de la red son los **lomos en arcoíris apagado**, como tapas de tela (ladrillo, naranja tostado, mostaza, oliva, verde azulado, azul acero, índigo, ciruela y rosa viejo), que aparecen en el estante, las franjas del menú, las fichas y las portadas dibujadas.
+El aspecto es limpio y amable: fondo blanco con una trama de puntitos muy suave, texto gris pizarra, **turquesa** para los acentos y las franjas, y **gris carbón** para las acciones principales. Los títulos van en mayúscula, con la primera línea fina y la segunda gruesa en turquesa. Las ilustraciones de libros (planas, con colores de tapa variados) y unas pocas formas suaves (cuadrados girados, parches de puntitos) dan el toque decorativo.
 
 | Elemento | Forma |
 |----------|-------|
-| Fondo y superficies | Papel crema plano; las tarjetas son un tono más claro, con borde fino y esquinas de 16 px |
-| Barra superior | Clara, con el logotipo (libro abierto con marcador), «PRÉSTAMOS» y «Red de Bibliotecas Públicas»; a la derecha, la sede del bibliotecario y el menú de la persona |
-| Menú lateral | Oscuro (tinta cálida), con las secciones nombradas en mostaza; cada opción con su ícono y el lomo de color de su sección; la actual es una hoja crema con un marcador terracota |
-| Títulos | Palo seco en su peso más grueso, en mayúscula y con el interletrado cerrado |
-| `Button` | Píldoras: terracota para la acción principal, contorno de tinta para las demás, contorno terracota oscuro para dar de baja o bloquear |
-| `Table` | Tarjeta con encabezado claro en versalitas grises y filas separadas por un filete |
+| Fondo y superficies | Blanco con trama de puntitos; tarjetas blancas con borde fino y esquinas de 16 px; gris claro para encabezados de tablas y secciones |
+| Barra superior | Blanca, con una línea turquesa abajo: logotipo (libro abierto con marcador), «PRÉSTAMOS» y «Red de Bibliotecas Públicas»; a la derecha, la sede del bibliotecario y el menú de la persona |
+| Menú lateral | Turquesa oscuro con puntitos; las secciones con su nombre en celeste claro; cada opción con su ícono dentro de un cuadradito del color de su sección; la actual, en blanco |
+| Títulos | Mayúscula gruesa con una rayita turquesa debajo |
+| `Button` | Píldoras: gris carbón para la acción principal, contorno gris para las demás y contorno rojizo para dar de baja o bloquear |
+| `Table` | Tarjeta con encabezado gris claro en versalitas y filas separadas por un filete |
 | `Tabs` | Subrayadas: la actual en tinta con una raya gruesa |
 | `FilterBar` | Tarjeta clara; la búsqueda lleva una lupa y un ejemplo |
 | `Badge` | Píldora con un punto del color del estado; en una tabla, todas las de la columna miden lo mismo |
-| `StatCard` | Rótulo en versalitas, número enorme y tres lomos en la esquina |
+| `StatCard` | Rótulo en versalitas, número grande y tres lomos en la esquina |
 | `Timeline` | Línea punteada con un lomo de color por movimiento |
-| Inicio público e ingreso | El lema «Pedilo acá. Retiralo allá.», el estante de la red con los más pedidos y las cifras, en una primera pantalla de un solo color; los más pedidos con su portada en una franja oscura que aparece al bajar |
+| Inicio público | El lema, una biblioteca ilustrada sobre una mancha turquesa (con plantas, pilas y libros que salen volando) y las cifras en una franja turquesa; abajo, los más pedidos con su portada y, al final, una silueta de libros que pasa al pie |
+| Ingreso | El lema, las cifras y tres ventajas a la izquierda; la tarjeta con un sello del logo a la derecha; abajo, la misma silueta de libros |
 
 La decoración es siempre `aria-hidden` o CSS: no agrega ni quita información, y el estado nunca depende solo del color o de la forma.
 
 ## Principios
 
 1. **Claridad ante todo.** Es un sistema de gestión: la información y el estado van antes que la decoración.
-2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú se aclara, lleva un marcador y `aria-current="page"`.
+2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú se pasa a blanco y lleva `aria-current="page"`.
 3. **Accesible por defecto.** Contraste AA, foco visible, objetivos táctiles amplios, teclado completo.
 4. **Consistente.** Un componente, una forma de usarlo; los tokens son la única fuente de valores.
-5. **Editorial y sobria.** Papel, tinta y terracota, con los lomos de colores como único juego; sin imágenes decorativas ni fuentes externas: todo es CSS y SVG en línea.
+5. **Limpia y amable.** Blanco, gris y turquesa, con los libros ilustrados como único juego de colores; sin imágenes decorativas ni fuentes externas: todo es CSS y SVG en línea.
 
 ## Tokens
 
@@ -41,43 +42,41 @@ Los pares de color que siguen se verificaron con la fórmula de contraste de WCA
 
 | Token | Valor | Uso |
 |-------|-------|-----|
-| `--color-primary-700` | `#B04A27` | Terracota: acción principal, segunda línea del lema, énfasis |
-| `--color-primary-800` | `#8F3A1D` | Estado «presionado» de la acción principal |
-| `--color-primary-100` | `#F5E1D7` | Fondos de énfasis suave |
-| `--color-ink` / `--color-text` | `#1D1B17` | Tinta: texto, enlaces, botones de contorno y la opción actual del menú |
-| `--color-text-muted` | `#5C554B` | Texto secundario, rótulos en versalitas |
-| `--color-text-subtle` | `#6F675B` | Marcadores de posición, texto deshabilitado |
-| `--color-bg` | `#F4EFE7` | Fondo de la aplicación |
-| `--color-surface` | `#FBF8F3` | Tarjetas, tablas, formularios |
-| `--color-surface-2` | `#EEE7DB` | Encabezado de tablas, píldora de la sede, fondos al pasar el mouse |
-| `--color-border` | `#E3D9C9` | Separadores y bordes de tarjetas (decorativos) |
-| `--color-border-strong` | `#8C8172` | Bordes de campos y controles (3,8:1 sobre los campos, supera el 3:1 exigido a los componentes) |
-| `--color-success-700` / `-100` / `-800` | `#3D6A4C` / `#E1EBE2` / `#2D5139` | Éxito |
-| `--color-warning-700` / `-100` / `-800` | `#946510` / `#F6E9C9` / `#6F4A06` | Atención |
-| `--color-danger-700` / `-100` / `-800` | `#B23F26` / `#F7E0D8` / `#8E3019` | Error y acciones que dan de baja |
-| `--color-info-700` / `-100` / `-800` | `#2C5B7A` / `#DFE8EF` / `#22465E` | Información |
-| `--color-neutral-100` / `-700` | `#ECE5D9` / `#4D463D` | Estados neutros o finales |
-| `--color-accent-100` / `-800` | `#EFE1EA` / `#613552` | Estados en proceso logístico (ciruela) |
+| `--color-primary-700` / `-800` / `-100` | `#43484C` / `#33373A` / `#E8EEF0` | Gris carbón: acción principal y su estado «presionado» |
+| `--color-turquesa` | `#4BA3A8` | Turquesa de las manchas, líneas y detalles |
+| `--color-terracota` | `#3D8F94` | Turquesa oscuro: segunda línea del lema, íconos de las cifras (el nombre del token quedó de la paleta anterior) |
+| `--color-marino` | `#2A7075` | Turquesa profundo: menú lateral, franja de cifras, pie (texto blanco) |
+| `--color-ink` / `--color-text` | `#2D3236` | Texto |
+| `--color-text-muted` | `#5C6368` | Texto secundario, rótulos en versalitas |
+| `--color-text-subtle` | `#6C7378` | Marcadores de posición |
+| `--color-titulo-fino` | `#7A8085` | Primera línea fina del lema (texto grande) |
+| `--color-bg` / `--color-surface` | `#FFFFFF` | Fondo y tarjetas |
+| `--color-surface-2` | `#F3F6F7` | Encabezado de tablas, sección de los más pedidos |
+| `--color-border` | `#E1E7EA` | Separadores y bordes de tarjetas (decorativos) |
+| `--color-border-strong` | `#7A8085` | Bordes de campos y controles |
+| `--color-success-700` / `-100` / `-800` | `#3B7A4F` / `#E3F2E7` / `#2B5C3A` | Éxito |
+| `--color-warning-700` / `-100` / `-800` | `#946510` / `#FAF0D2` / `#6F4A06` | Atención |
+| `--color-danger-700` / `-100` / `-800` | `#B2402C` / `#FBE6E1` / `#8E311F` | Error y acciones que dan de baja |
+| `--color-info-700` / `-100` / `-800` | `#2A7075` / `#E3F2F2` / `#1F5559` | Información |
+| `--color-neutral-100` / `-700` | `#EEF2F3` / `#4E5559` | Estados neutros o finales |
+| `--color-accent-100` / `-800` | `#EEE7F3` / `#5D3F78` | Estados en proceso logístico |
 
-Otros tokens: `--color-marino` (`#1D1A16`, tinta cálida del menú, la franja de los más pedidos y el pie), `--color-brass` (`#D39B34`, mostaza de los nombres de sección), `--color-marcador` y `--color-anillo` (terracota). Lomos (decorativos, no transmiten información), en arcoíris apagado: `--lomo-rojo` `#B5523F`, `--lomo-naranja` `#D08440`, `--lomo-amarillo` `#D3AA45`, `--lomo-verde` `#7E9C5A`, `--lomo-turquesa` `#357B76`, `--lomo-azul` `#4E79A7`, `--lomo-indigo` `#5E5F9E`, `--lomo-violeta` `#8A5A8A` y `--lomo-rosa` `#C47A8B`. Sobre naranja, mostaza, oliva y rosa el texto va en tinta; sobre los demás, en blanco. Los nombres heredados `--color-wood-*` y `--color-cream` apuntan a la paleta.
+Lomos (decorativos, no transmiten información): `--lomo-rojo`, `--lomo-naranja`, `--lomo-amarillo`, `--lomo-verde`, `--lomo-turquesa`, `--lomo-azul`, `--lomo-indigo`, `--lomo-violeta` y `--lomo-rosa`; se usan en las franjas del menú, las fichas y las portadas dibujadas. Las ilustraciones (`Biblioteca`, `SiluetaLibros`) usan su propia paleta armónica con el turquesa (coral, arena, mostaza, salvia, petróleo, rosa viejo y crema). Los nombres heredados `--color-wood-*`, `--color-brass` y `--color-cream` apuntan a la paleta.
 
 Contrastes verificados:
 
 | Combinación | Relación |
 |-------------|----------|
-| Texto principal sobre tarjeta / sobre fondo | 16,2:1 / 15,0:1 |
-| Texto secundario sobre tarjeta / sobre fondo / sobre encabezado de tabla | 6,9:1 / 6,4:1 / 6,0:1 |
-| Texto sutil sobre tarjeta / sobre campo | 5,3:1 / 5,5:1 |
-| Borde de campo sobre campo / sobre tarjeta | 3,8:1 / 3,6:1 |
-| Blanco sobre primario 700 (acción principal) | 5,4:1 |
-| Primario 700 sobre fondo (segunda línea del lema) | 4,8:1 |
-| Peligro 700 sobre tarjeta (botones de baja) | 5,5:1 |
-| Etiqueta de éxito, atención, peligro, información | 7,3:1 / 6,6:1 / 6,4:1 / 8,0:1 |
-| Etiqueta neutra / primaria / de proceso | 7,4:1 / 6,0:1 / 7,8:1 |
-| Blanco y gris claro sobre tinta (franja de los más pedidos) | 17,2:1 / 9,6:1 |
-| Tinta sobre lomos claros (naranja, mostaza, oliva, rosa) | de 4,6:1 a 7,2:1 |
-| Blanco sobre lomos oscuros (ladrillo, verde azulado, azul, índigo, ciruela) | de 4,6:1 a 5,8:1 |
-| Mostaza / crema sobre el menú | 7,0:1 / 13,4:1 |
+| Texto sobre blanco / sobre gris claro | 13,0:1 / 11,9:1 |
+| Texto secundario sobre blanco / sobre gris claro | 6,1:1 / 5,6:1 |
+| Texto sutil sobre blanco | 4,8:1 |
+| Primera línea fina del lema (texto grande) / borde de campo | 4,0:1 / 4,0:1 |
+| Blanco sobre la acción principal | 9,3:1 |
+| Turquesa oscuro sobre blanco (texto grande e íconos) | 3,8:1 |
+| Peligro 700 sobre blanco (botones de baja) | 5,7:1 |
+| Etiqueta de éxito, atención, peligro, información | 6,7:1 / 6,9:1 / 6,7:1 / 7,3:1 |
+| Etiqueta neutra / primaria / de proceso | 6,7:1 / 10,2:1 / 7,1:1 |
+| Blanco / celeste claro sobre el menú y las franjas | 5,7:1 / 4,6:1 |
 
 Todas cumplen AA. Como jest-axe no mide contraste en jsdom, estos valores se calcularon aparte: al cambiar un token hay que volver a verificarlos. Los campos usan `--color-border-strong`; `--color-border` queda solo para separadores y tarjetas, que no son necesarios para identificar un control. En foco el borde pasa a tinta con un halo terracota.
 
@@ -132,7 +131,8 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | `Tabs`, `Card`, `Breadcrumb` | Estructura de pantallas de detalle |
 | `AppLayout`, `AppBar`, `Sidebar` | Estructura de las pantallas autenticadas: barra superior, menú lateral por secciones (fijo desde 1024 px, panel deslizable debajo) y `<main>` |
 | `Icono` | Juego de íconos de trazo fino (SVG en línea, decorativos): acciones, menú y avisos |
-| `Estante` | Lomos de colores planos con los títulos, sobre una tabla; decorativo (inicio público e ingreso) |
+| `Biblioteca` | Ilustración del inicio público: biblioteca de madera clara con lomos, plantas, pilas y libros volando; decorativa |
+| `SiluetaLibros` | Silueta de lomos en dos capas sobre el pie (inicio público e ingreso); decorativa |
 | `Portada` | Tapa del libro: la imagen o, si no hay, una tapa plana dibujada con el autor y el título |
 | `StatCard` | Tarjeta de indicador del inicio: valor, etiqueta y enlace; con estados de carga y error propios |
 | `FilterBar` | Filtros del listado: búsqueda con espera, selectores y botón «Limpiar» |
@@ -192,9 +192,9 @@ Si se cambia un tono o un texto, se cambia en `utils/estados.js` y esta tabla se
 
 ## Estructura de pantallas autenticadas
 
-- **Menú lateral** de 236 px, oscuro (tinta cálida). Cada sección tiene su nombre en mostaza; cada opción, su ícono y el lomo de color de su sección en el borde. La opción actual es una hoja crema con un marcador terracota y `aria-current="page"`. Por debajo de 1024 px es un panel deslizable que atrapa el foco.
-- **AppBar** de 64 px, clara: logotipo (libro abierto con marcador), «PRÉSTAMOS» con «Red de Bibliotecas Públicas» debajo, la sede del bibliotecario (el administrador no tiene una) y el menú de la persona.
-- Contenido principal con márgenes de 32 px en escritorio (16 px en pantallas chicas) y ancho máximo de 1180 px. Cada pantalla abre con un `PageHeader`: título en mayúscula gruesa, bajada en gris y las acciones a la derecha.
+- **Menú lateral** de 236 px, turquesa oscuro con puntitos. Cada sección tiene su nombre en celeste claro; cada opción, su ícono dentro de un cuadradito del color de su sección. La opción actual se pasa a blanco y lleva `aria-current="page"`. Por debajo de 1024 px es un panel deslizable que atrapa el foco.
+- **AppBar** de 64 px, blanca con una línea turquesa abajo: logotipo (libro abierto con marcador), «PRÉSTAMOS» con «Red de Bibliotecas Públicas» debajo, la sede del bibliotecario (el administrador no tiene una) y el menú de la persona.
+- Contenido principal sobre una trama de puntitos suave, con una forma turquesa arriba a la derecha; márgenes de 32 px en escritorio (16 px en pantallas chicas) y ancho máximo de 1180 px. Cada pantalla abre con un `PageHeader`: título en mayúscula gruesa con una rayita turquesa, bajada en gris y las acciones a la derecha.
 - Indicador «abierta ahora»: `Badge` de éxito con el texto «Abierta» o neutro con «Cerrada» (siempre con texto).
 
 ## Voz y contenido

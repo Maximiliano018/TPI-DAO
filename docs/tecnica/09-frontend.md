@@ -116,17 +116,17 @@ Estructura de toda pantalla autenticada (`app/AppLayout.jsx`):
 | **Main** | Región `<main>` con salto de contenido, ancho máximo 1200 px y `PageHeader` |
 | **Salir** | Descarta el token, limpia la caché de TanStack Query y lleva a `/login` |
 
-El menú (`app/navegacion.js`) se divide en secciones (Circulación, Logística, Colección, Red y socios, Gestión), cada una con su nombre en mostaza y un lomo de color; cada opción lleva su ícono (`components/Icono.jsx`, el mismo juego que usan los botones) y la actual es una hoja crema con un marcador. Muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
+El menú (`app/navegacion.js`) se divide en secciones (Circulación, Logística, Colección, Red y socios, Gestión), cada una con su nombre; cada opción lleva su ícono (`components/Icono.jsx`, el mismo juego que usan los botones) dentro de un cuadradito del color de su sección, y la actual se pasa a blanco. Muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
 
 ## Inicio público
 
-Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la marca y el botón «Ingresar»; después, ocupando la primera pantalla, el lema «Pedilo acá. Retiralo allá.», el estante de la red con los lomos de los libros más pedidos (`components/Estante.jsx`) y las cifras (sedes, títulos y ejemplares); al bajar, en una franja oscura, «Los más pedidos»: hasta 12 libros con su puesto, la portada, el título, el autor y cuántas veces se prestaron. Los datos salen de `GET /publico/inicio`, que no pide token.
+Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la marca y el botón «Ingresar»; después, ocupando la primera pantalla, el lema «Pedilo acá. Retiralo allá.» con el botón para ingresar, una biblioteca ilustrada (`components/Biblioteca.jsx`) y las cifras (sedes, títulos y ejemplares) en una franja turquesa; al bajar, «Los más pedidos»: 12 libros (6 y 6 en escritorio) con su puesto, la portada, el título, el autor y cuántas veces se prestaron, y al final una silueta de libros que pasa al pie (`components/SiluetaLibros.jsx`). Los datos salen de `GET /publico/inicio`, que no pide token.
 
 Las portadas (`components/Portada.jsx`) muestran la imagen de `portada_url`; si el libro no tiene o la imagen no carga, dibujan una tapa de tela con el título y el autor, del color de los lomos. El detalle del libro muestra la portada junto a sus datos y, debajo y a todo el ancho, la disponibilidad por sede.
 
 ## Inicio de sesión
 
-- Pantalla en dos mitades: a la izquierda, la red (lema, cifras y el estante); a la derecha, la tarjeta con el formulario. Bajo 960 px queda una sola columna, con el formulario primero.
+- Pantalla en dos mitades centradas: a la izquierda, la red (lema, cifras y tres ventajas); a la derecha, la tarjeta con el formulario y un sello con el logo. Abajo, la misma silueta de libros del inicio. Bajo 960 px queda una sola columna, con el formulario primero.
 - Campos usuario y contraseña (con mostrar u ocultar y el aviso «Bloq Mayús está activado»), botón «Ingresar» que se deshabilita mientras se procesa.
 - Error `CREDENCIALES_INVALIDAS`: aviso general «Usuario o contraseña incorrectos» (no indica cuál). `422`: error por campo. Error de red: «No se pudo conectar. Reintente».
 - Si la sesión vence (`401` en cualquier pantalla), se vuelve al login con el aviso «Su sesión venció. Ingrese de nuevo».

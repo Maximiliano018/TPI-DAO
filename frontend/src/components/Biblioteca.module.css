@@ -1,0 +1,21 @@
+.lienzo {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+/* Los libros que salen volando se balancean despacio (se apaga con prefers-reduced-motion) */
+.flota {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: flotar 5s ease-in-out infinite;
+}
+@keyframes flotar {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(3deg);
+  }
+}

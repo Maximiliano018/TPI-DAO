@@ -31,7 +31,7 @@
   border-top: 1px solid var(--color-border);
 }
 .tabla tbody tr:hover {
-  background: #f6f0e6;
+  background: #f6f9fa;
 }
 .ordenar {
   background: none;

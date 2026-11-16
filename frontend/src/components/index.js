@@ -30,4 +30,5 @@ export { default as Timeline } from './Timeline.jsx';
 export { default as WeekScheduleEditor } from './WeekScheduleEditor.jsx';
 export { default as Portada } from './Portada.jsx';
 export { default as Icono } from './Icono.jsx';
-export { default as Estante } from './Estante.jsx';
+export { default as SiluetaLibros } from './SiluetaLibros.jsx';
+export { default as Biblioteca } from './Biblioteca.jsx';

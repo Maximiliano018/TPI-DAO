@@ -25,7 +25,9 @@ function Seccion({ titulo, franja, items, onCerrar }) {
               className={({ isActive }) => `${estilos.enlace} ${isActive ? estilos.activo : ''}`}
               onClick={onCerrar}
             >
-              <Icono nombre={item.icono} />
+              <span className={estilos.chip}>
+                <Icono nombre={item.icono} />
+              </span>
               {item.texto}
             </NavLink>
           </li>

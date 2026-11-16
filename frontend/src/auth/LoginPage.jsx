@@ -5,21 +5,33 @@ import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { obtenerInicioPublico } from '../api/publico.js';
-import { Alert, Button, Estante, Icono, Input, InputClave, Logo } from '../components/index.js';
+import {
+  Alert,
+  Button,
+  Icono,
+  Input,
+  InputClave,
+  Logo,
+  SiluetaLibros,
+} from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
 import estilos from './LoginPage.module.css';
+
+// Lo que se puede hacer al ingresar.
+const VENTAJAS = [
+  'Consultá el catálogo de todas las sedes.',
+  'Reservá y seguí tus préstamos desde acá.',
+  'Retirá el libro en la sede que elijas.',
+];
 
 const esquema = z.object({
   username: z.string().trim().min(1, 'Ingrese su usuario'),
   password: z.string().min(1, 'Ingrese su contraseña'),
 });
 
-// Lomos del estante mientras no llegan los más pedidos.
-const DE_RELLENO = ['Rayuela', 'Ficciones', 'El túnel', 'Facundo', 'Martín Fierro', 'El Aleph'];
-
-/** Ingreso: a la izquierda la red (lema, cifras y el estante); a la derecha, la tarjeta de ingreso. */
+/** Ingreso: a la izquierda la red (lema y cifras); a la derecha, la tarjeta de ingreso. */
 export default function LoginPage() {
   const { estado, aviso, iniciar, limpiarAviso } = useSesion();
   const navegar = useNavigate();
@@ -64,9 +76,6 @@ export default function LoginPage() {
   // Avisa si el Bloq Mayús está activado mientras se escribe la contraseña.
   const revisarMayusculas = (evento) => setMayusculas(evento.getModifierState?.('CapsLock'));
 
-  const titulos = red.data?.destacados?.length
-    ? red.data.destacados.map((d) => d.titulo)
-    : DE_RELLENO;
   const cantidad = (n) => n.toLocaleString('es-AR');
 
   return (
@@ -94,26 +103,39 @@ export default function LoginPage() {
           {red.data && (
             <dl className={estilos.cifras}>
               <div>
+                <Icono nombre="edificio" />
                 <dt>Sedes</dt>
                 <dd>{red.data.sedes_activas}</dd>
               </div>
               <div>
+                <Icono nombre="biblioteca" />
                 <dt>Títulos</dt>
                 <dd>{cantidad(red.data.libros)}</dd>
               </div>
               <div>
+                <Icono nombre="libro" />
                 <dt>Ejemplares</dt>
                 <dd>{cantidad(red.data.ejemplares)}</dd>
               </div>
             </dl>
           )}
-          <div className={estilos.estante}>
-            <Estante titulos={titulos} />
-          </div>
+          <ul className={estilos.ventajas}>
+            {VENTAJAS.map((texto) => (
+              <li key={texto}>
+                <span className={estilos.tilde}>
+                  <Icono nombre="confirmar" />
+                </span>
+                {texto}
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className={estilos.acceso}>
           <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
+            <span className={estilos.sello} aria-hidden="true">
+              <Logo tamano={30} />
+            </span>
             <h1 className={estilos.titulo}>Ingresar</h1>
             <p className={estilos.subtitulo}>Con su usuario de la red de bibliotecas.</p>
             {aviso && <Alert tono="warning">{aviso}</Alert>}
@@ -148,6 +170,7 @@ export default function LoginPage() {
         </section>
       </main>
 
+      <SiluetaLibros />
       <footer className={estilos.pie}>{MENSAJES.sistemaCompleto} · UTN FRC 2026</footer>
     </div>
   );
