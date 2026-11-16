@@ -120,9 +120,9 @@ El menú (`app/navegacion.js`) se divide en secciones (Circulación, Logística,
 
 ## Inicio público
 
-Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la marca y el botón «Ingresar»; después, ocupando la primera pantalla, el lema «Pedilo acá. Retiralo allá.» con el botón para ingresar, una biblioteca ilustrada (`components/Biblioteca.jsx`) y las cifras (sedes, títulos y ejemplares) en una franja turquesa; al bajar, «Los más pedidos»: 12 libros (6 y 6 en escritorio) con su puesto, la portada, el título, el autor y cuántas veces se prestaron, y al final una silueta de libros que pasa al pie (`components/SiluetaLibros.jsx`). Los datos salen de `GET /publico/inicio`, que no pide token.
+Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la marca y el botón «Ingresar»; después, ocupando la primera pantalla, el lema «Pedilo acá. Retiralo allá.» con el botón para ingresar, una biblioteca ilustrada (`components/Biblioteca.jsx`) y las cifras (sedes, títulos y ejemplares en la red) en una franja turquesa; al bajar, «Los más pedidos»: 12 libros (6 y 6 en escritorio) con su puesto, la portada, el título, el autor y cuántas veces se prestaron (los que completan la lista sin préstamos van sin puesto ni cantidad; si el backend no responde se avisa), y al final una silueta de libros que pasa al pie (`components/SiluetaLibros.jsx`). Los datos salen de `GET /publico/inicio`, que no pide token. La página se carga aparte (`React.lazy` en `RutaProtegida`): quien ya ingresó no la descarga.
 
-Las portadas (`components/Portada.jsx`) muestran la imagen de `portada_url`; si el libro no tiene o la imagen no carga, dibujan una tapa de tela con el título y el autor, del color de los lomos. El detalle del libro muestra la portada junto a sus datos y, debajo y a todo el ancho, la disponibilidad por sede.
+Las portadas (`components/Portada.jsx`) muestran la imagen de `portada_url`; si el libro no tiene o la imagen no carga, dibujan una tapa de tela con el título y el autor, del color de los lomos. Las imágenes externas se piden sin `Referer` (`referrerPolicy="no-referrer"`). El detalle del libro muestra la portada junto a sus datos y, debajo y a todo el ancho, la disponibilidad por sede.
 
 ## Inicio de sesión
 

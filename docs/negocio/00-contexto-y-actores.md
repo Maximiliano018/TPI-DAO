@@ -15,6 +15,7 @@ El enunciado distingue dos tipos de usuarios; el personal se divide en dos roles
 | **Administrador** (personal de administración) | Gestiona la red: sedes, catálogo global, parámetros, usuarios del personal y reportes globales | Definido |
 | **Bibliotecario** (personal operativo) | Opera en una sede: socios, préstamos, devoluciones, empaque y recepción de envíos | Definido |
 | **Socio** | Consulta disponibilidad, pide préstamos para sí, reserva, ve sus préstamos y multas, paga sus multas en línea (simulado) y, si está dado de baja, pide su reactivación | Definido |
+| **Visitante** (sin sesión) | Ve el inicio público: las cifras de la red y los libros más pedidos. No es un rol ni tiene cuenta; para operar, ingresa como alguno de los anteriores | Definido |
 
 El bibliotecario siempre está asociado a **una sede activa**. El administrador no pertenece a ninguna y ve toda la red. El socio **no está vinculado a ninguna sede**: opera en toda la red.
 
@@ -42,6 +43,7 @@ La sesión dura 60 minutos (configurable por entorno). Si el usuario se da de ba
 | Multas | V, cobra en el mostrador | V, cobra en el mostrador | V (propias), paga en línea las propias (simulado) |
 | Reportes | todos | los operativos de su sede (R1, R4, R6) y R5 | R5 (disponibilidad) |
 | Parámetros y tareas automáticas | A (modifica parámetros y ejecuta las tareas a mano) | - | - |
+| Inicio público (cifras de la red y libros más pedidos) | V | V | V (también el visitante, sin sesión) |
 
 El **administrador tiene los permisos completos**: administra la red y además opera en el mostrador de cualquier sede, indicando la sede en las operaciones nuevas (la de retiro de un préstamo, la de origen de un remito). Solo quedan fuera las acciones de autogestión del socio (pedir un préstamo para sí, pagar en línea), porque exigen una ficha de socio. Esta matriz se detalla en cada documento por proceso.
 

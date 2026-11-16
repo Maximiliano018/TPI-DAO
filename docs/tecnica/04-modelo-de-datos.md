@@ -209,7 +209,7 @@ Los socios que ya existían antes de la migración `0010` empiezan su historial 
 |-------|----------------|---------------|
 | categoria | nombre | UNIQUE; catálogo cerrado que carga la migración `0005` |
 | autor | nombre, nombre_normalizado | `nombre_normalizado` UNIQUE: el mismo autor escrito con o sin tildes es uno solo |
-| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural, portada_url, version | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO`. `portada_url` (VARCHAR 300, opcional): enlace a la imagen de la tapa. `version` (INT, por defecto 1): concurrencia optimista al modificar |
+| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural, portada_url, version | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO`. `portada_url` (VARCHAR 300, opcional): enlace a la imagen de la tapa; `ck_libro_portada_url_valida` solo admite `http(s)://…` o `/portadas/…` sin espacios, como el dominio. `version` (INT, por defecto 1): concurrencia optimista al modificar |
 | libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id); se borra con el libro |
 
 Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que son historial).
@@ -429,7 +429,7 @@ Orden de aplicación (`alembic upgrade head`). Las que transforman datos existen
 | `0016_pagos_de_multas` | Tabla `pago` con sus restricciones e índices únicos parciales; las multas ya saldadas reciben su pago aprobado con medio `NO_REGISTRADO` |
 | `0017_multas_por_danio_y_extravio` | `multa.tipo` (las existentes, `ATRASO`), `dias_atraso` y `monto_por_dia` opcionales con `ck_multa_atraso_segun_tipo`, `uq_multa_prestamo_id` pasa a `uq_multa_prestamo_id_tipo`, y los parámetros `multa_por_danio` y `multa_por_extravio` (0). El downgrade borra las multas por daño o extravío y sus pagos |
 | `0018_auditoria_de_parametros` | `historial_parametro` con su disparador de solo inserción; los parámetros existentes no reciben historial (sus valores vienen de las migraciones) |
-| `0019_portada_del_libro` | `libro.portada_url`, opcional: los libros existentes quedan sin portada |
+| `0019_portada_del_libro` | `libro.portada_url`, opcional, con `ck_libro_portada_url_valida`: los libros existentes quedan sin portada |
 
 ### Seed de demostración
 

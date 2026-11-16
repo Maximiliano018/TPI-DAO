@@ -21,6 +21,7 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | RF-CAT-13 | El sistema debe permitir a la sede propietaria recuperar un ejemplar dado de baja por un extravío sin resolver (faltante o extravío de un remito, o extravío informado por el socio en una devolución) que apareció: vuelve a `Disponible` en su sede (o a `En revisión` si llegó dañado) y la incidencia queda resuelta. Una baja por destrucción o daño irreparable es definitiva. Deriva de la revisión de recepción, proceso opcional del enunciado. | Opcional |
 | RF-CAT-14 | El administrador debe poder eliminar un libro cargado por error si no tiene ningún ejemplar (aun dados de baja). Junto con las excepciones de horario de hoy o futuras, es la única eliminación física del sistema. | Obligatorio |
 | RF-CAT-15 | El sistema debe permitir a la sede propietaria (o al administrador) marcar como reparado un ejemplar `En revisión`: vuelve a `Disponible` con estado físico `Regular`, queda en su historial y se ofrece a la cola de reservas. | Obligatorio |
+| RF-CAT-16 | El administrador debe poder cargar, cambiar o quitar la portada de un libro: un enlace `http` o `https` a la imagen, o una de las portadas que sirve el sistema (`/portadas/...`), de hasta 300 caracteres. Cualquier otro valor se rechaza, también en la base. Sin portada, o si la imagen no carga, la interfaz dibuja una tapa con el título y el autor. | Opcional |
 
 ## Casos de uso
 
@@ -144,3 +145,5 @@ Origen: [negocio/03-catalogo.md](../negocio/03-catalogo.md). Proceso obligatorio
 | CA-CAT-20 | RF-CAT-13 | **Dado** un ejemplar dado de baja por faltante en un remito, **cuando** la sede propietaria lo recupera, **entonces** queda `Disponible` en su sede, sin datos de baja, con el movimiento «Recuperado» y la incidencia resuelta; otra sede no puede hacerlo. |
 | CA-CAT-21 | RF-CAT-13 | **Dado** un ejemplar dado de baja por destrucción, **cuando** se intenta recuperar, **entonces** se rechaza. |
 | CA-CAT-22 | RF-CAT-13 | **Dado** un ejemplar que el socio informó `Extraviado` en una devolución, **cuando** aparece y la sede propietaria lo recupera, **entonces** vuelve a `Disponible` y la incidencia queda resuelta. |
+| CA-CAT-23 | RF-CAT-16 | **Dado** un libro, **cuando** el administrador le carga una portada `/portadas/...` o `https://...`, **entonces** se guarda y se ve en el detalle y en el inicio público; con `javascript:`, `ftp://`, un nombre suelto o un enlace con espacios, se rechaza indicando el campo. |
+| CA-CAT-24 | RF-CAT-16 | **Dado** un libro, **cuando** se intenta guardar en la base una portada que no es un enlace web ni una ruta `/portadas/...`, **entonces** la base la rechaza. |

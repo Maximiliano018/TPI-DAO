@@ -200,6 +200,7 @@ Si se cambia un tono o un texto, se cambia en `utils/estados.js` y esta tabla se
 ## Voz y contenido
 
 - Español neutro rioplatense, directo y sin tecnicismos: «El socio está inhabilitado por un préstamo vencido», no «Error 409».
+- Se trata de **usted** en toda la interfaz, también en el inicio público y el login: «Ingrese de nuevo», «Pídalo acá. Retírelo allá.», no «Ingresá» ni «Pedilo».
 - Los mensajes de error dicen **qué pasó y qué hacer**.
 - Botones con verbos concretos: «Registrar préstamo», «Despachar remito», no «Aceptar».
 - Fechas `dd/mm/aaaa`, hora `HH:mm`, montos con el símbolo `$` y separadores locales.

@@ -257,7 +257,7 @@ Permisos: `REPORTE_SEDE` (administrador y bibliotecario) para R1, R4 y R6; `REPO
 | Método y ruta | Roles | Descripción |
 |---------------|-------|-------------|
 | `GET /api/version` | público (sin token, sin `/v1`) | Estado y versión del backend: `{ "servicio": "backend", "estado": "ok", "version": "..." }` |
-| `GET /publico/inicio?limite=12` | público (sin token) | Datos de la página de inicio, antes de ingresar: `{ "sedes_activas", "libros", "ejemplares", "destacados": [{ "libro_id", "titulo", "autores", "portada_url", "pedidos" }] }`. `destacados` son los libros más prestados de los últimos 120 días (sin contar los préstamos cancelados), completados con los más nuevos del catálogo si no alcanzan; `limite` va de 1 a 24. Solo informa sobre la colección, nunca sobre socios ni préstamos |
+| `GET /publico/inicio?limite=12` | público (sin token) | Datos de la página de inicio, antes de ingresar (RF-ACC-14): `{ "sedes_activas", "libros", "ejemplares", "destacados": [{ "libro_id", "titulo", "autores", "portada_url", "pedidos" }] }`. `ejemplares` cuenta los que no están dados de baja y se alojan en una sede activa. `destacados` son los libros más prestados de los últimos 120 días (sin contar los préstamos cancelados), completados con los más nuevos del catálogo si no alcanzan; `limite` va de 1 a 24. Solo informa sobre la colección, nunca sobre socios ni préstamos |
 
 ---
 
@@ -597,7 +597,7 @@ Request de libro:
 }
 ```
 
-`portada_url` es opcional (hasta 300 caracteres): el enlace `http` o `https` a la imagen de la tapa, o una ruta `/portadas/...` servida por el frontend. Sin portada, la interfaz dibuja una tapa con el título y el autor.
+`portada_url` es opcional (hasta 300 caracteres, RF-CAT-16): el enlace `http` o `https` a la imagen de la tapa, o una ruta `/portadas/...` servida por el frontend; otro valor da `422 VALIDACION` con el campo, y la base lo respalda con `ck_libro_portada_url_valida`. Sin portada, la interfaz dibuja una tapa con el título y el autor.
 
 Response `201`: el libro con `id`, `isbn` (sin guiones), `categoria` `{id, nombre}`, `ejemplares` y `disponibles`. Errores: `409 LIBRO_DUPLICADO` (mismo ISBN o, sin ISBN, mismo título, autor, editorial y año; `detalles[0].libro_id` indica el existente), `422 VALIDACION` (ISBN con verificador inválido, sin título o sin autores), `422 CATEGORIA_INVALIDA`.
 

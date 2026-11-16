@@ -6,16 +6,16 @@ Requerimientos funcionales (RF), casos de uso (CU) con flujo normal y flujos alt
 
 | # | Documento | Prefijo | Negocio de origen | RF | CU | CA |
 |---|-----------|---------|-------------------|---:|---:|---:|
-| 00 | [Acceso y roles](00-acceso-y-roles.md) | ACC | [Contexto y actores](../negocio/00-contexto-y-actores.md) | 12 | 4 | 17 |
+| 00 | [Acceso y roles](00-acceso-y-roles.md) | ACC | [Contexto y actores](../negocio/00-contexto-y-actores.md) | 14 | 4 | 21 |
 | 01 | [Sedes](01-sedes.md) | SED | [Sedes](../negocio/01-sedes.md) | 13 | 7 | 47 |
 | 02 | [Socios](02-socios.md) | SOC | [Socios](../negocio/02-socios.md) | 15 | 8 | 20 |
-| 03 | [Catálogo](03-catalogo.md) | CAT | [Catálogo](../negocio/03-catalogo.md) | 15 | 9 | 21 |
+| 03 | [Catálogo](03-catalogo.md) | CAT | [Catálogo](../negocio/03-catalogo.md) | 16 | 9 | 24 |
 | 04 | [Préstamos](04-prestamos.md) | PRE | [Préstamos](../negocio/04-prestamos.md) | 22 | 8 | 30 |
 | 05 | [Remitos](05-remitos.md) | REM | [Remitos](../negocio/05-remitos.md) | 16 | 7 | 26 |
 | 06 | [Reservas](06-reservas.md) | RES | [Reservas](../negocio/06-reservas.md) | 17 | 7 | 22 |
 | 07 | [Devoluciones y multas](07-devoluciones.md) | DEV | [Devoluciones](../negocio/07-devoluciones.md) | 24 | 6 | 33 |
 | 08 | [Reportes](08-reportes.md) | REP | [Reportes](../negocio/08-reportes.md) | 10 | 2 | 23 |
-| | **Total** | | | **144** | **58** | **239** |
+| | **Total** | | | **147** | **58** | **246** |
 
 ## Convenciones
 
