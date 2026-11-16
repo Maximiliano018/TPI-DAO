@@ -13,11 +13,12 @@
 }
 @media (min-width: 640px) {
   .principal {
-    padding: var(--space-6);
+    padding: var(--space-8) var(--space-6);
   }
 }
 @media (min-width: 1024px) {
   .principal {
     margin-left: var(--sidebar-width);
+    padding: var(--space-12) var(--space-12) var(--space-8);
   }
 }

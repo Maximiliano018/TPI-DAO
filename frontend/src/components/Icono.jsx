@@ -69,6 +69,49 @@ const TRAZOS = {
       <path d="M19 8v6M16 11h6" />
     </>
   ),
+  ubicacion: (
+    <>
+      <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </>
+  ),
+  abajo: <path d="M6 9l6 6 6-6" />,
+  flecha: (
+    <>
+      <path d="M5 12h14" />
+      <path d="M13 6l6 6-6 6" />
+    </>
+  ),
+  volver: (
+    <>
+      <path d="M19 12H5" />
+      <path d="M11 6l-6 6 6 6" />
+    </>
+  ),
+  alerta: (
+    <>
+      <path d="M12 3l10 18H2z" />
+      <path d="M12 10v5M12 18v.01" />
+    </>
+  ),
+  info: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7.5v.01" />
+    </>
+  ),
+  ok: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 12.5l2.7 2.7L16 10" />
+    </>
+  ),
+  error: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9 9l6 6M15 9l-6 6" />
+    </>
+  ),
   // Menú lateral
   inicio: (
     <>

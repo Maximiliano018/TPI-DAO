@@ -9,7 +9,7 @@ describe('App', () => {
     renderizarApp('/');
 
     expect(
-      await screen.findByRole('heading', { level: 1, name: /todos los libros de la red/i }),
+      await screen.findByRole('heading', { level: 1, name: /pedilo acá/i }),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ingresar' })).toHaveAttribute('href', '/login');
   });

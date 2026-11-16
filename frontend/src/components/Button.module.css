@@ -1,96 +1,86 @@
+/* Botones en píldora: terracota para la acción principal, contorno de tinta para las demás */
 .boton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
   min-height: var(--control-height);
-  padding: 0 var(--space-4);
-  border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  padding: 0 var(--space-6);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-pill);
   font: inherit;
   font-weight: 600;
+  white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
   transition:
     background var(--transition),
     border-color var(--transition),
-    box-shadow var(--transition);
+    color var(--transition),
+    transform var(--transition);
+}
+.boton:active:not(:disabled) {
+  transform: translateY(1px);
 }
 .boton:disabled {
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 .sm {
-  min-height: 32px;
-  padding: 0 var(--space-3);
+  min-height: 34px;
+  padding: 0 var(--space-4);
   font-size: var(--text-sm);
 }
-/* Solo el ícono: ficha cuadrada de esquinas suaves (los colores van al final del archivo) */
+/* Solo el ícono: un círculo (los colores van al final del archivo) */
 .soloIcono,
 .soloIcono.sm {
-  width: 34px;
-  min-height: 34px;
-  height: 34px;
+  width: 36px;
+  min-height: 36px;
+  height: 36px;
   padding: 0;
 }
 .soloIcono svg {
   width: 18px;
   height: 18px;
 }
-/* Cuero verde con un filete de latón, como la cubierta de un libro */
-.primary {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(0, 0, 0, 0.12)),
-    var(--color-primary-700);
-  color: #fff;
-  border-color: var(--color-primary-800);
-  box-shadow:
-    inset 0 0 0 1px rgba(214, 173, 69, 0.55),
-    0 1px 2px rgba(59, 35, 20, 0.35);
-}
+.primary,
 .primary:visited {
+  background: var(--color-primary-700);
   color: #fff;
+  border-color: var(--color-primary-700);
 }
 .primary:hover:not(:disabled) {
   background: var(--color-primary-800);
-  box-shadow:
-    inset 0 0 0 1px var(--color-brass),
-    0 1px 2px rgba(59, 35, 20, 0.35);
+  border-color: var(--color-primary-800);
 }
-.secondary {
-  background: var(--color-surface);
-  color: var(--color-text);
-  border-color: var(--color-border-strong);
-}
+.secondary,
 .secondary:visited {
-  color: var(--color-text);
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-ink);
 }
 .secondary:hover:not(:disabled) {
-  background: var(--color-neutral-100);
-  border-color: var(--color-text-muted);
+  background: var(--color-surface-2);
 }
-.danger {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.12)), var(--color-danger-700);
-  color: #fff;
-  border-color: var(--color-danger-800);
-  box-shadow: 0 1px 2px rgba(59, 35, 20, 0.35);
-}
+/* Acciones que dan de baja o bloquean: contorno terracota oscuro */
+.danger,
 .danger:visited {
-  color: #fff;
+  background: transparent;
+  color: var(--color-danger-700);
+  border-color: color-mix(in srgb, var(--color-danger-700) 65%, transparent);
 }
 .danger:hover:not(:disabled) {
-  background: var(--color-danger-800);
+  background: var(--color-danger-100);
+  border-color: var(--color-danger-700);
 }
-.link {
+.link,
+.link:visited {
   background: transparent;
-  color: var(--color-primary-700);
+  color: var(--color-ink);
   padding: 0 var(--space-2);
   text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.link:visited {
-  color: var(--color-primary-700);
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 4px;
 }
 .spinner {
   width: 14px;
@@ -105,28 +95,26 @@
     transform: rotate(360deg);
   }
 }
-/* Solo ícono: papel claro con el ícono del color de la acción; se tiñe al pasar el mouse */
+/* Solo ícono: círculo claro con contorno suave; se oscurece al pasar el mouse */
 .soloIcono.secondary,
 .soloIcono.secondary:visited {
   background: var(--color-surface);
-  color: var(--color-primary-800);
-  border-color: var(--color-border-strong);
-  box-shadow: 0 1px 2px rgba(59, 35, 20, 0.15);
+  color: var(--color-ink);
+  border: 1px solid var(--color-border-strong);
 }
 .soloIcono.secondary:hover:not(:disabled) {
-  background: var(--color-primary-100);
-  border-color: var(--color-primary-700);
-  color: var(--color-primary-800);
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  color: #fff;
 }
 .soloIcono.danger,
 .soloIcono.danger:visited {
-  background: var(--color-danger-100);
-  color: var(--color-danger-800);
-  border-color: color-mix(in srgb, var(--color-danger-800) 35%, transparent);
-  box-shadow: 0 1px 2px rgba(59, 35, 20, 0.15);
+  background: var(--color-surface);
+  color: var(--color-danger-700);
+  border: 1px solid color-mix(in srgb, var(--color-danger-700) 45%, transparent);
 }
 .soloIcono.danger:hover:not(:disabled) {
   background: var(--color-danger-700);
-  border-color: var(--color-danger-800);
+  border-color: var(--color-danger-700);
   color: #fff;
 }

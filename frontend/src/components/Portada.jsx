@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import estilos from './Portada.module.css';
 
-const LOMOS = ['burdeos', 'bosque', 'marino', 'ocre', 'ciruela', 'petroleo'];
+const LOMOS = ['burdeos', 'bosque', 'marino', 'ocre', 'ciruela', 'petroleo', 'rosa', 'negro'];
+// Tapas claras: el texto va en tinta para que se lea.
+const CLARAS = new Set(['ocre', 'petroleo', 'rosa']);
 
 /** Color de tapa estable para cada título (el mismo libro siempre del mismo color). */
 function colorDe(titulo) {
@@ -36,11 +38,17 @@ export default function Portada({
       />
     );
   }
-  const autor = autores[0]?.split(' ').at(-1) ?? '';
+  // Un autor, con nombre completo; varios, solo los apellidos («HUNT · THOMAS»).
+  const autor =
+    autores.length > 1 ? autores.map((a) => a.split(' ').at(-1)).join(' · ') : (autores[0] ?? '');
+  const color = colorDe(titulo);
   return (
     <div
       className={`${clase} ${estilos.tela}`}
-      style={{ '--tapa': `var(--lomo-${colorDe(titulo)})` }}
+      style={{
+        '--tapa': `var(--lomo-${color})`,
+        '--tinta': CLARAS.has(color) ? 'var(--color-ink)' : '#fff',
+      }}
       role={decorativa ? undefined : 'img'}
       aria-label={decorativa ? undefined : `Portada de ${titulo}`}
       aria-hidden={decorativa || undefined}
