@@ -137,6 +137,17 @@ def test_un_libro_debe_tener_isbn_o_clave_natural(sesion: Session, actor):
         )
 
 
+@pytest.mark.ca("CA-CAT-24")
+@pytest.mark.parametrize("enlace", ["javascript:alert(1)", "tapa.jpg", "https://a b.jpg"])
+def test_la_base_solo_acepta_portadas_web_o_del_frontend(sesion: Session, actor, enlace: str):
+    libro = _libro(sesion, actor)
+    actualizar = text("UPDATE libro SET portada_url = :url WHERE id = :id")
+    sesion.execute(actualizar, {"url": "/portadas/rayuela.jpg", "id": libro.id})
+
+    with pytest.raises(IntegrityError, match="ck_libro_portada_url_valida"):
+        sesion.execute(actualizar, {"url": enlace, "id": libro.id})
+
+
 # --- ejemplares ------------------------------------------------------------------------------
 
 

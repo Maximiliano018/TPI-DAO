@@ -29,7 +29,7 @@ export function Marca() {
  */
 export default function InicioPublicoPage() {
   useTituloDePagina('Bienvenida');
-  const { data, isPending } = useQuery({
+  const { data, isPending, isError } = useQuery({
     queryKey: ['publico', 'inicio'],
     queryFn: () => obtenerInicioPublico(12),
     staleTime: 60_000,
@@ -51,11 +51,11 @@ export default function InicioPublicoPage() {
           <section className={estilos.portada} aria-labelledby="titulo-portada">
             <div className={estilos.texto}>
               <h1 id="titulo-portada" className={estilos.titulo}>
-                <span>Pedilo acá.</span> <span className={estilos.acento}>Retiralo allá.</span>
+                <span>Pídalo acá.</span> <span className={estilos.acento}>Retírelo allá.</span>
               </h1>
               <p className={estilos.bajada}>
-                Pedí cualquiera de los {data ? `${cantidad(data.libros)} títulos` : 'títulos'} de la
-                red en la sede que quieras y retiralo en la que te quede más cerca.
+                Pida cualquiera de los {data ? `${cantidad(data.libros)} títulos` : 'títulos'} de la
+                red y retírelo en la sede que le quede más cerca.
               </p>
               <div className={estilos.botones}>
                 <Link to="/login" className={estilos.boton}>
@@ -82,7 +82,7 @@ export default function InicioPublicoPage() {
                 </div>
                 <div>
                   <Icono nombre="libro" />
-                  <dt>Ejemplares para prestar</dt>
+                  <dt>Ejemplares en la red</dt>
                   <dd>{cantidad(data.ejemplares)}</dd>
                 </div>
               </dl>
@@ -103,16 +103,24 @@ export default function InicioPublicoPage() {
               Lo que más se prestó en las sedes durante los últimos meses.
             </p>
             {isPending && <Skeleton alto={260} />}
-            {!isPending && destacados.length === 0 && (
-              <p className={estilos.explicacion}>Pronto vas a ver acá los libros más pedidos.</p>
+            {isError && (
+              <p className={estilos.explicacion}>
+                No se pudieron cargar los libros más pedidos. Reintente más tarde.
+              </p>
+            )}
+            {!isPending && !isError && destacados.length === 0 && (
+              <p className={estilos.explicacion}>Todavía no hay préstamos para mostrar.</p>
             )}
             <ol className={estilos.grilla}>
               {destacados.map((libro, i) => (
                 <li key={libro.libro_id} className={estilos.libro}>
-                  <span className={estilos.puesto}>
-                    <span className="sr-only">Puesto </span>
-                    {i + 1}
-                  </span>
+                  {/* Los que completan la lista sin préstamos no llevan puesto. */}
+                  {libro.pedidos > 0 && (
+                    <span className={estilos.puesto}>
+                      <span className="sr-only">Puesto </span>
+                      {i + 1}
+                    </span>
+                  )}
                   <Portada
                     titulo={libro.titulo}
                     autores={libro.autores}
@@ -141,8 +149,7 @@ export default function InicioPublicoPage() {
           <span className={estilos.pieLinea} aria-hidden="true" />
         </p>
         <p className={estilos.pieTexto}>
-          Pedí cualquier libro de la red en la sede que quieras y retiralo en la que te quede más
-          cerca.
+          Pida cualquier libro de la red y retírelo en la sede que le quede más cerca.
         </p>
         <p className={estilos.pieCreditos}>{MENSAJES.sistemaCompleto} · UTN FRC 2026</p>
       </footer>

@@ -35,16 +35,18 @@ export default function Portada({
   tamano = 'mediana',
   decorativa = false,
 }) {
-  const [fallo, setFallo] = useState(false);
+  // Guarda el enlace que no cargó: si cambia el enlace, se vuelve a intentar con el nuevo.
+  const [fallida, setFallida] = useState(null);
   const clase = `${estilos.portada} ${estilos[tamano]}`;
-  if (portadaUrl && !fallo) {
+  if (portadaUrl && portadaUrl !== fallida) {
     return (
       <img
         className={clase}
         src={portadaUrl}
         alt={decorativa ? '' : `Portada de ${titulo}`}
         loading="lazy"
-        onError={() => setFallo(true)}
+        referrerPolicy="no-referrer"
+        onError={() => setFallida(portadaUrl)}
       />
     );
   }

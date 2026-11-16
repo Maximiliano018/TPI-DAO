@@ -21,9 +21,9 @@ import estilos from './LoginPage.module.css';
 
 // Lo que se puede hacer al ingresar.
 const VENTAJAS = [
-  'Consultá el catálogo de todas las sedes.',
-  'Reservá y seguí tus préstamos desde acá.',
-  'Retirá el libro en la sede que elijas.',
+  'Consulte el catálogo de todas las sedes.',
+  'Reserve y siga sus préstamos desde acá.',
+  'Retire el libro en la sede que elija.',
 ];
 
 const esquema = z.object({
@@ -95,10 +95,10 @@ export default function LoginPage() {
         <section className={estilos.presentacion} aria-label="La red de bibliotecas">
           <p className={estilos.volanta}>Red de bibliotecas públicas · Córdoba</p>
           <p className={estilos.lema}>
-            <span>Pedilo acá.</span> <span className={estilos.acento}>Retiralo allá.</span>
+            <span>Pídalo acá.</span> <span className={estilos.acento}>Retírelo allá.</span>
           </p>
           <p className={estilos.bajada}>
-            Pedí un libro en cualquier sede y retiralo en la que te quede más cerca.
+            Pida un libro en cualquier sede y retírelo en la que le quede más cerca.
           </p>
           {red.data && (
             <dl className={estilos.cifras}>

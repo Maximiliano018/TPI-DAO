@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
-import { responder } from '../../../../tests/handlers.js';
+import { error, responder } from '../../../../tests/handlers.js';
 import { renderizarApp } from '../../../../tests/render.jsx';
 
 const INICIO = {
@@ -45,6 +45,18 @@ describe('InicioPublicoPage', () => {
     expect(within(libros[1]).getByRole('img', { name: 'Portada de El Aleph' })).toBeInTheDocument();
     expect(within(libros[1]).getByText('1 préstamo')).toBeInTheDocument();
     expect(screen.getByText('1.350')).toBeInTheDocument();
+    expect(screen.getByText('Ejemplares en la red')).toBeInTheDocument();
+  });
+
+  it('los libros que completan la lista sin préstamos no llevan puesto', async () => {
+    const nuevo = { ...INICIO.destacados[1], libro_id: 3, titulo: 'Kentukis', pedidos: 0 };
+    responder('get', '/publico/inicio', { ...INICIO, destacados: [INICIO.destacados[0], nuevo] });
+    renderizarApp('/');
+
+    const libros = await within(await screen.findByRole('list')).findAllByRole('listitem');
+    expect(within(libros[0]).getByText('Puesto')).toBeInTheDocument();
+    expect(within(libros[1]).queryByText('Puesto')).not.toBeInTheDocument();
+    expect(within(libros[1]).queryByText(/préstamo/)).not.toBeInTheDocument();
   });
 
   it('ofrece ingresar al sistema arriba a la derecha y desde la portada', async () => {
@@ -61,9 +73,17 @@ describe('InicioPublicoPage', () => {
   it('sin libros pedidos todavía lo dice', async () => {
     renderizarApp('/');
 
+    expect(await screen.findByText('Todavía no hay préstamos para mostrar.')).toBeInTheDocument();
+  });
+
+  it('si el backend no responde lo avisa, en lugar de decir que no hay pedidos', async () => {
+    responder('get', '/publico/inicio', () => error(500, 'ERROR_INTERNO', 'Falla'));
+    renderizarApp('/');
+
     expect(
-      await screen.findByText('Pronto vas a ver acá los libros más pedidos.'),
+      await screen.findByText(/No se pudieron cargar los libros más pedidos/),
     ).toBeInTheDocument();
+    expect(screen.queryByText('Todavía no hay préstamos para mostrar.')).not.toBeInTheDocument();
   });
 
   it('no tiene violaciones de accesibilidad', async () => {

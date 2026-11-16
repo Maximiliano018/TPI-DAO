@@ -72,6 +72,7 @@ def test_datos_faltantes_o_fuera_de_rango_se_rechazan(over, campo):
     assert error.value.detalles[0]["campo"] == campo
 
 
+@pytest.mark.ca("CA-CAT-23")
 @pytest.mark.parametrize(
     ("enlace", "esperado"),
     [
@@ -88,6 +89,7 @@ def test_la_portada_es_opcional_y_se_guarda_sin_espacios(enlace, esperado):
     assert datos(portada_url=enlace).portada_url == esperado
 
 
+@pytest.mark.ca("CA-CAT-23")
 @pytest.mark.parametrize(
     "enlace",
     [

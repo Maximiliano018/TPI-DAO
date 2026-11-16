@@ -68,6 +68,10 @@ class LibroORM(ConAuditoriaDeTiempo, Base):
             name="tipo_material_valido",
         ),
         CheckConstraint("(isbn IS NULL) = (clave_natural IS NOT NULL)", name="isbn_o_clave"),
+        CheckConstraint(
+            "portada_url IS NULL OR portada_url ~ '^(https?://|/portadas/)[^[:space:]]+$'",
+            name="portada_url_valida",
+        ),
         Index("ix_libro_titulo_normalizado", "titulo_normalizado"),
     )
 

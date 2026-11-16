@@ -1,7 +1,10 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Alert, PageHeader, Spinner } from '../components/index.js';
-import InicioPublicoPage from '../features/publico/pages/InicioPublicoPage.jsx';
 import { useSesion } from './SesionContext.jsx';
+
+// Se carga aparte: quien ya ingresó no descarga la página pública.
+const InicioPublicoPage = lazy(() => import('../features/publico/pages/InicioPublicoPage.jsx'));
 
 /**
  * Exige sesión y, opcionalmente, un rol o un permiso. La autorización real está en el backend:
@@ -17,7 +20,11 @@ export default function RutaProtegida({ roles, permiso, children }) {
   // Sin sesión, la raíz muestra el inicio público; el resto de las pantallas pide ingresar. Si la
   // sesión se acaba de cerrar con un aviso (venció, sin conexión), se va al login para mostrarlo.
   if (estado !== 'autenticado' && ubicacion.pathname === '/' && !aviso) {
-    return <InicioPublicoPage />;
+    return (
+      <Suspense fallback={<Spinner />}>
+        <InicioPublicoPage />
+      </Suspense>
+    );
   }
   if (estado !== 'autenticado') {
     return (

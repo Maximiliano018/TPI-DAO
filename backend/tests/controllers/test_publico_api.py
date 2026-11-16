@@ -1,10 +1,17 @@
 """Página de inicio pública: datos de la colección sin iniciar sesión."""
 
+from datetime import timedelta
+
+import pytest
+from sqlalchemy import text
+
 from tests.controllers.test_prestamo_api import _prestar, mundo  # noqa: F401
+from tests.fakes.reloj import RELOJ_DE_PRUEBAS
 
 API = "/api/v1/publico/inicio"
 
 
+@pytest.mark.ca("CA-ACC-20")
 def test_sin_sesion_muestra_la_red_y_los_libros_mas_pedidos(cliente, mundo):  # noqa: F811
     libro_0, libro_1 = mundo["libros"][0], mundo["libros"][1]
     # «Libro 0» se pide dos veces (en las dos sedes); «Libro 1», una.
@@ -28,6 +35,25 @@ def test_sin_sesion_muestra_la_red_y_los_libros_mas_pedidos(cliente, mundo):  # 
     assert "socio" not in r.text
 
 
+@pytest.mark.ca("CA-ACC-21")
+def test_los_mas_pedidos_no_cuentan_cancelados_ni_prestamos_viejos(cliente, sesion, mundo):  # noqa: F811
+    # «Libro 0»: un préstamo cancelado y otro de hace 121 días; «Libro 1»: uno vigente.
+    libro_1 = mundo["libros"][1]
+    cancelado = _prestar(cliente, mundo["h_a"], mundo["lucia"], mundo["ej_a"][0]).json()
+    cliente.post(f"/api/v1/prestamos/{cancelado['id']}/cancelar", json={}, headers=mundo["h_a"])
+    viejo = _prestar(cliente, mundo["h_b"], mundo["juan"], mundo["ej_b"][0]).json()
+    sesion.execute(
+        text("UPDATE prestamo SET fecha_solicitud = :fecha WHERE id = :id"),
+        {"fecha": RELOJ_DE_PRUEBAS.ahora() - timedelta(days=121), "id": viejo["id"]},
+    )
+    assert _prestar(cliente, mundo["h_a"], mundo["juan"], mundo["ej_a"][1]).status_code == 201
+
+    destacados = cliente.get(API, params={"limite": 1}).json()["destacados"]
+
+    assert [(d["libro_id"], d["pedidos"]) for d in destacados] == [(libro_1["id"], 1)]
+
+
+@pytest.mark.ca("CA-CAT-23")
 def test_la_portada_del_libro_se_guarda_y_se_valida(cliente, mundo):  # noqa: F811
     libro = mundo["libros"][2]
     url = "/portadas/libro-2.jpg"
