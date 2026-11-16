@@ -116,7 +116,7 @@ Estructura de toda pantalla autenticada (`app/AppLayout.jsx`):
 | **Main** | Región `<main>` con salto de contenido, ancho máximo 1200 px y `PageHeader` |
 | **Salir** | Descarta el token, limpia la caché de TanStack Query y lleva a `/login` |
 
-El menú (`app/navegacion.js`) muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
+El menú (`app/navegacion.js`) se divide en secciones (Circulación, Logística, Colección, Red y socios, Gestión), cada una con su nombre en latón y una franja de color; cada opción lleva su ícono (`components/Icono.jsx`, el mismo juego que usan los botones) y la actual se resalta en crema con un marcador de cinta. Muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
 
 ## Inicio público
 
