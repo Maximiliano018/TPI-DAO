@@ -2,35 +2,34 @@
 
 Design system propio y liviano para el frontend. Es **reemplazable**: todo el aspecto sale de variables CSS (tokens), así que adoptar otro design system implica cambiar los valores de `styles/tokens.css` y revisar los componentes base, sin tocar las pantallas.
 
-## Identidad visual: una biblioteca
+## Identidad visual: editorial, con lomos de colores
 
-El aspecto del sistema evoca el dominio del proyecto (bibliotecas, libros, fichas y préstamos) sin perder legibilidad:
+El aspecto es el de una editorial moderna: papel crema claro, tinta casi negra, títulos de palo seco muy gruesos en mayúscula y el terracota para las acciones principales. El sello de la red son los **lomos de colores planos** (terracota, azul, mostaza, salvia, ciruela, celeste), que aparecen en el estante, las franjas del menú, las fichas y las portadas dibujadas.
 
-| Elemento | Metáfora |
-|----------|----------|
-| Fondo de la aplicación | Pergamino cálido; las superficies son fichas de catálogo de papel crema |
-| Barra superior | Moldura de nogal con un filete de latón y el logotipo (libro abierto con marcador) |
-| Menú lateral | **Estantería**: cada ítem es un libro apilado sobre una tabla de madera; el de la página actual sobresale de la pila y lleva un marcador; debajo, estantes decorativos |
-| Títulos, encabezados de tabla, etiquetas de campos | Tipografía serif, como en el lomo y las portadas |
-| `Card`, `Modal`, `StatCard` | Ficha de catálogo: filete superior verde, cabecera con doble filete; el indicador del inicio lleva una cinta marcadora |
-| `Table` | Libro de registro: cabecera de cuero verde con filete de latón, renglones rayados |
-| `Tabs` | Separadores de fichero |
-| `FilterBar` | Cajón de fichero con borde de madera |
-| `Badge` | Etiqueta adhesiva de lomo, con filete del mismo color |
-| `Textarea` | Hoja rayada |
-| `Timeline` | Hilo con alfileres de latón |
-| Carga | Un libro que pasa las hojas; el vacío muestra una estantería vacía |
-| Ingreso | Carnet de socio sobre una pared de nogal |
+| Elemento | Forma |
+|----------|-------|
+| Fondo y superficies | Papel crema plano; las tarjetas son un tono más claro, con borde fino y esquinas de 16 px |
+| Barra superior | Clara, con el logotipo (tres lomos), «PRÉSTAMOS» y «Red de Bibliotecas Públicas»; a la derecha la sede y la persona, en píldoras |
+| Menú lateral | Claro, con secciones nombradas en versalitas y un lomo de color; cada opción con su ícono; la actual, en tinta con texto blanco |
+| Títulos | Palo seco en su peso más grueso, en mayúscula y con el interletrado cerrado |
+| `Button` | Píldoras: terracota para la acción principal, contorno de tinta para las demás, contorno terracota oscuro para dar de baja o bloquear |
+| `Table` | Tarjeta con encabezado claro en versalitas grises y filas separadas por un filete |
+| `Tabs` | Subrayadas: la actual en tinta con una raya gruesa |
+| `FilterBar` | Tarjeta clara; la búsqueda lleva una lupa y un ejemplo |
+| `Badge` | Píldora con un punto del color del estado; en una tabla, todas las de la columna miden lo mismo |
+| `StatCard` | Rótulo en versalitas, número enorme y tres lomos en la esquina |
+| `Timeline` | Línea punteada con un lomo de color por movimiento |
+| Inicio público e ingreso | El lema «Pedilo acá. Retiralo allá.», el estante de la red con los más pedidos y las cifras; los más pedidos con su portada en una franja oscura |
 
 La decoración es siempre `aria-hidden` o CSS: no agrega ni quita información, y el estado nunca depende solo del color o de la forma.
 
 ## Principios
 
 1. **Claridad ante todo.** Es un sistema de gestión: la información y el estado van antes que la decoración.
-2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú sobresale, lleva un marcador y `aria-current="page"`.
+2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú se invierte (tinta con texto blanco) y lleva `aria-current="page"`.
 3. **Accesible por defecto.** Contraste AA, foco visible, objetivos táctiles amplios, teclado completo.
 4. **Consistente.** Un componente, una forma de usarlo; los tokens son la única fuente de valores.
-5. **Temática pero sobria.** Pocos colores (verde, burdeos, latón sobre papel y madera), sin imágenes ni fuentes externas: todo es CSS y SVG en línea.
+5. **Editorial y sobria.** Papel, tinta y terracota, con los lomos de colores como único juego; sin imágenes decorativas ni fuentes externas: todo es CSS y SVG en línea.
 
 ## Tokens
 
@@ -42,55 +41,56 @@ Los pares de color que siguen se verificaron con la fórmula de contraste de WCA
 
 | Token | Valor | Uso |
 |-------|-------|-----|
-| `--color-primary-700` | `#1F5C47` | Verde de lámpara de lectura: acciones principales, enlaces, filetes de fichas |
-| `--color-primary-800` | `#164433` | Estado «presionado», enlaces visitados, cabecera de tablas |
-| `--color-primary-100` | `#DCEBE2` | Fondos de selección y énfasis suave |
-| `--color-text` | `#2A1C12` | Texto principal (tinta sepia) |
-| `--color-text-muted` | `#5B4636` | Texto secundario |
-| `--color-text-subtle` | `#6F5A48` | Marcadores de posición, texto deshabilitado |
-| `--color-bg` | `#F3EAD7` | Fondo de la aplicación (pergamino) |
-| `--color-surface` | `#FFFBF0` | Tarjetas, tablas, formularios (ficha de catálogo) |
-| `--color-border` | `#D9C9A8` | Separadores y bordes decorativos |
-| `--color-border-strong` | `#8A7152` | Bordes de campos y controles (4,5:1 sobre las fichas, supera el 3:1 exigido a los componentes) |
-| `--color-success-700` / `-100` / `-800` | `#3B6A22` / `#E3EFD3` / `#2C5219` | Éxito |
-| `--color-warning-700` / `-100` / `-800` | `#8A5A00` / `#F8E8BD` / `#6B4400` | Atención (ocre) |
-| `--color-danger-700` / `-100` / `-800` | `#9B2C1F` / `#F7DCD5` / `#7D2217` | Error y acciones destructivas (cuero burdeos) |
-| `--color-info-700` / `-100` / `-800` | `#1F4E79` / `#DCE8F3` / `#183C5E` | Información (tinta azul) |
-| `--color-neutral-100` / `-700` | `#ECE3D0` / `#4A3A2C` | Estados neutros o finales |
-| `--color-accent-100` / `-800` | `#EADFF0` / `#573069` | Estados en proceso logístico (ciruela) |
+| `--color-primary-700` | `#B04A27` | Terracota: acción principal, segunda línea del lema, énfasis |
+| `--color-primary-800` | `#8F3A1D` | Estado «presionado» de la acción principal |
+| `--color-primary-100` | `#F5E1D7` | Fondos de énfasis suave |
+| `--color-ink` / `--color-text` | `#1D1B17` | Tinta: texto, enlaces, botones de contorno y la opción actual del menú |
+| `--color-text-muted` | `#5C554B` | Texto secundario, rótulos en versalitas |
+| `--color-text-subtle` | `#6F675B` | Marcadores de posición, texto deshabilitado |
+| `--color-bg` | `#F4EFE7` | Fondo de la aplicación |
+| `--color-surface` | `#FBF8F3` | Tarjetas, tablas, formularios |
+| `--color-surface-2` | `#EEE7DB` | Encabezado de tablas, píldora de la sede, fondos al pasar el mouse |
+| `--color-border` | `#E3D9C9` | Separadores y bordes de tarjetas (decorativos) |
+| `--color-border-strong` | `#8C8172` | Bordes de campos y controles (3,8:1 sobre los campos, supera el 3:1 exigido a los componentes) |
+| `--color-success-700` / `-100` / `-800` | `#3D6A4C` / `#E1EBE2` / `#2D5139` | Éxito |
+| `--color-warning-700` / `-100` / `-800` | `#946510` / `#F6E9C9` / `#6F4A06` | Atención |
+| `--color-danger-700` / `-100` / `-800` | `#B23F26` / `#F7E0D8` / `#8E3019` | Error y acciones que dan de baja |
+| `--color-info-700` / `-100` / `-800` | `#2C5B7A` / `#DFE8EF` / `#22465E` | Información |
+| `--color-neutral-100` / `-700` | `#ECE5D9` / `#4D463D` | Estados neutros o finales |
+| `--color-accent-100` / `-800` | `#EFE1EA` / `#613552` | Estados en proceso logístico (ciruela) |
 
-Tokens decorativos (no transmiten información): `--color-wood-900/800/600/400` (nogal), `--color-brass` (`#D6AD45`, latón), `--color-cream` (`#FDF6E3`), `--color-marcador` (`#B3261E`, cinta) y los lomos `--lomo-burdeos`, `--lomo-bosque`, `--lomo-marino`, `--lomo-ocre`, `--lomo-ciruela` y `--lomo-petroleo`. Las texturas (`--textura-papel`, `--textura-madera`) son gradientes CSS.
+Lomos (decorativos, no transmiten información): `--lomo-burdeos` (terracota `#AD4F2D`), `--lomo-marino` (azul), `--lomo-ocre` (mostaza), `--lomo-bosque` (salvia), `--lomo-ciruela`, `--lomo-petroleo` (celeste), `--lomo-rosa`, `--lomo-negro` y `--lomo-crema`. Sobre los claros (mostaza, celeste, rosa, crema) el texto va en tinta; sobre los demás, en blanco. Los nombres heredados `--color-wood-*`, `--color-brass` y `--color-cream` apuntan a la paleta nueva.
 
 Contrastes verificados:
 
 | Combinación | Relación |
 |-------------|----------|
-| Texto principal sobre ficha / sobre fondo | 16,0:1 / 13,8:1 |
-| Texto secundario sobre ficha | 8,6:1 |
-| Texto sutil sobre ficha / sobre fondo | 6,3:1 / 5,4:1 |
-| Borde de campo sobre ficha | 4,5:1 |
-| Blanco sobre primario 700 | 7,8:1 |
-| Enlace (primario 700) sobre ficha / sobre fondo | 7,6:1 / 6,6:1 |
-| Blanco sobre peligro 700 | 7,6:1 |
-| Blanco sobre éxito 800, peligro 800 e información 800 (avisos) | 9,0:1 / 9,9:1 / 11,4:1 |
-| Etiqueta de éxito, atención, peligro, información | 7,5:1 / 7,0:1 / 7,6:1 / 9,1:1 |
-| Etiqueta neutra / primaria / de proceso | 8,5:1 / 8,9:1 / 8,0:1 |
-| Crema sobre madera (barra superior) | 13,6:1 |
-| Latón sobre madera (foco y detalles) | 6,9:1 |
-| Crema sobre los lomos del menú | de 5,5:1 (ocre) a 10,7:1 (marino) |
+| Texto principal sobre tarjeta / sobre fondo | 16,2:1 / 15,0:1 |
+| Texto secundario sobre tarjeta / sobre fondo / sobre encabezado de tabla | 6,9:1 / 6,4:1 / 6,0:1 |
+| Texto sutil sobre tarjeta / sobre campo | 5,3:1 / 5,5:1 |
+| Borde de campo sobre campo / sobre tarjeta | 3,8:1 / 3,6:1 |
+| Blanco sobre primario 700 (acción principal) | 5,4:1 |
+| Primario 700 sobre fondo (segunda línea del lema) | 4,8:1 |
+| Peligro 700 sobre tarjeta (botones de baja) | 5,5:1 |
+| Etiqueta de éxito, atención, peligro, información | 7,3:1 / 6,6:1 / 6,4:1 / 8,0:1 |
+| Etiqueta neutra / primaria / de proceso | 7,4:1 / 6,0:1 / 7,8:1 |
+| Blanco y gris claro sobre tinta (franja de los más pedidos) | 17,2:1 / 9,6:1 |
+| Tinta sobre lomos claros (mostaza, celeste, rosa, crema) | de 6,8:1 a 12,6:1 |
+| Blanco sobre lomos oscuros (terracota, salvia, azul, ciruela) | de 5,3:1 a 8,8:1 |
 
-Todas cumplen AA. Como jest-axe no mide contraste en jsdom, estos valores se calcularon aparte: al cambiar un token hay que volver a verificarlos. Los campos usan `--color-border-strong`; `--color-border` queda solo para separadores que no son necesarios para identificar un control. En foco y en error el borde se engrosa y cambia de color.
+Todas cumplen AA. Como jest-axe no mide contraste en jsdom, estos valores se calcularon aparte: al cambiar un token hay que volver a verificarlos. Los campos usan `--color-border-strong`; `--color-border` queda solo para separadores y tarjetas, que no son necesarios para identificar un control. En foco el borde pasa a tinta con un halo terracota.
 
 ### Tipografía
 
 | Token | Valor |
 |-------|-------|
-| `--font-sans` | `Inter`, `system-ui`, `sans-serif` |
-| `--font-serif` | `Iowan Old Style`, `Palatino Linotype`, `Palatino`, `Georgia`, `serif` (títulos, lomos del menú, encabezados de tabla y etiquetas de campos; sin descargas) |
-| `--font-mono` | `ui-monospace`, `monospace` (códigos de inventario, números de remito) |
-| Escala (`--text-xs` … `--text-3xl`) | 12, 14, 16, 18, 20, 24 y 30 px |
+| `--font-sans` | `Inter`, `Segoe UI`, `system-ui`, `sans-serif` (texto; sin descargas: usa la del sistema) |
+| `--font-titulo` | La misma familia en su peso más grueso (800 y 900), en mayúscula y con interletrado cerrado (títulos, cifras, lema) |
+| `--font-mono` | `ui-monospace`, `Consolas`, `monospace` (códigos de inventario, números de remito) |
+| Escala (`--text-xs` … `--text-3xl`) | 12, 14, 16, 18, 20, 24 y 30 px; los títulos de pantalla van de 32 a 50 px y el lema de la portada, hasta 136 px |
 | Cuerpo | 16 px, interlineado 1,5 |
-| Pesos | 400 (texto), 600 (botones, etiquetas de estado), 700 (títulos serif) |
+| Pesos | 400 (texto), 600 (botones, etiquetas), 800 y 900 (títulos y cifras) |
+| Versalitas | Rótulos de tablas, secciones del menú e indicadores: 12 px, mayúscula y 0,1–0,16 em de interletrado |
 
 Los números de remito, préstamo y código de inventario se muestran en tipografía monoespaciada para leerlos sin ambigüedad.
 
@@ -99,16 +99,16 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | Token | Valor |
 |-------|-------|
 | Escala de espacio | Múltiplos de 4 px: 4, 8, 12, 16, 24, 32, 48 |
-| `--radius-sm` / `--radius-md` / `--radius-lg` | 3 / 6 / 10 px (esquinas poco redondeadas, como el papel) |
-| `--shadow-sm` | `0 1px 2px rgba(59,35,20,.14)` (sombras tibias, marrones) |
-| `--shadow-md` | `0 6px 16px rgba(59,35,20,.22)` (menús y modales) |
+| `--radius-sm` / `--radius-md` / `--radius-lg` / `--radius-pill` | 6 / 10 / 16 px y píldora (botones, etiquetas, sede y persona) |
+| `--shadow-sm` | `0 1px 2px rgba(29,27,23,.05)` (tarjetas, casi planas) |
+| `--shadow-md` | `0 12px 32px rgba(29,27,23,.12)` (menús, modales y la tarjeta de ingreso) |
 | Puntos de corte | 640, 768, 1024 y 1280 px |
-| Ancho de contenido | Máximo 1200 px |
+| Ancho de contenido | Máximo 1240 px |
 
 ### Foco e interacción
 
-- Anillo de foco: 3 px de `--color-primary-700` con 2 px de separación; sobre madera (menú y barra superior) es de latón (`--color-brass`). Nunca se elimina el contorno sin reemplazarlo.
-- Altura mínima de controles: 40 px (el criterio AA de objetivos táctiles pide 24 px).
+- Anillo de foco: 3 px de `--color-primary-700` con 2 px de separación; en los campos, borde de tinta con un halo terracota. Nunca se elimina el contorno sin reemplazarlo.
+- Altura mínima de controles: 42 px (el criterio AA de objetivos táctiles pide 24 px).
 - Estados de cada control: normal, hover, foco, presionado, deshabilitado y, si corresponde, error.
 - Se respeta `prefers-reduced-motion`: las transiciones duran 150 ms y se desactivan si el usuario lo pide.
 
@@ -116,7 +116,7 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 
 | Componente | Variantes y notas |
 |------------|-------------------|
-| `Button` | Primario (cuero verde con filete de latón), secundario, peligro (burdeos) y enlace; tamaños medio y chico; estado «cargando» que deshabilita |
+| `Button` | Píldora: primario (terracota), secundario (contorno de tinta), peligro (contorno terracota oscuro) y enlace; tamaños medio y chico; con `icono` lleva un dibujo antes del texto y con `soloIcono` es un círculo con la ayuda al pasar el mouse; estado «cargando» que deshabilita |
 | `Input`, `Select`, `Textarea`, `Checkbox` | Siempre con `FormField` (etiqueta, ayuda y error asociados por `aria-describedby`) |
 | `Table` | Cabecera fija opcional, orden por columna, acciones por fila; se convierte en tarjetas bajo 768 px |
 | `Pagination` | Anterior/siguiente, tamaño de página, total |
@@ -129,7 +129,10 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | `Logo` / `EstanteriaVacia` | Ilustraciones SVG en línea y decorativas |
 | `PageHeader` | Título, descripción y acciones de la pantalla |
 | `Tabs`, `Card`, `Breadcrumb` | Estructura de pantallas de detalle |
-| `AppLayout`, `AppBar`, `Sidebar` | Estructura de las pantallas autenticadas: barra superior, menú lateral con forma de estantería (fijo desde 1024 px, panel deslizable debajo) y `<main>` |
+| `AppLayout`, `AppBar`, `Sidebar` | Estructura de las pantallas autenticadas: barra superior, menú lateral por secciones (fijo desde 1024 px, panel deslizable debajo) y `<main>` |
+| `Icono` | Juego de íconos de trazo fino (SVG en línea, decorativos): acciones, menú y avisos |
+| `Estante` | Lomos de colores planos con los títulos, sobre una tabla; decorativo (inicio público e ingreso) |
+| `Portada` | Tapa del libro: la imagen o, si no hay, una tapa plana dibujada con el autor y el título |
 | `StatCard` | Tarjeta de indicador del inicio: valor, etiqueta y enlace; con estados de carga y error propios |
 | `FilterBar` | Filtros del listado: búsqueda con espera, selectores y botón «Limpiar» |
 | `Combobox` | Lista desplegable con búsqueda (por ejemplo, localidades); accesible con teclado y `aria-activedescendant` |
@@ -188,9 +191,9 @@ Si se cambia un tono o un texto, se cambia en `utils/estados.js` y esta tabla se
 
 ## Estructura de pantallas autenticadas
 
-- **Menú lateral** de 248 px, de nogal con veta y laterales sombreados. Los ítems son libros apilados sobre una tabla de madera (colores y anchos distintos, con cartela de latón y canto de hojas); al pasar el cursor el libro se desplaza y el de la página actual sobresale con un marcador y `aria-current="page"`. Debajo hay estantes decorativos (`aria-hidden`) que se recortan según la altura de la ventana. Por debajo de 1024 px es un panel deslizable que atrapa el foco, con la misma estantería.
-- **AppBar** de 60 px, de nogal con filete de latón: logotipo, nombre del sistema en serif, sede del usuario en cursiva y menú de usuario.
-- Contenido principal con padding de 24 px (16 px en pantallas chicas) y ancho máximo de 1200 px. Cada pantalla abre con un `PageHeader` (título serif, descripción en cursiva y doble filete).
+- **Menú lateral** de 260 px, claro y separado del contenido por un filete. Cada sección tiene su nombre en versalitas con un lomo de color; cada opción, su ícono. La opción actual se invierte (tinta con texto blanco) y lleva `aria-current="page"`. Por debajo de 1024 px es un panel deslizable que atrapa el foco.
+- **AppBar** de 72 px, clara: logotipo de tres lomos, «PRÉSTAMOS» con «Red de Bibliotecas Públicas» debajo, la sede del usuario en una píldora con un ícono de ubicación y la persona en otra, con su inicial en un círculo.
+- Contenido principal con márgenes amplios (48 px en escritorio, 16 px en pantallas chicas) y ancho máximo de 1240 px. Cada pantalla abre con un `PageHeader`: título enorme en mayúscula, bajada en gris y las acciones a la derecha.
 - Indicador «abierta ahora»: `Badge` de éxito con el texto «Abierta» o neutro con «Cerrada» (siempre con texto).
 
 ## Voz y contenido

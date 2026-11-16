@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { obtenerInicioPublico } from '../api/publico.js';
-import { Alert, Button, Input, InputClave, Logo } from '../components/index.js';
+import { Alert, Button, Estante, Icono, Input, InputClave } from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
@@ -16,9 +16,10 @@ const esquema = z.object({
   password: z.string().min(1, 'Ingrese su contraseña'),
 });
 
-const LOMOS = ['burdeos', 'bosque', 'marino', 'ocre', 'ciruela', 'petroleo'];
+// Lomos del estante mientras no llegan los más pedidos.
+const DE_RELLENO = ['Rayuela', 'Ficciones', 'El túnel', 'Facundo', 'Martín Fierro', 'El Aleph'];
 
-/** Ingreso: a la izquierda la red (lema, cifras y un estante); a la derecha, el formulario. */
+/** Ingreso: a la izquierda la red (lema, cifras y el estante); a la derecha, la tarjeta de ingreso. */
 export default function LoginPage() {
   const { estado, aviso, iniciar, limpiarAviso } = useSesion();
   const navegar = useNavigate();
@@ -63,87 +64,91 @@ export default function LoginPage() {
   // Avisa si el Bloq Mayús está activado mientras se escribe la contraseña.
   const revisarMayusculas = (evento) => setMayusculas(evento.getModifierState?.('CapsLock'));
 
+  const titulos = red.data?.destacados?.length
+    ? red.data.destacados.map((d) => d.titulo)
+    : DE_RELLENO;
+  const cantidad = (n) => n.toLocaleString('es-AR');
+
   return (
-    <main className={estilos.pagina} id="contenido">
-      <section className={estilos.red} aria-label="La red de bibliotecas">
+    <div className={estilos.pagina}>
+      <header className={estilos.barra}>
         <Link to="/" className={estilos.marca} onClick={limpiarAviso}>
-          <Logo tamano={28} />
-          {MENSAJES.sistema}
+          <span className={estilos.sistema}>Préstamos</span>
+          <span className={estilos.red}>Red de Bibliotecas Públicas</span>
         </Link>
-        <div>
-          <p className={estilos.volanta}>Red de bibliotecas públicas</p>
+        <Link to="/" className={estilos.volver} onClick={limpiarAviso}>
+          <Icono nombre="volver" />
+          Volver al inicio
+        </Link>
+      </header>
+
+      <main className={estilos.cuerpo} id="contenido">
+        <section className={estilos.presentacion} aria-label="La red de bibliotecas">
+          <p className={estilos.volanta}>Red de bibliotecas públicas · Córdoba</p>
           <p className={estilos.lema}>
-            Todos los libros de la red, <em>a una sede</em> de distancia.
+            <span>Pedilo acá.</span> <span className={estilos.acento}>Retiralo allá.</span>
           </p>
-          <p className={estilos.cita}>
-            “Pedí un libro en cualquier sede y retiralo en la que te quede más cerca.”
+          <p className={estilos.bajada}>
+            Pedí un libro en cualquier sede y retiralo en la que te quede más cerca.
           </p>
           {red.data && (
             <dl className={estilos.cifras}>
               <div>
-                <dt>sedes</dt>
+                <dt>Sedes</dt>
                 <dd>{red.data.sedes_activas}</dd>
               </div>
               <div>
-                <dt>ejemplares</dt>
-                <dd>{red.data.ejemplares.toLocaleString('es-AR')}</dd>
+                <dt>Títulos</dt>
+                <dd>{cantidad(red.data.libros)}</dd>
+              </div>
+              <div>
+                <dt>Ejemplares</dt>
+                <dd>{cantidad(red.data.ejemplares)}</dd>
               </div>
             </dl>
           )}
-        </div>
-        <div className={estilos.estante} aria-hidden="true">
-          {Array.from({ length: 16 }, (_, i) => (
-            <span
-              key={i}
-              className={estilos.lomo}
-              style={{
-                '--c': `var(--lomo-${LOMOS[(i * 5) % LOMOS.length]})`,
-                height: `${78 + ((i * 29) % 52)}px`,
-                width: `${22 + ((i * 11) % 16)}px`,
-              }}
-            />
-          ))}
-        </div>
-      </section>
+          <div className={estilos.estante}>
+            <Estante titulos={titulos} />
+          </div>
+        </section>
 
-      <section className={estilos.acceso}>
-        <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
-          <h1 className={estilos.titulo}>Ingresar</h1>
-          <p className={estilos.subtitulo}>Con su usuario de la red de bibliotecas.</p>
-          {aviso && <Alert tono="warning">{aviso}</Alert>}
-          {error && <Alert tono="danger">{error}</Alert>}
-          <Input
-            etiqueta="Usuario"
-            autoComplete="username"
-            autoCapitalize="none"
-            error={errors.username?.message}
-            {...register('username')}
-          />
-          <InputClave
-            etiqueta="Contraseña"
-            autoComplete="current-password"
-            error={errors.password?.message}
-            onKeyUp={revisarMayusculas}
-            onKeyDown={revisarMayusculas}
-            {...register('password')}
-          />
-          {mayusculas && (
-            <p className={estilos.mayusculas} role="status">
-              ⚠ Bloq Mayús está activado
+        <section className={estilos.acceso}>
+          <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
+            <h1 className={estilos.titulo}>Ingresar</h1>
+            <p className={estilos.subtitulo}>Con su usuario de la red de bibliotecas.</p>
+            {aviso && <Alert tono="warning">{aviso}</Alert>}
+            {error && <Alert tono="danger">{error}</Alert>}
+            <Input
+              etiqueta="Usuario"
+              autoComplete="username"
+              autoCapitalize="none"
+              error={errors.username?.message}
+              {...register('username')}
+            />
+            <InputClave
+              etiqueta="Contraseña"
+              autoComplete="current-password"
+              error={errors.password?.message}
+              onKeyUp={revisarMayusculas}
+              onKeyDown={revisarMayusculas}
+              {...register('password')}
+            />
+            {mayusculas && (
+              <p className={estilos.mayusculas} role="status">
+                ⚠ Bloq Mayús está activado
+              </p>
+            )}
+            <Button type="submit" cargando={isSubmitting} className={estilos.enviar}>
+              Ingresar <span aria-hidden="true">→</span>
+            </Button>
+            <p className={estilos.ayuda}>
+              ¿Olvidó su contraseña? Pídala en el mostrador de su sede.
             </p>
-          )}
-          <Button type="submit" cargando={isSubmitting}>
-            Ingresar <span aria-hidden="true">→</span>
-          </Button>
-          <p className={estilos.ayuda}>¿Olvidó su contraseña? Pídala en el mostrador de su sede.</p>
-        </form>
-        <footer className={estilos.pie}>
-          <span>{MENSAJES.sistemaCompleto} · UTN FRC 2026</span>
-          <Link to="/" onClick={limpiarAviso}>
-            Volver al inicio
-          </Link>
-        </footer>
-      </section>
-    </main>
+          </form>
+        </section>
+      </main>
+
+      <footer className={estilos.pie}>{MENSAJES.sistemaCompleto} · UTN FRC 2026</footer>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
-/* Panel de nogal: secciones con su nombre en latón y cada opción con ícono y una franja de color
-   en el borde, como el lomo de un libro. La opción actual es una hoja crema con su marcador. */
+/* Menú claro: cada sección con su nombre y un lomo de color; la opción actual, en tinta */
 .menu {
   position: fixed;
   top: var(--appbar-height);
@@ -7,38 +6,41 @@
   left: 0;
   z-index: 200;
   width: var(--sidebar-width);
-  padding: var(--space-4) var(--space-3) var(--space-6) 0;
+  padding: var(--space-6) var(--space-4);
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
   overflow-y: auto;
-  background-color: var(--color-wood-800);
-  background-image:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.35), transparent 120px), var(--textura-madera);
-  box-shadow: inset -10px 0 14px rgba(0, 0, 0, 0.35);
-  border-right: 4px solid var(--color-wood-900);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-border);
   transform: translateX(-100%);
   transition: transform var(--transition);
 }
 .abierto {
   transform: none;
-  box-shadow:
-    inset -10px 0 14px rgba(0, 0, 0, 0.35),
-    var(--shadow-md);
+  box-shadow: var(--shadow-md);
 }
 
 .seccion + .seccion {
   margin-top: var(--space-6);
 }
 .cartela {
-  display: block;
-  margin: 0 0 var(--space-2) 20px;
-  font-family: var(--font-sans);
-  font-size: 0.72rem;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--color-brass);
+  color: var(--color-text-muted);
+}
+.cartela::before {
+  content: '';
+  width: 4px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--franja, var(--lomo-burdeos));
 }
 .pila {
   list-style: none;
@@ -51,82 +53,47 @@
 
 .enlace,
 .enlace:visited {
-  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-height: 42px;
-  padding: 0 var(--space-3) 0 20px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  font-family: var(--font-sans);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
   font-size: var(--text-md);
-  color: #efe3c8;
+  font-weight: 500;
+  color: var(--color-ink);
   text-decoration: none;
   transition:
     background var(--transition),
     color var(--transition);
 }
-/* Franja de color de la sección, como el borde de un lomo */
-.enlace::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 7px;
-  bottom: 7px;
-  width: 5px;
-  border-radius: 0 3px 3px 0;
-  background: var(--franja, var(--color-brass));
-  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.2);
-}
 .enlace svg {
-  width: 19px;
-  height: 19px;
-  opacity: 0.85;
+  width: 20px;
+  height: 20px;
 }
 .enlace:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #fff;
-}
-.enlace:hover svg {
-  opacity: 1;
+  background: var(--color-surface-2);
 }
 .activo,
 .activo:visited,
 .activo:hover {
-  background: linear-gradient(180deg, #fffaf0, var(--color-cream));
-  color: var(--color-wood-900);
-  font-weight: 700;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
-}
-.activo svg {
-  opacity: 1;
-  color: var(--color-primary-800);
-}
-/* Marcador de cinta: la opción actual no se distingue solo por el color */
-.activo::after {
-  content: '';
-  position: absolute;
-  top: -3px;
-  right: var(--space-4);
-  width: 11px;
-  height: 20px;
-  background: var(--color-marcador);
-  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 74%, 0 100%);
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35));
+  background: var(--color-ink);
+  color: #fff;
+  font-weight: 600;
 }
 
 .velo {
   position: fixed;
   inset: var(--appbar-height) 0 0 0;
   z-index: 150;
-  background: rgba(42, 23, 11, 0.6);
+  background: rgba(29, 27, 23, 0.45);
 }
 @media (min-width: 1024px) {
   .menu {
     transform: none;
   }
   .abierto {
-    box-shadow: inset -10px 0 14px rgba(0, 0, 0, 0.35);
+    box-shadow: none;
   }
   .velo {
     display: none;

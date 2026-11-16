@@ -7,7 +7,7 @@
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border-strong);
-  border-left: 6px solid var(--color-wood-600);
+  border-left: 4px solid var(--lomo-ocre);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   display: flex;
@@ -15,7 +15,7 @@
   gap: var(--space-2);
 }
 .nombre {
-  font-family: var(--font-serif);
+  font-family: var(--font-titulo);
   font-size: var(--text-lg);
   font-weight: 700;
   padding: 0 var(--space-2);
@@ -40,7 +40,7 @@
   padding: 0 var(--space-2);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: #fffdf7;
+  background: #fffdf9;
   color: var(--color-text);
   font: inherit;
 }
