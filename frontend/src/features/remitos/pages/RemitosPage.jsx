@@ -75,7 +75,11 @@ export default function RemitosPage() {
         titulo="Remitos"
         descripcion="Envíos de ejemplares entre sedes, con el historial de cada paso."
         acciones={
-          tienePermiso(PERMISOS.REMITO_OPERAR) && <Button to="/remitos/nuevo">Nuevo remito</Button>
+          tienePermiso(PERMISOS.REMITO_OPERAR) && (
+            <Button icono="agregar" to="/remitos/nuevo">
+              Nuevo remito
+            </Button>
+          )
         }
       />
       <FilterBar etiqueta="Filtros de remitos" onLimpiar={limpiar} hayFiltros={hayFiltros}>

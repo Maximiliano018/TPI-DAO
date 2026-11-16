@@ -184,7 +184,7 @@ export default function SocioDetallePage({ socioId }) {
         descripcion={
           <>
             Socio <span className="mono">{socio.numero_socio}</span>{' '}
-            <EstadoSocioBadge socio={socio} />
+            <EstadoSocioBadge socio={socio} enLinea />
           </>
         }
         migas={<Breadcrumb items={migas} />}

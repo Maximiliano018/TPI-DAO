@@ -227,15 +227,17 @@ export default function LibroDetallePage() {
             {sinDisponibles &&
               (tienePermiso(PERMISOS.RESERVA_PROPIA) ||
                 tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
-                <Button variante="secondary" onClick={() => setReservando(true)}>
+                <Button variante="secondary" icono="reservar" onClick={() => setReservando(true)}>
                   Reservar
                 </Button>
               )}
             {gestionaEjemplares && (
-              <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`}>Agregar ejemplar</Button>
+              <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`} icono="agregar">
+                Agregar ejemplar
+              </Button>
             )}
             {administra && (
-              <Button to={`/catalogo/${libro.id}/editar`} variante="secondary">
+              <Button to={`/catalogo/${libro.id}/editar`} variante="secondary" icono="editar">
                 Editar
               </Button>
             )}

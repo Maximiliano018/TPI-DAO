@@ -18,7 +18,7 @@ export function BusquedaConEspera({ etiqueta, valor, onBuscar, ejemplo, esperaMs
   }, [texto, valor, onBuscar, esperaMs]);
 
   return (
-    <label className={estilos.campo}>
+    <label className={`${estilos.campo} ${estilos.busqueda}`}>
       <span className={estilos.etiqueta}>{etiqueta}</span>
       <input
         type="search"
@@ -87,7 +87,7 @@ export default function FilterBar({ etiqueta, onLimpiar, hayFiltros = true, chil
     >
       {children}
       {hayFiltros && (
-        <Button variante="secondary" onClick={onLimpiar}>
+        <Button variante="secondary" icono="limpiar" onClick={onLimpiar}>
           Limpiar filtros
         </Button>
       )}

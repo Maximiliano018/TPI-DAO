@@ -77,7 +77,9 @@ export default function PrestamosPage() {
         }
         acciones={
           tienePermiso(PERMISOS.PRESTAMO_REGISTRAR) && (
-            <Button to="/prestamos/nuevo">Nuevo préstamo</Button>
+            <Button icono="agregar" to="/prestamos/nuevo">
+              Nuevo préstamo
+            </Button>
           )
         }
       />

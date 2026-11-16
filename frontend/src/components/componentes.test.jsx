@@ -43,6 +43,37 @@ describe('Button', () => {
     envolver(<Button to="/sedes">Sedes</Button>);
     expect(screen.getByRole('link', { name: 'Sedes' })).toHaveAttribute('href', '/sedes');
   });
+
+  it('el ícono es decorativo: el nombre sigue siendo el texto y no se muestra mientras carga', () => {
+    const { rerender } = envolver(<Button icono="editar">Editar</Button>);
+    const boton = screen.getByRole('button', { name: 'Editar' });
+    expect(boton.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+
+    rerender(
+      <MemoryRouter>
+        <Button icono="editar" cargando>
+          Editar
+        </Button>
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('button', { name: 'Editar' }).querySelector('svg')).toBeNull();
+  });
+
+  it('solo con ícono conserva el nombre y lo muestra como ayuda al pasar el mouse', () => {
+    envolver(
+      <Button icono="ver" soloIcono aria-label="Ver Sede Central">
+        Ver
+      </Button>,
+    );
+    const boton = screen.getByRole('button', { name: 'Ver Sede Central' });
+    expect(boton).toHaveAttribute('title', 'Ver Sede Central');
+    expect(boton.querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('un ícono desconocido no dibuja nada', () => {
+    envolver(<Button icono="no-existe">Guardar</Button>);
+    expect(screen.getByRole('button', { name: 'Guardar' }).querySelector('svg')).toBeNull();
+  });
 });
 
 describe('campos de formulario', () => {

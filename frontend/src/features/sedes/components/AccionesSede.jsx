@@ -6,9 +6,10 @@ import { BajaDialog, ReactivarDialog } from './BajaDialogs.jsx';
 
 /**
  * Acciones de una sede según el rol y el estado: las que no corresponden no se muestran.
- * `conVer` agrega el enlace al detalle (listado); el detalle ya está en esa pantalla.
+ * `conVer` agrega el enlace al detalle (listado); el detalle ya está en esa pantalla. `compacto`
+ * muestra solo los íconos (filas de una tabla).
  */
-export default function AccionesSede({ sede, conVer = false, tamano = 'md' }) {
+export default function AccionesSede({ sede, conVer = false, tamano = 'md', compacto = false }) {
   const { tienePermiso } = useSesion();
   const [dialogo, setDialogo] = useState(null);
   const administra = tienePermiso(PERMISOS.SEDE_ADMINISTRAR);
@@ -23,6 +24,8 @@ export default function AccionesSede({ sede, conVer = false, tamano = 'md' }) {
           variante="secondary"
           tamano={tamano}
           aria-label={`Ver ${sede.nombre}`}
+          icono="ver"
+          soloIcono={compacto}
         >
           Ver
         </Button>
@@ -34,6 +37,8 @@ export default function AccionesSede({ sede, conVer = false, tamano = 'md' }) {
             variante="secondary"
             tamano={tamano}
             aria-label={`Editar ${sede.nombre}`}
+            icono="editar"
+            soloIcono={compacto}
           >
             Editar
           </Button>
@@ -41,6 +46,8 @@ export default function AccionesSede({ sede, conVer = false, tamano = 'md' }) {
             variante="danger"
             tamano={tamano}
             aria-label={`Dar de baja ${sede.nombre}`}
+            icono="baja"
+            soloIcono={compacto}
             onClick={() => setDialogo('baja')}
           >
             Dar de baja
@@ -52,6 +59,8 @@ export default function AccionesSede({ sede, conVer = false, tamano = 'md' }) {
           variante="secondary"
           tamano={tamano}
           aria-label={`Reactivar ${sede.nombre}`}
+          icono="reactivar"
+          soloIcono={compacto}
           onClick={() => setDialogo('reactivar')}
         >
           Reactivar
