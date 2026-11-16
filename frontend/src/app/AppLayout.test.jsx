@@ -24,19 +24,37 @@ describe('AppLayout', () => {
         .map((l) => l.textContent),
     ).toEqual([
       'Inicio',
-      'Sedes',
-      'Catálogo',
-      'Ejemplares',
       'Préstamos',
       'Reservas',
       'Remitos',
       'Multas',
+      'Catálogo',
+      'Ejemplares',
+      'Sedes',
       'Socios',
       'Reportes',
       'Usuarios',
       'Parámetros',
     ]);
     expect(screen.getByTestId('sede-del-usuario')).toHaveTextContent('Toda la red');
+  });
+
+  it('el menú se divide en secciones con nombre y el socio ve solo las suyas', async () => {
+    sesionDe(SOCIO);
+    responder('get', '/sedes', pagina([sedePublica()]));
+    renderizarApp('/', { conSesion: true });
+
+    await screen.findByRole('heading', { level: 1, name: 'Inicio' });
+    const circulacion = within(menu()).getByRole('list', { name: 'Circulación' });
+    expect(
+      within(circulacion)
+        .getAllByRole('link')
+        .map((l) => l.textContent),
+    ).toEqual(['Mis préstamos', 'Mis reservas', 'Mis multas']);
+    expect(within(menu()).getByRole('list', { name: 'Red y socios' })).toHaveTextContent(
+      'Mis datos',
+    );
+    expect(within(menu()).queryByText('Remitos')).not.toBeInTheDocument();
   });
 
   it('el bibliotecario no ve Usuarios y su sede aparece en la barra', async () => {

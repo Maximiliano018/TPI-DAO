@@ -35,39 +35,53 @@
   flex-direction: column;
 }
 
-/* Cada libro tiene su color, ancho y desfase: una pila acomodada a mano. */
+/* Cada sección es una pila sobre su propia tabla, con una cartela de latón que la nombra. */
+.seccion {
+  display: flex;
+  flex-direction: column;
+}
+.seccion + .seccion {
+  margin-top: var(--space-4);
+}
+.cartela {
+  align-self: flex-start;
+  margin: 0 0 var(--space-2) 2px;
+  padding: 2px var(--space-2);
+  font-family: var(--font-serif);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2a170b;
+  background: linear-gradient(180deg, #e7c76a, var(--color-brass) 55%, #9c7a26);
+  border-radius: 2px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+/* Todos los libros del mismo ancho; cada uno con su color, para que la pila no sea monótona. */
 .libro {
   --lomo: var(--lomo-burdeos);
-  --ancho: 84%;
-  --desfase: 3%;
+  --ancho: 86%;
   position: relative;
-  height: 66px;
+  height: 58px;
   margin-top: -1px;
 }
 .libro:nth-child(6n + 2) {
   --lomo: var(--lomo-bosque);
-  --ancho: 78%;
-  --desfase: 8%;
 }
 .libro:nth-child(6n + 3) {
   --lomo: var(--lomo-marino);
-  --ancho: 86%;
-  --desfase: 1%;
 }
 .libro:nth-child(6n + 4) {
   --lomo: var(--lomo-ocre);
-  --ancho: 80%;
-  --desfase: 6%;
 }
 .libro:nth-child(6n + 5) {
   --lomo: var(--lomo-ciruela);
-  --ancho: 83%;
-  --desfase: 2%;
 }
 .libro:nth-child(6n + 6) {
   --lomo: var(--lomo-petroleo);
-  --ancho: 77%;
-  --desfase: 7%;
 }
 
 .lomo,
@@ -77,7 +91,6 @@
   align-items: stretch;
   height: 100%;
   width: var(--ancho);
-  margin-left: var(--desfase);
   color: var(--color-cream);
   text-decoration: none;
   /* Lomo redondeado: luz arriba, sombra abajo */
