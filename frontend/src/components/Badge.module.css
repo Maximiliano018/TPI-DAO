@@ -1,7 +1,11 @@
 /* Etiqueta adhesiva de lomo: texto en versalitas con filete del mismo color */
+/* Todos del mismo ancho (salvo los textos más largos): en una columna quedan parejos */
 .badge {
   display: inline-block;
+  box-sizing: border-box;
+  min-width: 7rem;
   padding: 1px var(--space-2);
+  text-align: center;
   border: 1px solid currentColor;
   border-radius: var(--radius-sm);
   font-size: var(--text-sm);

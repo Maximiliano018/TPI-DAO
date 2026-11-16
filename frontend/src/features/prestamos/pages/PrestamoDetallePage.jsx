@@ -98,12 +98,18 @@ function Acciones({ prestamo }) {
   const cerrar = () => setDialogo(null);
   return (
     <>
-      {puedeEntregar && <Button onClick={() => setDialogo('entregar')}>Entregar al socio</Button>}
+      {puedeEntregar && (
+        <Button icono="confirmar" onClick={() => setDialogo('entregar')}>
+          Entregar al socio
+        </Button>
+      )}
       {puedeDevolver && (
-        <Button onClick={() => setDialogo('devolver')}>Registrar devolución</Button>
+        <Button icono="devolver" onClick={() => setDialogo('devolver')}>
+          Registrar devolución
+        </Button>
       )}
       {enDestino && estado === 'ACTIVO' && (
-        <Button variante="secondary" onClick={() => setDialogo('renovar')}>
+        <Button variante="secondary" icono="renovar" onClick={() => setDialogo('renovar')}>
           Renovar
         </Button>
       )}

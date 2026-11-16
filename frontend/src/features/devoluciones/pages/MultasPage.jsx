@@ -193,6 +193,7 @@ export default function MultasPage() {
               m.estado === 'PENDIENTE' && (
                 <Button
                   tamano="sm"
+                  icono="confirmar"
                   aria-label={`Saldar la multa del préstamo ${m.numero_prestamo}`}
                   onClick={() => setASaldar(m)}
                 >

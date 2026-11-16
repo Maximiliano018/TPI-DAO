@@ -61,7 +61,7 @@ export default function UsuariosPage() {
       titulo: 'Acciones',
       render: (u) => (
         <div className={estilos.acciones}>
-          <AccionesUsuario usuario={u} />
+          <AccionesUsuario usuario={u} compacto />
         </div>
       ),
     },
@@ -72,7 +72,11 @@ export default function UsuariosPage() {
       <PageHeader
         titulo="Usuarios"
         descripcion="Administradores y bibliotecarios del sistema."
-        acciones={<Button to="/usuarios/nuevo">Nuevo usuario</Button>}
+        acciones={
+          <Button icono="agregar" to="/usuarios/nuevo">
+            Nuevo usuario
+          </Button>
+        }
       />
       <FilterBar etiqueta="Filtros de usuarios" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <FiltroSelect
@@ -107,6 +111,7 @@ export default function UsuariosPage() {
         </FiltroSelect>
         <BusquedaConEspera
           etiqueta="Buscar por nombre o usuario"
+          ejemplo="Lucía o bibliotecario.cen"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />
@@ -117,7 +122,7 @@ export default function UsuariosPage() {
       {data && data.items.length === 0 && (
         <EmptyState titulo="No hay usuarios que coincidan">
           {hayFiltros && (
-            <Button variante="secondary" onClick={limpiar}>
+            <Button variante="secondary" icono="limpiar" onClick={limpiar}>
               Limpiar filtros
             </Button>
           )}

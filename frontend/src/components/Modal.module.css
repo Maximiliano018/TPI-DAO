@@ -24,6 +24,9 @@
     var(--shadow-md);
   padding: var(--space-6);
 }
+.caja:has(table) {
+  max-width: 860px;
+}
 .caja:focus {
   outline: none;
 }

@@ -3,7 +3,7 @@ import { Button } from '../../../components/index.js';
 import { BajaUsuarioDialog, ReactivarUsuarioDialog } from './UsuarioDialogs.jsx';
 
 /** Editar y, según el estado, dar de baja o reactivar. Las acciones inválidas no aparecen. */
-export default function AccionesUsuario({ usuario, tamano = 'sm' }) {
+export default function AccionesUsuario({ usuario, tamano = 'sm', compacto = false }) {
   const [dialogo, setDialogo] = useState(null);
   const cerrar = () => setDialogo(null);
   return (
@@ -13,6 +13,8 @@ export default function AccionesUsuario({ usuario, tamano = 'sm' }) {
         variante="secondary"
         tamano={tamano}
         aria-label={`Editar a ${usuario.nombre}`}
+        icono="editar"
+        soloIcono={compacto}
       >
         Editar
       </Button>
@@ -21,6 +23,8 @@ export default function AccionesUsuario({ usuario, tamano = 'sm' }) {
           variante="danger"
           tamano={tamano}
           aria-label={`Dar de baja a ${usuario.nombre}`}
+          icono="baja"
+          soloIcono={compacto}
           onClick={() => setDialogo('baja')}
         >
           Dar de baja
@@ -30,6 +34,8 @@ export default function AccionesUsuario({ usuario, tamano = 'sm' }) {
           variante="secondary"
           tamano={tamano}
           aria-label={`Reactivar a ${usuario.nombre}`}
+          icono="reactivar"
+          soloIcono={compacto}
           onClick={() => setDialogo('reactivar')}
         >
           Reactivar

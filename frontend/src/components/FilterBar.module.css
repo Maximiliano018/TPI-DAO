@@ -15,14 +15,26 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  min-width: 180px;
+  min-width: 0;
+}
+/* En la barra los campos se reparten la fila: crecen parejo y solo bajan si no entran */
+.barra > .campo {
+  flex: 1 1 150px;
+  max-width: 240px;
+}
+.barra > .busqueda {
+  flex: 2 1 240px;
+  max-width: 400px;
 }
 .etiqueta {
   font-family: var(--font-serif);
   font-size: var(--text-md);
   font-weight: 700;
 }
+/* Misma altura para fechas, selectores y textos: los campos quedan alineados */
 .control {
+  box-sizing: border-box;
+  height: var(--control-height);
   min-height: var(--control-height);
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-strong);
@@ -46,8 +58,8 @@ select.control {
   outline-offset: 1px;
 }
 @media (max-width: 639px) {
-  .campo {
+  .barra > .campo {
     flex: 1 1 140px;
-    min-width: 0;
+    max-width: none;
   }
 }

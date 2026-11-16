@@ -149,6 +149,7 @@ export function BotonCsv({ nombre, columnas, filas, obtenerFilas }) {
     <Button
       variante="secondary"
       tamano="sm"
+      icono="descargar"
       onClick={exportar}
       disabled={filas.length === 0 || exportando}
     >

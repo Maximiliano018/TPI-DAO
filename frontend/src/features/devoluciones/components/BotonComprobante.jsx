@@ -13,6 +13,7 @@ export default function BotonComprobante({ pago, variante = 'primary', tamano = 
       <Button
         variante={variante}
         tamano={tamano}
+        icono="comprobante"
         cargando={descargando}
         aria-label={`Descargar el comprobante ${pago.numero_comprobante ?? ''}`.trim()}
         onClick={async () => {

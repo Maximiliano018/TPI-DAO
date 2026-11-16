@@ -321,7 +321,7 @@ export default function EjemplarDetallePage() {
             gestiona &&
             ejemplar.estado !== 'BAJA' && (
               <>
-                <Button variante="secondary" onClick={() => setDialogo('editar')}>
+                <Button variante="secondary" icono="editar" onClick={() => setDialogo('editar')}>
                   Editar
                 </Button>
                 {ejemplar.estado === 'EN_REVISION' && (
@@ -330,7 +330,7 @@ export default function EjemplarDetallePage() {
                   </Button>
                 )}
                 {['DISPONIBLE', 'EN_REVISION'].includes(ejemplar.estado) && (
-                  <Button variante="danger" onClick={() => setDialogo('baja')}>
+                  <Button variante="danger" icono="baja" onClick={() => setDialogo('baja')}>
                     Dar de baja
                   </Button>
                 )}

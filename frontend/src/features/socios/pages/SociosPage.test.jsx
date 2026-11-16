@@ -35,7 +35,8 @@ describe('Listado de socios', () => {
     );
     expect(within(filas[0]).getByText('DNI 30111222')).toBeInTheDocument();
     expect(within(filas[0]).getByText('Habilitado')).toBeInTheDocument();
-    expect(within(filas[1]).getByText('Inhabilitado · Préstamo vencido')).toBeInTheDocument();
+    expect(within(filas[1]).getByText('Inhabilitado')).toBeInTheDocument();
+    expect(within(filas[1]).getByText('Préstamo vencido')).toBeInTheDocument();
     expect(within(filas[2]).getByText('Dado de baja')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Nuevo socio' })).toHaveAttribute(
       'href',
