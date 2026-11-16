@@ -1,9 +1,19 @@
 import { useState } from 'react';
 import estilos from './Portada.module.css';
 
-const LOMOS = ['burdeos', 'bosque', 'marino', 'ocre', 'ciruela', 'petroleo', 'rosa', 'negro'];
+const LOMOS = [
+  'rojo',
+  'naranja',
+  'amarillo',
+  'verde',
+  'turquesa',
+  'azul',
+  'indigo',
+  'violeta',
+  'rosa',
+];
 // Tapas claras: el texto va en tinta para que se lea.
-const CLARAS = new Set(['ocre', 'petroleo', 'rosa']);
+const CLARAS = new Set(['naranja', 'amarillo', 'verde', 'rosa']);
 
 /** Color de tapa estable para cada título (el mismo libro siempre del mismo color). */
 function colorDe(titulo) {

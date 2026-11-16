@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSesion } from '../auth/SesionContext.jsx';
 import { Button, Icono, Logo } from '../components/index.js';
-import { MENSAJES } from '../utils/mensajes.js';
 import { NOMBRE_DE_ROL } from '../utils/roles.js';
 import estilos from './AppBar.module.css';
 
@@ -43,16 +42,18 @@ export default function AppBar({ menuAbierto, onAlternarMenu }) {
         ☰
       </button>
       <span className={estilos.marca}>
-        <Logo tamano={36} className={estilos.logo} />
+        <Logo tamano={32} className={estilos.logo} />
         <span className={estilos.textoMarca}>
           <span className={estilos.sistema}>Préstamos</span>
           <span className={estilos.red}>Red de Bibliotecas Públicas</span>
         </span>
       </span>
-      <span className={estilos.sede} data-testid="sede-del-usuario">
-        <Icono nombre="ubicacion" />
-        {usuario.sede ? usuario.sede.nombre : MENSAJES.todaLaRed}
-      </span>
+      {usuario.sede && (
+        <span className={estilos.sede} data-testid="sede-del-usuario">
+          <Icono nombre="ubicacion" />
+          {usuario.sede.nombre}
+        </span>
+      )}
       <div className={estilos.usuario} ref={contenedor}>
         <button
           type="button"
@@ -61,10 +62,7 @@ export default function AppBar({ menuAbierto, onAlternarMenu }) {
           aria-expanded={abierto}
           onClick={() => setAbierto((v) => !v)}
         >
-          <span className={estilos.avatar} aria-hidden="true">
-            {usuario.nombre.trim().charAt(0).toUpperCase()}
-          </span>
-          <span className={estilos.nombre}>{usuario.nombre}</span>
+          {usuario.nombre}
           <Icono nombre="abajo" />
         </button>
         {abierto && (

@@ -9,12 +9,12 @@ import { PERMISOS } from '../utils/roles.js';
 export const SECCIONES_DE_MENU = [
   {
     titulo: null,
-    franja: 'ocre',
+    franja: 'amarillo',
     items: [{ to: '/', texto: 'Inicio', icono: 'inicio', fin: true }],
   },
   {
     titulo: 'Circulación',
-    franja: 'burdeos',
+    franja: 'rojo',
     items: [
       { to: '/prestamos', texto: 'Préstamos', icono: 'libro', permiso: PERMISOS.PRESTAMO_LEER },
       {
@@ -41,12 +41,12 @@ export const SECCIONES_DE_MENU = [
   },
   {
     titulo: 'Logística',
-    franja: 'marino',
+    franja: 'naranja',
     items: [{ to: '/remitos', texto: 'Remitos', icono: 'camion', permiso: PERMISOS.REMITO_LEER }],
   },
   {
     titulo: 'Colección',
-    franja: 'bosque',
+    franja: 'verde',
     items: [
       { to: '/catalogo', texto: 'Catálogo', icono: 'biblioteca', permiso: PERMISOS.CATALOGO_LEER },
       { to: '/ejemplares', texto: 'Ejemplares', icono: 'codigo', permiso: PERMISOS.EJEMPLAR_LEER },
@@ -54,7 +54,7 @@ export const SECCIONES_DE_MENU = [
   },
   {
     titulo: 'Red y socios',
-    franja: 'ocre',
+    franja: 'azul',
     items: [
       { to: '/sedes', texto: 'Sedes', icono: 'edificio' },
       { to: '/socios', texto: 'Socios', icono: 'personas', permiso: PERMISOS.SOCIO_LEER },
@@ -68,7 +68,7 @@ export const SECCIONES_DE_MENU = [
   },
   {
     titulo: 'Gestión',
-    franja: 'ciruela',
+    franja: 'violeta',
     items: [
       { to: '/reportes', texto: 'Reportes', icono: 'grafico', permiso: PERMISOS.CATALOGO_LEER },
       {

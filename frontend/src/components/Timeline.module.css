@@ -17,22 +17,22 @@
   width: 10px;
   height: 18px;
   border-radius: 2px;
-  background: var(--color-lomo, var(--lomo-burdeos));
+  background: var(--color-lomo, var(--lomo-rojo));
 }
 .item:nth-child(7n + 2)::before {
-  background: var(--lomo-marino);
+  background: var(--lomo-azul);
 }
 .item:nth-child(7n + 3)::before {
-  background: var(--lomo-ocre);
+  background: var(--lomo-amarillo);
 }
 .item:nth-child(7n + 4)::before {
-  background: var(--lomo-bosque);
+  background: var(--lomo-verde);
 }
 .item:nth-child(7n + 5)::before {
-  background: var(--lomo-petroleo);
+  background: var(--lomo-turquesa);
 }
 .item:nth-child(7n + 6)::before {
-  background: var(--lomo-ciruela);
+  background: var(--lomo-violeta);
 }
 .item:nth-child(7n + 7)::before {
   background: var(--lomo-rosa);

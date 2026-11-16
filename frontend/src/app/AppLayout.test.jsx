@@ -11,7 +11,7 @@ function menu() {
 }
 
 describe('AppLayout', () => {
-  it('el administrador ve todos los módulos del personal; la sede es «Toda la red»', async () => {
+  it('el administrador ve todos los módulos del personal y la barra no muestra sede', async () => {
     sesionDe(ADMIN);
     responder('get', '/sedes/resumen', { total: 0, activas: 0, en_baja: 0 });
     responder('get', '/sedes', pagina([]));
@@ -36,7 +36,7 @@ describe('AppLayout', () => {
       'Usuarios',
       'Parámetros',
     ]);
-    expect(screen.getByTestId('sede-del-usuario')).toHaveTextContent('Toda la red');
+    expect(screen.queryByTestId('sede-del-usuario')).not.toBeInTheDocument();
   });
 
   it('el menú se divide en secciones con nombre y el socio ve solo las suyas', async () => {

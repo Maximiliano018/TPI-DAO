@@ -7,7 +7,7 @@
   margin: 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border-strong);
-  border-left: 4px solid var(--lomo-ocre);
+  border-left: 4px solid var(--lomo-amarillo);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   display: flex;
@@ -40,7 +40,7 @@
   padding: 0 var(--space-2);
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: #fffdf9;
+  background: #ffffff;
   color: var(--color-text);
   font: inherit;
 }

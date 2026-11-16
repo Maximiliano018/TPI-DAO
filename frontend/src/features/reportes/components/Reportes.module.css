@@ -30,10 +30,10 @@
   width: 6px;
   height: 24px;
   border-radius: 2px;
-  background: var(--lomo-burdeos);
+  background: var(--lomo-rojo);
   box-shadow:
-    9px -3px 0 var(--lomo-ocre),
-    18px 2px 0 var(--lomo-marino);
+    9px -3px 0 var(--lomo-amarillo),
+    18px 2px 0 var(--lomo-azul);
 }
 .etiqueta {
   margin: 0;
@@ -47,8 +47,8 @@
 .valor {
   margin: var(--space-2) 0 0;
   font-family: var(--font-titulo);
-  font-size: 2.25rem;
-  font-weight: 900;
+  font-size: 1.75rem;
+  font-weight: 800;
   line-height: 1;
   letter-spacing: -0.03em;
   color: var(--color-ink);

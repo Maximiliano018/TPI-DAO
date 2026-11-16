@@ -1,26 +1,34 @@
 /*
- * Tokens del design system, con estética editorial: papel crema claro, tinta casi negra, títulos
- * de palo seco muy gruesos en mayúscula y terracota para las acciones principales. Los lomos de
- * colores planos (terracota, azul, mostaza, salvia, ciruela, celeste) son el sello de la red.
- * Los nombres `--color-primary-*`, `--color-success-*`, etc. son semánticos: las pantallas no usan
- * colores sueltos, así que el tema se cambia desde este archivo (ver docs/tecnica/10-guia-de-estilos.md).
+ * Tokens del design system, «editorial cálido»: papel crema, tinta casi negra, terracota para las
+ * acciones y los acentos y mostaza para los detalles; el menú y las franjas oscuras son tinta cálida.
+ * Los lomos son un arcoíris apagado, como tapas de tela. Los nombres `--color-primary-*`,
+ * `--color-success-*`, etc. son semánticos: el tema se cambia desde este archivo
+ * (ver docs/tecnica/10-guia-de-estilos.md).
  */
 :root {
-  /* Terracota: acciones principales y énfasis */
+  /* Terracota: acciones principales */
   --color-primary-700: #b04a27;
   --color-primary-800: #8f3a1d;
   --color-primary-100: #f5e1d7;
+  /* Terracota también para los acentos (segunda línea del lema, subrayados) */
+  --color-terracota: #b04a27;
+  --color-terracota-100: #f5e1d7;
+  /* Tinta cálida: menú lateral, franjas oscuras y pie */
+  --color-marino: #1d1a16;
+  --color-marino-700: #27231e;
   /* Tinta */
   --color-ink: #1d1b17;
   --color-text: #1d1b17;
   --color-text-muted: #5c554b;
   --color-text-subtle: #6f675b;
-  /* Papel: fondo de la aplicación y superficies (tarjetas) */
+  /* Papel crema, tarjetas un tono más claras */
   --color-bg: #f4efe7;
   --color-surface: #fbf8f3;
   --color-surface-2: #eee7db;
   --color-border: #e3d9c9;
   --color-border-strong: #8c8172;
+  /* Portada e ingreso: el mismo papel, casi plano */
+  --degrade-agua: linear-gradient(160deg, #f6f2eb 0%, #f4efe7 60%, #f1ebe1 100%);
   --color-success-700: #3d6a4c;
   --color-success-100: #e1ebe2;
   --color-success-800: #2d5139;
@@ -38,25 +46,26 @@
   --color-accent-100: #efe1ea;
   --color-accent-800: #613552;
 
-  /* Nombres heredados de la estética anterior, apuntados a la nueva paleta */
-  --color-wood-900: #1d1b17;
-  --color-wood-800: #2b2823;
+  /* Nombres heredados, apuntados a la paleta */
+  --color-wood-900: #1d1a16;
+  --color-wood-800: #27231e;
   --color-wood-600: #5c554b;
   --color-wood-400: #8a8073;
   --color-brass: #d39b34;
   --color-cream: #fbf8f3;
 
-  /* Lomos de colores planos (estante, franjas del menú, portadas dibujadas) */
-  --lomo-burdeos: #ad4f2d;
-  --lomo-bosque: #57705f;
-  --lomo-marino: #2c5b7a;
-  --lomo-ocre: #d39b34;
-  --lomo-ciruela: #6b3a59;
-  --lomo-petroleo: #8aa6bd;
-  --lomo-rosa: #d39a8b;
-  --lomo-negro: #1d1b17;
-  --lomo-crema: #e6dcc6;
-  --color-marcador: #ad4f2d;
+  /* Lomos: arcoíris apagado, como tapas de tela */
+  --lomo-rojo: #b5523f;
+  --lomo-naranja: #d08440;
+  --lomo-amarillo: #d3aa45;
+  --lomo-verde: #7e9c5a;
+  --lomo-turquesa: #357b76;
+  --lomo-azul: #4e79a7;
+  --lomo-indigo: #5e5f9e;
+  --lomo-violeta: #8a5a8a;
+  --lomo-rosa: #c47a8b;
+  --color-marcador: #b04a27;
+  --color-anillo: #b04a27;
 
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   /* Títulos: el mismo palo seco en su peso más grueso */
@@ -83,16 +92,16 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 2px rgba(29, 27, 23, 0.05);
-  --shadow-md: 0 12px 32px rgba(29, 27, 23, 0.12);
+  --shadow-sm: 0 1px 3px rgba(29, 27, 23, 0.06);
+  --shadow-md: 0 10px 30px rgba(29, 27, 23, 0.12);
 
   /* Sin texturas: superficies planas */
   --textura-papel: none;
   --textura-madera: none;
 
-  --control-height: 42px;
-  --sidebar-width: 260px;
-  --appbar-height: 72px;
-  --content-max: 1240px;
+  --control-height: 40px;
+  --sidebar-width: 236px;
+  --appbar-height: 64px;
+  --content-max: 1180px;
   --transition: 150ms ease;
 }

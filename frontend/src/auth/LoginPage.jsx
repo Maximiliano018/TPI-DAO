@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { obtenerInicioPublico } from '../api/publico.js';
-import { Alert, Button, Estante, Icono, Input, InputClave } from '../components/index.js';
+import { Alert, Button, Estante, Icono, Input, InputClave, Logo } from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
@@ -73,8 +73,8 @@ export default function LoginPage() {
     <div className={estilos.pagina}>
       <header className={estilos.barra}>
         <Link to="/" className={estilos.marca} onClick={limpiarAviso}>
-          <span className={estilos.sistema}>Préstamos</span>
-          <span className={estilos.red}>Red de Bibliotecas Públicas</span>
+          <Logo tamano={30} />
+          <span className={estilos.sistema}>Red de Bibliotecas Públicas</span>
         </Link>
         <Link to="/" className={estilos.volver} onClick={limpiarAviso}>
           <Icono nombre="volver" />
