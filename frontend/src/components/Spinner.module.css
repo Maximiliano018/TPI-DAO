@@ -26,14 +26,14 @@
 .rueda::before {
   left: 0;
   border-radius: 3px 0 0 3px;
-  box-shadow: inset -3px 0 4px rgba(59, 35, 20, 0.25);
+  box-shadow: inset -3px 0 4px rgba(45, 50, 54, 0.2);
 }
 .rueda::after {
   left: 17px;
   border-radius: 0 3px 3px 0;
   transform-origin: left center;
   animation: pasar 1.2s ease-in-out infinite;
-  box-shadow: inset 3px 0 4px rgba(59, 35, 20, 0.25);
+  box-shadow: inset 3px 0 4px rgba(45, 50, 54, 0.2);
 }
 .esqueleto {
   background: linear-gradient(

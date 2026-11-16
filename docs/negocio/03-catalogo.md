@@ -14,6 +14,7 @@ Proceso obligatorio 3 del enunciado.
 | Editorial, año de edición | |
 | Categoría o género | De un catálogo cerrado; para búsquedas y reportes (R3, R5) |
 | Tipo de material | `Libro`, `Revista`, `Obra de referencia` u `Otro` |
+| Portada | Opcional: enlace `http`/`https` a la imagen de la tapa o una portada servida por el sistema (`/portadas/...`). Sin portada se dibuja una tapa con el título y el autor |
 
 **Ejemplar** (la copia física):
 

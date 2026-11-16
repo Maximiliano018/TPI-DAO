@@ -98,12 +98,18 @@ function Acciones({ prestamo }) {
   const cerrar = () => setDialogo(null);
   return (
     <>
-      {puedeEntregar && <Button onClick={() => setDialogo('entregar')}>Entregar al socio</Button>}
+      {puedeEntregar && (
+        <Button icono="confirmar" onClick={() => setDialogo('entregar')}>
+          Entregar al socio
+        </Button>
+      )}
       {puedeDevolver && (
-        <Button onClick={() => setDialogo('devolver')}>Registrar devolución</Button>
+        <Button icono="devolver" onClick={() => setDialogo('devolver')}>
+          Registrar devolución
+        </Button>
       )}
       {enDestino && estado === 'ACTIVO' && (
-        <Button variante="secondary" onClick={() => setDialogo('renovar')}>
+        <Button variante="secondary" icono="renovar" onClick={() => setDialogo('renovar')}>
           Renovar
         </Button>
       )}
@@ -358,19 +364,19 @@ export default function PrestamoDetallePage() {
               </ul>
             </Card>
           )}
-          <Card titulo="Historial">
-            <Timeline
-              etiqueta="Historial del préstamo"
-              items={[...prestamo.historial].reverse().map((m, i) => ({
-                id: i,
-                titulo: estadoDe('prestamo', m.estado_nuevo).texto,
-                // El socio ve «Vos», «Personal de la biblioteca» o «Sistema» (lo resuelve la API).
-                meta: `${m.autor} · ${formatearFechaHora(m.fecha_hora)}`,
-                contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
-              }))}
-            />
-          </Card>
         </div>
+        <Card titulo="Historial">
+          <Timeline
+            etiqueta="Historial del préstamo"
+            items={[...prestamo.historial].reverse().map((m, i) => ({
+              id: i,
+              titulo: estadoDe('prestamo', m.estado_nuevo).texto,
+              // El socio ve «Vos», «Personal de la biblioteca» o «Sistema» (lo resuelve la API).
+              meta: `${m.autor} · ${formatearFechaHora(m.fecha_hora)}`,
+              contenido: m.observacion && <p style={{ margin: 0 }}>{m.observacion}</p>,
+            }))}
+          />
+        </Card>
       </div>
     </>
   );

@@ -112,7 +112,7 @@ function SituacionDelPago({ multa }) {
     return (
       <div className={estilos.acciones}>
         <span>
-          Saldada el {formatearFecha(multa.fecha_saldada)}
+          {formatearFecha(multa.fecha_saldada)}
           {medio ? ` · ${medio}` : ''}
         </span>
         {multa.pago && <BotonComprobante pago={multa.pago} variante="secondary" tamano="sm" />}
@@ -193,6 +193,7 @@ export default function MultasPage() {
               m.estado === 'PENDIENTE' && (
                 <Button
                   tamano="sm"
+                  icono="confirmar"
                   aria-label={`Saldar la multa del préstamo ${m.numero_prestamo}`}
                   onClick={() => setASaldar(m)}
                 >

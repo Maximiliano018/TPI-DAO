@@ -22,7 +22,15 @@ import estilos from '../../sedes/components/Sedes.module.css';
 import { esquemaLibro } from '../esquema.js';
 import { useCategorias, useCrearLibro, useLibro, useModificarLibro } from '../hooks/useCatalogo.js';
 
-const CAMPOS = ['isbn', 'titulo', 'autores', 'editorial', 'anio_edicion', 'categoria_id'];
+const CAMPOS = [
+  'isbn',
+  'titulo',
+  'autores',
+  'editorial',
+  'anio_edicion',
+  'categoria_id',
+  'portada_url',
+];
 const comoNumero = (valor) => (valor === '' ? undefined : Number(valor));
 
 function Formulario({ libro, categorias }) {
@@ -47,6 +55,7 @@ function Formulario({ libro, categorias }) {
       titulo: libro?.titulo ?? '',
       autores: (libro?.autores ?? []).join('\n'),
       editorial: libro?.editorial ?? '',
+      portada_url: libro?.portada_url ?? '',
       anio_edicion: libro?.anio_edicion ?? '',
       categoria_id: libro?.categoria.id,
       tipo_material: libro?.tipo_material ?? 'LIBRO',
@@ -64,6 +73,7 @@ function Formulario({ libro, categorias }) {
         .map((a) => a.trim())
         .filter(Boolean),
       editorial: datos.editorial || null,
+      portada_url: datos.portada_url || null,
       anio_edicion: datos.anio_edicion === '' ? null : datos.anio_edicion,
       categoria_id: datos.categoria_id,
       tipo_material: datos.tipo_material,
@@ -152,6 +162,14 @@ function Formulario({ libro, categorias }) {
               </option>
             ))}
           </Select>
+          <Input
+            etiqueta="Portada (enlace a la imagen)"
+            ayuda="Opcional. Si no hay, se muestra una tapa con el título."
+            inputMode="url"
+            autoComplete="off"
+            error={errors.portada_url?.message}
+            {...register('portada_url')}
+          />
           <Select etiqueta="Tipo de material" requerido {...register('tipo_material')}>
             {Object.entries(TIPOS_DE_MATERIAL).map(([valor, texto]) => (
               <option key={valor} value={valor}>

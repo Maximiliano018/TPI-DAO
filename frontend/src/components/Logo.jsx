@@ -1,6 +1,6 @@
 /** Libro abierto con marcador: logotipo del sistema. Decorativo (el nombre va en el texto). */
 export default function Logo({ tamano = 32, className = '' }) {
-  const hoja = { fill: 'var(--color-cream)', stroke: 'var(--color-brass)', strokeWidth: 1.2 };
+  const hoja = { fill: '#fffdf8', stroke: 'var(--color-brass)', strokeWidth: 1.4 };
   return (
     <svg
       className={className}

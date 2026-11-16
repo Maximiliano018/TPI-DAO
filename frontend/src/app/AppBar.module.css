@@ -1,4 +1,4 @@
-/* Barra de nogal con filete de latón; el nombre en serif como el rótulo de una biblioteca. */
+/* Barra superior clara: marca a la izquierda; sede y persona en píldoras a la derecha */
 .barra {
   position: sticky;
   top: 0;
@@ -8,58 +8,93 @@
   gap: var(--space-3);
   height: var(--appbar-height);
   padding: 0 var(--space-4);
-  color: var(--color-cream);
-  background-color: var(--color-wood-800);
-  background-image: var(--textura-madera);
-  border-bottom: 3px solid var(--color-brass);
-  box-shadow: var(--shadow-md);
+  color: var(--color-ink);
+  background: #ffffff;
+  border-bottom: 3px solid var(--color-turquesa);
+  box-shadow: 0 2px 12px rgba(45, 50, 54, 0.06);
+}
+.menu {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-lg);
+  cursor: pointer;
+}
+.marca {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
 }
 .logo {
   flex: none;
 }
-.menu {
-  min-width: 40px;
-  min-height: 40px;
-  background: rgba(0, 0, 0, 0.2);
-  color: var(--color-cream);
-  border: 1px solid var(--color-brass);
-  border-radius: var(--radius-md);
-  font-size: var(--text-lg);
-  cursor: pointer;
+.textoMarca {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
 }
 .sistema {
-  font-family: var(--font-serif);
-  font-size: var(--text-xl);
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  flex: 1;
+  font-family: var(--font-titulo);
+  font-size: var(--text-md);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+.red {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 .sede {
-  color: var(--color-brass);
-  font-family: var(--font-serif);
-  font-style: italic;
-  font-size: var(--text-md);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sede svg {
+  width: 16px;
+  height: 16px;
 }
 .usuario {
   position: relative;
 }
 .boton {
-  min-height: 40px;
-  color: var(--color-cream);
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(214, 173, 69, 0.6);
-  border-radius: var(--radius-md);
-  padding: 0 var(--space-3);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 38px;
+  padding: 0 var(--space-3) 0 var(--space-4);
+  color: var(--color-ink);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-pill);
   font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
   cursor: pointer;
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: #fff;
+  font-weight: 800;
 }
 .boton:hover,
 .menu:hover {
-  background: rgba(214, 173, 69, 0.22);
-}
-.menu:focus-visible,
-.boton:focus-visible {
-  outline-color: var(--color-brass);
+  background: var(--color-surface-2);
 }
 .panel {
   position: absolute;
@@ -72,9 +107,8 @@
   padding: var(--space-4);
   color: var(--color-text);
   background: var(--color-surface);
-  border: 1px solid var(--color-border-strong);
-  border-top: 3px solid var(--color-primary-700);
-  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
 .datos {
@@ -87,16 +121,20 @@
   font-size: var(--text-sm);
 }
 @media (min-width: 1024px) {
+  .barra {
+    padding: 0 var(--space-8);
+  }
   .menu {
     display: none;
   }
 }
 @media (max-width: 639px) {
   .sede,
-  .sistema {
+  .red {
     display: none;
   }
-  .usuario {
-    margin-left: auto;
-  }
+}
+.boton svg {
+  width: 16px;
+  height: 16px;
 }

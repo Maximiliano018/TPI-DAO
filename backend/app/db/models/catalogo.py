@@ -68,6 +68,10 @@ class LibroORM(ConAuditoriaDeTiempo, Base):
             name="tipo_material_valido",
         ),
         CheckConstraint("(isbn IS NULL) = (clave_natural IS NOT NULL)", name="isbn_o_clave"),
+        CheckConstraint(
+            "portada_url IS NULL OR portada_url ~ '^(https?://|/portadas/)[^[:space:]]+$'",
+            name="portada_url_valida",
+        ),
         Index("ix_libro_titulo_normalizado", "titulo_normalizado"),
     )
 
@@ -75,6 +79,7 @@ class LibroORM(ConAuditoriaDeTiempo, Base):
     titulo: Mapped[str] = mapped_column(String(200), nullable=False)
     titulo_normalizado: Mapped[str] = mapped_column(String(200), nullable=False)
     editorial: Mapped[str | None] = mapped_column(String(100))
+    portada_url: Mapped[str | None] = mapped_column(String(300))
     anio_edicion: Mapped[int | None] = mapped_column(SmallInteger)
     categoria_id: Mapped[int] = mapped_column(ForeignKey("categoria.id"), nullable=False)
     tipo_material: Mapped[str] = mapped_column(String(20), nullable=False)

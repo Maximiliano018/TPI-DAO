@@ -86,7 +86,7 @@ export default function SedesPage() {
       titulo: 'Acciones',
       render: (s) => (
         <div className={estilos.acciones}>
-          <AccionesSede sede={s} conVer tamano="sm" />
+          <AccionesSede sede={s} conVer tamano="sm" compacto />
         </div>
       ),
     },
@@ -97,7 +97,13 @@ export default function SedesPage() {
       <PageHeader
         titulo="Sedes"
         descripcion="Sedes de la red de bibliotecas."
-        acciones={administra && <Button to="/sedes/nueva">Nueva sede</Button>}
+        acciones={
+          administra && (
+            <Button icono="agregar" to="/sedes/nueva">
+              Nueva sede
+            </Button>
+          )
+        }
       />
       <FilterBar etiqueta="Filtros de sedes" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         {veEstado && (
@@ -112,7 +118,8 @@ export default function SedesPage() {
           </FiltroSelect>
         )}
         <BusquedaConEspera
-          etiqueta="Buscar"
+          etiqueta="Buscar por nombre, código, calle o localidad"
+          ejemplo="Central, CEN o Colón"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />
@@ -132,7 +139,7 @@ export default function SedesPage() {
       {data && data.items.length === 0 && (
         <EmptyState titulo="No hay sedes que coincidan">
           {hayFiltros && (
-            <Button variante="secondary" onClick={limpiar}>
+            <Button variante="secondary" icono="limpiar" onClick={limpiar}>
               Limpiar filtros
             </Button>
           )}

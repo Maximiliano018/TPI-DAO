@@ -11,6 +11,7 @@ import {
   ErrorState,
   PageHeader,
   Pagination,
+  Portada,
   Skeleton,
   Table,
   useToast,
@@ -21,6 +22,7 @@ import { mensajeDeError } from '../../../utils/errores.js';
 import { formatearFechaHora } from '../../../utils/formato.js';
 import { PERMISOS } from '../../../utils/roles.js';
 import estilos from '../../sedes/components/Sedes.module.css';
+import ficha from './LibroDetallePage.module.css';
 import inicio from '../../inicio/components/Inicio.module.css';
 import SolicitarPrestamoDialog from '../../prestamos/components/SolicitarPrestamoDialog.jsx';
 import ReservarDialog from '../../reservas/components/ReservarDialog.jsx';
@@ -225,15 +227,17 @@ export default function LibroDetallePage() {
             {sinDisponibles &&
               (tienePermiso(PERMISOS.RESERVA_PROPIA) ||
                 tienePermiso(PERMISOS.RESERVA_REGISTRAR)) && (
-                <Button variante="secondary" onClick={() => setReservando(true)}>
+                <Button variante="secondary" icono="reservar" onClick={() => setReservando(true)}>
                   Reservar
                 </Button>
               )}
             {gestionaEjemplares && (
-              <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`}>Agregar ejemplar</Button>
+              <Button to={`/ejemplares/nuevo?libro_id=${libro.id}`} icono="agregar">
+                Agregar ejemplar
+              </Button>
             )}
             {administra && (
-              <Button to={`/catalogo/${libro.id}/editar`} variante="secondary">
+              <Button to={`/catalogo/${libro.id}/editar`} variante="secondary" icono="editar">
                 Editar
               </Button>
             )}
@@ -247,7 +251,13 @@ export default function LibroDetallePage() {
         }
       />
       <div className={inicio.pagina}>
-        <div className={estilos.datos}>
+        <div className={ficha.ficha}>
+          <Portada
+            titulo={libro.titulo}
+            autores={libro.autores}
+            portadaUrl={libro.portada_url}
+            tamano="grande"
+          />
           <Card titulo="Datos del libro">
             <dl className={estilos.definiciones}>
               <dt>ISBN</dt>
@@ -262,10 +272,10 @@ export default function LibroDetallePage() {
               <dd>{TIPOS_DE_MATERIAL[libro.tipo_material]}</dd>
             </dl>
           </Card>
-          <Card titulo="Disponibilidad por sede">
-            <Disponibilidad libroId={libro.id} sedeId={usuario.sede_id} />
-          </Card>
         </div>
+        <Card titulo="Disponibilidad por sede">
+          <Disponibilidad libroId={libro.id} sedeId={usuario.sede_id} />
+        </Card>
         {tienePermiso(PERMISOS.RESERVA_LEER) && (
           <Card titulo="Cola de reservas">
             <ColaDeReservas libroId={libro.id} />

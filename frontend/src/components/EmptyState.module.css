@@ -8,7 +8,7 @@
 }
 .titulo {
   margin: var(--space-2) 0 0;
-  font-family: var(--font-serif);
+  font-family: var(--font-titulo);
   font-size: var(--text-lg);
   font-weight: 700;
 }

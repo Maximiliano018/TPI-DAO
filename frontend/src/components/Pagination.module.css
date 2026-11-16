@@ -20,7 +20,7 @@
   min-height: 32px;
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-md);
-  background: #fffdf7;
+  background: #ffffff;
   color: var(--color-text);
   padding: 0 var(--space-2);
   font: inherit;
@@ -31,6 +31,5 @@
   gap: var(--space-3);
 }
 .botones span {
-  font-family: var(--font-serif);
-  font-style: italic;
+  font-family: var(--font-titulo);
 }

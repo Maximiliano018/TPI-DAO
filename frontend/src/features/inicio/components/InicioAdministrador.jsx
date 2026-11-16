@@ -24,7 +24,9 @@ export default function InicioAdministrador() {
         <StatCard etiqueta="Total de sedes" valor={data?.total} to="/sedes" {...comunes} />
       </div>
       <div className={estilos.acciones}>
-        <Button to="/sedes/nueva">Nueva sede</Button>
+        <Button icono="agregar" to="/sedes/nueva">
+          Nueva sede
+        </Button>
         <Button to="/sedes" variante="secondary">
           Sedes
         </Button>

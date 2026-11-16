@@ -31,8 +31,8 @@ export default function AccionesSocio({ socio }) {
   const resuelveLaBaja =
     enBaja && socio.reactivable && (administra || (registra && socio.tipo_baja === 'A_PEDIDO'));
 
-  const boton = (clave, texto, variante = 'secondary') => (
-    <Button variante={variante} onClick={() => setDialogo(clave)}>
+  const boton = (clave, texto, variante = 'secondary', icono = undefined) => (
+    <Button variante={variante} icono={icono} onClick={() => setDialogo(clave)}>
       {texto}
     </Button>
   );
@@ -40,17 +40,25 @@ export default function AccionesSocio({ socio }) {
   return (
     <>
       {registra && !enBaja && (
-        <Button to={`/socios/${socio.id}/editar`} variante="secondary">
+        <Button to={`/socios/${socio.id}/editar`} variante="secondary" icono="editar">
           Editar
         </Button>
       )}
-      {registra && !enBaja && !socio.cuenta && boton('cuenta', 'Crear cuenta')}
-      {puedeRehabilitar && boton('rehabilitar', 'Rehabilitar')}
-      {administra && !enBaja && !administrativa && boton('inhabilitar', 'Inhabilitar', 'danger')}
-      {registra && !enBaja && boton('baja', 'Dar de baja', 'danger')}
+      {registra &&
+        !enBaja &&
+        !socio.cuenta &&
+        boton('cuenta', 'Crear cuenta', 'secondary', 'cuenta')}
+      {puedeRehabilitar && boton('rehabilitar', 'Rehabilitar', 'secondary', 'reactivar')}
+      {administra &&
+        !enBaja &&
+        !administrativa &&
+        boton('inhabilitar', 'Inhabilitar', 'danger', 'bloquear')}
+      {registra && !enBaja && boton('baja', 'Dar de baja', 'danger', 'baja')}
       {resuelveLaBaja && socio.solicitud && boton('aprobar', 'Aprobar reactivación', 'primary')}
       {resuelveLaBaja && socio.solicitud && boton('rechazar', 'Rechazar solicitud')}
-      {resuelveLaBaja && !socio.solicitud && boton('reactivar', 'Reactivar')}
+      {resuelveLaBaja &&
+        !socio.solicitud &&
+        boton('reactivar', 'Reactivar', 'secondary', 'reactivar')}
 
       {dialogo === 'cuenta' && <CrearCuentaDialog socio={socio} onCerrar={cerrar} />}
       {dialogo === 'rehabilitar' && <RehabilitarSocioDialog socio={socio} onCerrar={cerrar} />}

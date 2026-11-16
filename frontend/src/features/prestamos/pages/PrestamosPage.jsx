@@ -77,13 +77,16 @@ export default function PrestamosPage() {
         }
         acciones={
           tienePermiso(PERMISOS.PRESTAMO_REGISTRAR) && (
-            <Button to="/prestamos/nuevo">Nuevo préstamo</Button>
+            <Button icono="agregar" to="/prestamos/nuevo">
+              Nuevo préstamo
+            </Button>
           )
         }
       />
       <FilterBar etiqueta="Filtros de préstamos" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por número"
+          ejemplo="P-2026-000123"
           valor={filtros.numero ?? ''}
           onBuscar={(numero) => cambiar({ numero })}
         />

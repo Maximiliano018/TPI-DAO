@@ -15,6 +15,13 @@ export const esquemaLibro = z.object({
     .string()
     .refine((v) => v.split('\n').some((a) => a.trim()), 'Indique al menos un autor'),
   editorial: z.string().trim().max(100, 'La editorial admite hasta 100 caracteres'),
+  portada_url: z
+    .string()
+    .trim()
+    .max(300, 'El enlace admite hasta 300 caracteres')
+    .refine((v) => v === '' || /^(https?:\/\/|\/portadas\/)\S+$/.test(v), {
+      message: 'Pegue el enlace (http o https) a la imagen de la portada',
+    }),
   anio_edicion: z.union([
     z.literal(''),
     z.coerce.number().int('Indique un año').min(1450, 'Año inválido').max(2100, 'Año inválido'),

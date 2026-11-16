@@ -6,7 +6,7 @@
 .tarjetas {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
 }
 .acciones {
   display: flex;
@@ -18,13 +18,53 @@
   margin: 0;
   padding: 0;
 }
+/* Cada sede con un lomo de color, el nombre en negrita y el código en una etiqueta */
 .elemento {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3) 0;
+  padding: var(--space-4) 0 var(--space-4) var(--space-6);
+}
+.elemento::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: var(--space-4);
+  bottom: var(--space-4);
+  width: 6px;
+  border-radius: 2px;
+  background: var(--lomo-rojo);
+}
+.elemento:nth-child(5n + 2)::before {
+  background: var(--lomo-azul);
+}
+.elemento:nth-child(5n + 3)::before {
+  background: var(--lomo-amarillo);
+}
+.elemento:nth-child(5n + 4)::before {
+  background: var(--lomo-verde);
+}
+.elemento:nth-child(5n + 5)::before {
+  background: var(--lomo-violeta);
+}
+.elemento > div > a {
+  font-size: var(--text-lg);
+  font-weight: 800;
+  text-decoration: none;
+}
+.elemento > div > a:hover {
+  text-decoration: underline;
+}
+.elemento :global(.mono) {
+  margin-left: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
 }
 .elemento + .elemento {
   border-top: 1px solid var(--color-border);
@@ -42,7 +82,7 @@
   margin: 0 0 var(--space-2);
 }
 .nombre {
-  font-family: var(--font-serif);
+  font-family: var(--font-titulo);
   font-size: var(--text-lg);
   font-weight: 700;
 }

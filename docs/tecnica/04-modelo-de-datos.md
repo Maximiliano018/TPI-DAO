@@ -209,7 +209,7 @@ Los socios que ya existían antes de la migración `0010` empiezan su historial 
 |-------|----------------|---------------|
 | categoria | nombre | UNIQUE; catálogo cerrado que carga la migración `0005` |
 | autor | nombre, nombre_normalizado | `nombre_normalizado` UNIQUE: el mismo autor escrito con o sin tildes es uno solo |
-| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural, version | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO`. `version` (INT, por defecto 1): concurrencia optimista al modificar |
+| libro | isbn, titulo, titulo_normalizado, editorial, anio_edicion, categoria_id, tipo_material, clave_natural, portada_url, version | `isbn` UNIQUE (admite NULL, sin guiones); `clave_natural` UNIQUE, calculada como título + primer autor + editorial + año **solo cuando no hay ISBN**: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`. `tipo_material`: `LIBRO`, `REVISTA`, `OBRA_DE_REFERENCIA` u `OTRO`. `portada_url` (VARCHAR 300, opcional): enlace a la imagen de la tapa; `ck_libro_portada_url_valida` solo admite `http(s)://…` o `/portadas/…` sin espacios, como el dominio. `version` (INT, por defecto 1): concurrencia optimista al modificar |
 | libro_autor | libro_id, autor_id, orden | PK compuesta (libro_id, autor_id); se borra con el libro |
 
 Un libro solo se elimina si no tiene ejemplares (ni siquiera dados de baja, que son historial).
@@ -429,6 +429,7 @@ Orden de aplicación (`alembic upgrade head`). Las que transforman datos existen
 | `0016_pagos_de_multas` | Tabla `pago` con sus restricciones e índices únicos parciales; las multas ya saldadas reciben su pago aprobado con medio `NO_REGISTRADO` |
 | `0017_multas_por_danio_y_extravio` | `multa.tipo` (las existentes, `ATRASO`), `dias_atraso` y `monto_por_dia` opcionales con `ck_multa_atraso_segun_tipo`, `uq_multa_prestamo_id` pasa a `uq_multa_prestamo_id_tipo`, y los parámetros `multa_por_danio` y `multa_por_extravio` (0). El downgrade borra las multas por daño o extravío y sus pagos |
 | `0018_auditoria_de_parametros` | `historial_parametro` con su disparador de solo inserción; los parámetros existentes no reciben historial (sus valores vienen de las migraciones) |
+| `0019_portada_del_libro` | `libro.portada_url`, opcional, con `ck_libro_portada_url_valida`: los libros existentes quedan sin portada |
 
 ### Seed de demostración
 
@@ -442,7 +443,7 @@ Un comando (`python -m app.db.seed`) carga la red de demostración con **90 día
 | Personal | `admin` y `admin.operaciones` (administradores); `bibliotecario.cen`, `bibliotecario.norte`, `bibliotecario.rc` y `bibliotecario.vm` (uno por sede activa); `bibliotecario.suplente`, que se reasigna de Central a Norte y hoy se da de baja |
 | Parámetros | Cambios auditados: multa por daño ($3.000) y por extravío ($15.000), tope por préstamo ($5.000) y renovaciones máximas (de 1 a 2 y de vuelta a 1, por dos administradores) |
 | Socios | 14, con cuentas `socio.demo` (Carla Soto), `martin.rios`, `camila.ferreyra`, `tomas.vera`, `diego.luna` y `ana.quiroga`. Hay una modificación de datos, una inhabilitación administrativa vigente (Sofía) y otra levantada (Lucas), inhabilitaciones automáticas por préstamo vencido (Julián, Gonzalo) y por multa impaga (Rocío), bajas a pedido, administrativa (Pedro, reactivado) y por fallecimiento, una solicitud de reactivación pendiente (Diego) y una rechazada (Ana) |
-| Catálogo | 15 títulos: libros con uno o varios autores, una obra de referencia y una revista sin ISBN (clave natural). Unos 30 ejemplares en cinco sedes, un libro corregido (nueva versión), un cambio de estado físico, una baja manual, dos reparaciones y dos recuperaciones de extraviados |
+| Catálogo | 14 títulos: libros con uno o varios autores y una obra de referencia. Unos 30 ejemplares en cinco sedes, un libro corregido (nueva versión), un cambio de estado físico, una baja manual, dos reparaciones y dos recuperaciones de extraviados |
 | Préstamos | Locales y entre sedes, en el mostrador (también uno del administrador) y por autogestión del socio, en los seis estados: solicitado, en envío, activo (uno renovado), vencido, devuelto y cancelado (por el socio, por retiro vencido y por un envío dañado) |
 | Remitos | Envíos, retornos y traslados en los **diez estados**: generado, empaquetado, despachado, en tránsito, recibido, dañado, destruido, incompleto (con un faltante que después aparece), extraviado y anulado, con sus incidencias a cargo de la sede origen |
 | Reservas | En los cinco estados: pendiente, disponible para retiro, cumplida (local y entre sedes, con el préstamo que genera el sistema), cancelada (por el socio y por el administrador) y vencida |
@@ -454,7 +455,7 @@ Un comando (`python -m app.db.seed`) carga la red de demostración con **90 día
 
 | Qué | Cuánto |
 |-----|--------|
-| Catálogo | 124 libros más (clásicos universales, autores argentinos y latinoamericanos, los más leídos de los últimos años, infantiles, ciencia, historia, filosofía e informática), con dos revistas y dos obras de referencia. Unos 230 ejemplares repartidos en Central, Norte, Río Cuarto y Villa María (códigos `SEDE-Vnnn-n`). Sus ISBN son de demostración: válidos, pero no los de una edición real |
+| Catálogo | 110 libros más (clásicos universales, autores argentinos y latinoamericanos, los más leídos de los últimos años, infantiles, ciencia, historia, filosofía e informática), con una obra de referencia. Cada libro trae su portada (`/portadas/…`, bajadas de Open Library). Unos 210 ejemplares repartidos en Central, Norte, Río Cuarto y Villa María (códigos `SEDE-Vnnn-n`). Sus ISBN son de demostración: válidos, pero no los de una edición real |
 | Socios | 72 más, registrados en el mostrador de cada sede |
 | Movimiento | Día por día, de hace 59 días a ayer: unos 380 préstamos (locales y entre sedes), 330 remitos (envíos, retornos y traslados semanales), devoluciones en término, tardías, dañadas y extraviadas, reparaciones, renovaciones, reservas que se asignan, se retiran, se cancelan o vencen, y multas que se cobran en el mostrador o quedan pendientes |
 

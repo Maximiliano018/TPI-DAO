@@ -18,22 +18,23 @@
 }
 .datos {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
   gap: var(--space-4);
 }
 .definiciones {
   display: grid;
-  grid-template-columns: max-content 1fr;
+  grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
   gap: var(--space-2) var(--space-4);
   margin: 0;
 }
 .definiciones dt {
   color: var(--color-text-muted);
-  font-family: var(--font-serif);
-  font-weight: 700;
+  font-weight: 600;
 }
 .definiciones dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .semana {
   list-style: none;

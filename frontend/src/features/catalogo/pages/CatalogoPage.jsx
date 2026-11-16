@@ -62,13 +62,16 @@ export default function CatalogoPage() {
         descripcion="Libros de toda la red. Un libro disponible en otra sede se puede pedir como préstamo interbibliotecario."
         acciones={
           tienePermiso(PERMISOS.CATALOGO_ADMINISTRAR) && (
-            <Button to="/catalogo/nuevo">Nuevo libro</Button>
+            <Button icono="agregar" to="/catalogo/nuevo">
+              Nuevo libro
+            </Button>
           )
         }
       />
       <FilterBar etiqueta="Filtros del catálogo" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por título, autor o ISBN"
+          ejemplo="Rayuela, Cortázar o 9789500705783"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />
@@ -103,7 +106,7 @@ export default function CatalogoPage() {
       {data && data.items.length === 0 && (
         <EmptyState titulo="No hay libros que coincidan">
           {hayFiltros && (
-            <Button variante="secondary" onClick={limpiar}>
+            <Button variante="secondary" icono="limpiar" onClick={limpiar}>
               Limpiar filtros
             </Button>
           )}

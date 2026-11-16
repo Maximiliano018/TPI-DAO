@@ -74,12 +74,17 @@ export default function SociosPage() {
         titulo="Socios"
         descripcion="Socios de la red: pueden pedir material en cualquier sede activa."
         acciones={
-          tienePermiso(PERMISOS.SOCIO_REGISTRAR) && <Button to="/socios/nuevo">Nuevo socio</Button>
+          tienePermiso(PERMISOS.SOCIO_REGISTRAR) && (
+            <Button icono="agregar" to="/socios/nuevo">
+              Nuevo socio
+            </Button>
+          )
         }
       />
       <FilterBar etiqueta="Filtros de socios" onLimpiar={limpiar} hayFiltros={hayFiltros}>
         <BusquedaConEspera
           etiqueta="Buscar por número, documento o nombre"
+          ejemplo="00045, 30111222 o Soto"
           valor={filtros.q ?? ''}
           onBuscar={(q) => cambiar({ q })}
         />
@@ -108,7 +113,7 @@ export default function SociosPage() {
       {data && data.items.length === 0 && (
         <EmptyState titulo="No hay socios que coincidan">
           {hayFiltros && (
-            <Button variante="secondary" onClick={limpiar}>
+            <Button variante="secondary" icono="limpiar" onClick={limpiar}>
               Limpiar filtros
             </Button>
           )}

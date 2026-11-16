@@ -14,7 +14,7 @@
   justify-content: space-between;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-4);
-  border-left: 6px solid var(--color-brass);
+  border-left: 4px solid var(--color-primary-700);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   font-weight: 500;

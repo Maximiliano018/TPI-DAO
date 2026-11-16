@@ -1,24 +1,49 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { z } from 'zod';
-import { Alert, Button, Input, InputClave, Logo } from '../components/index.js';
+import { obtenerInicioPublico } from '../api/publico.js';
+import {
+  Alert,
+  Button,
+  Icono,
+  Input,
+  InputClave,
+  Logo,
+  SiluetaLibros,
+} from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
 import { useSesion } from './SesionContext.jsx';
 import estilos from './LoginPage.module.css';
+
+// Lo que se puede hacer al ingresar.
+const VENTAJAS = [
+  'Consulte el catálogo de todas las sedes.',
+  'Reserve y siga sus préstamos desde acá.',
+  'Retire el libro en la sede que elija.',
+];
 
 const esquema = z.object({
   username: z.string().trim().min(1, 'Ingrese su usuario'),
   password: z.string().min(1, 'Ingrese su contraseña'),
 });
 
+/** Ingreso: a la izquierda la red (lema y cifras); a la derecha, la tarjeta de ingreso. */
 export default function LoginPage() {
-  const { estado, aviso, iniciar } = useSesion();
+  const { estado, aviso, iniciar, limpiarAviso } = useSesion();
   const navegar = useNavigate();
   const ubicacion = useLocation();
   const [error, setError] = useState(null);
+  const [mayusculas, setMayusculas] = useState(false);
+  const red = useQuery({
+    queryKey: ['publico', 'inicio'],
+    queryFn: () => obtenerInicioPublico(12),
+    staleTime: 60_000,
+    retry: false,
+  });
   const {
     register,
     handleSubmit,
@@ -48,33 +73,105 @@ export default function LoginPage() {
     }
   }
 
+  // Avisa si el Bloq Mayús está activado mientras se escribe la contraseña.
+  const revisarMayusculas = (evento) => setMayusculas(evento.getModifierState?.('CapsLock'));
+
+  const cantidad = (n) => n.toLocaleString('es-AR');
+
   return (
-    <main className={estilos.pagina} id="contenido">
-      <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
-        <span className={estilos.escudo}>
-          <Logo tamano={46} />
-        </span>
-        <h1 className={estilos.titulo}>{MENSAJES.sistemaCompleto}</h1>
-        <p className={estilos.subtitulo}>Ingrese con su usuario y contraseña.</p>
-        {aviso && <Alert tono="warning">{aviso}</Alert>}
-        {error && <Alert tono="danger">{error}</Alert>}
-        <Input
-          etiqueta="Usuario"
-          autoComplete="username"
-          autoCapitalize="none"
-          error={errors.username?.message}
-          {...register('username')}
-        />
-        <InputClave
-          etiqueta="Contraseña"
-          autoComplete="current-password"
-          error={errors.password?.message}
-          {...register('password')}
-        />
-        <Button type="submit" cargando={isSubmitting}>
-          Ingresar
-        </Button>
-      </form>
-    </main>
+    <div className={estilos.pagina}>
+      <header className={estilos.barra}>
+        <Link to="/" className={estilos.marca} onClick={limpiarAviso}>
+          <Logo tamano={30} />
+          <span className={estilos.sistema}>Red de Bibliotecas Públicas</span>
+        </Link>
+        <Link to="/" className={estilos.volver} onClick={limpiarAviso}>
+          <Icono nombre="volver" />
+          Volver al inicio
+        </Link>
+      </header>
+
+      <main className={estilos.cuerpo} id="contenido">
+        <section className={estilos.presentacion} aria-label="La red de bibliotecas">
+          <p className={estilos.volanta}>Red de bibliotecas públicas · Córdoba</p>
+          <p className={estilos.lema}>
+            <span>Pídalo acá.</span> <span className={estilos.acento}>Retírelo allá.</span>
+          </p>
+          <p className={estilos.bajada}>
+            Pida un libro en cualquier sede y retírelo en la que le quede más cerca.
+          </p>
+          {red.data && (
+            <dl className={estilos.cifras}>
+              <div>
+                <Icono nombre="edificio" />
+                <dt>Sedes</dt>
+                <dd>{red.data.sedes_activas}</dd>
+              </div>
+              <div>
+                <Icono nombre="biblioteca" />
+                <dt>Títulos</dt>
+                <dd>{cantidad(red.data.libros)}</dd>
+              </div>
+              <div>
+                <Icono nombre="libro" />
+                <dt>Ejemplares</dt>
+                <dd>{cantidad(red.data.ejemplares)}</dd>
+              </div>
+            </dl>
+          )}
+          <ul className={estilos.ventajas}>
+            {VENTAJAS.map((texto) => (
+              <li key={texto}>
+                <span className={estilos.tilde}>
+                  <Icono nombre="confirmar" />
+                </span>
+                {texto}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className={estilos.acceso}>
+          <form className={estilos.formulario} onSubmit={handleSubmit(ingresar)} noValidate>
+            <span className={estilos.sello} aria-hidden="true">
+              <Logo tamano={30} />
+            </span>
+            <h1 className={estilos.titulo}>Ingresar</h1>
+            <p className={estilos.subtitulo}>Con su usuario de la red de bibliotecas.</p>
+            {aviso && <Alert tono="warning">{aviso}</Alert>}
+            {error && <Alert tono="danger">{error}</Alert>}
+            <Input
+              etiqueta="Usuario"
+              autoComplete="username"
+              autoCapitalize="none"
+              error={errors.username?.message}
+              {...register('username')}
+            />
+            <InputClave
+              etiqueta="Contraseña"
+              autoComplete="current-password"
+              error={errors.password?.message}
+              onKeyUp={revisarMayusculas}
+              onKeyDown={revisarMayusculas}
+              {...register('password')}
+            />
+            {mayusculas && (
+              <p className={estilos.mayusculas} role="status">
+                ⚠ Bloq Mayús está activado
+              </p>
+            )}
+            <Button type="submit" cargando={isSubmitting} className={estilos.enviar}>
+              Ingresar <span aria-hidden="true">→</span>
+            </Button>
+            <p className={estilos.ayuda}>
+              ¿Olvidó su contraseña? Pídala en el mostrador de su sede.
+            </p>
+          </form>
+        </section>
+      </main>
+
+      <SiluetaLibros />
+      <footer className={estilos.pie}>{MENSAJES.sistemaCompleto} · UTN FRC 2026</footer>
+    </div>
   );
 }

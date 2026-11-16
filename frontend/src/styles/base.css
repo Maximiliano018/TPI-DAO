@@ -9,29 +9,32 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: var(--text-md);
-  line-height: 1.5;
+  font-size: 0.9375rem;
+  line-height: 1.55;
   color: var(--color-text);
   background-color: var(--color-bg);
-  background-image: var(--textura-papel);
-  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1,
 h2,
 h3 {
   margin: 0;
-  font-family: var(--font-serif);
-  font-weight: 700;
-  line-height: 1.25;
+  font-family: var(--font-titulo);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
 }
 
-a {
-  color: var(--color-primary-700);
-}
-
+a,
 a:visited {
-  color: var(--color-primary-800);
+  color: var(--color-ink);
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 4px;
+}
+
+a:hover {
+  text-decoration-color: var(--color-terracota);
 }
 
 code,
@@ -45,7 +48,7 @@ code,
 
 /* Anillo de foco visible sobre cualquier fondo; nunca se quita sin reemplazarlo. */
 :focus-visible {
-  outline: 3px solid var(--color-primary-700);
+  outline: 3px solid var(--color-anillo);
   outline-offset: 2px;
 }
 
@@ -86,6 +89,6 @@ code,
 }
 
 ::selection {
-  background: var(--color-brass);
-  color: var(--color-wood-900);
+  background: #cfe9ea;
+  color: var(--color-ink);
 }

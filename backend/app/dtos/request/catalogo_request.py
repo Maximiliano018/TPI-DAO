@@ -31,6 +31,7 @@ class LibroRequest(BaseModel):
     anio_edicion: int | None = None
     categoria_id: int
     tipo_material: TipoMaterial = TipoMaterial.LIBRO
+    portada_url: str | None = Field(default=None, max_length=300)
 
     def a_datos(self) -> DatosLibroNuevo:
         return DatosLibroNuevo(
@@ -41,6 +42,7 @@ class LibroRequest(BaseModel):
             anio_edicion=self.anio_edicion,
             categoria_id=self.categoria_id,
             tipo_material=self.tipo_material,
+            portada_url=self.portada_url,
         )
 
 

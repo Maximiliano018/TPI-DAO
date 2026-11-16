@@ -69,7 +69,7 @@ Rutas de `app/App.jsx` (A administrador, B bibliotecario, S socio; entre parént
 |------|----------|--------|
 | `/login` | Inicio de sesión | Público (redirige a `/` si ya hay sesión) |
 | `/version` | Estado y versión del backend | Público |
-| `/` | Inicio por rol | Autenticado |
+| `/` | Sin sesión, el inicio público; con sesión, el inicio por rol | Público / Autenticado |
 | `/sedes`, `/sedes/:id` | Listado y detalle de sedes (pestañas Datos, Horarios, Historial) | A, B, S |
 | `/sedes/nueva`, `/sedes/:id/editar` | Alta y edición de sede | A (`SEDE_ADMINISTRAR`) |
 | `/usuarios`, `/usuarios/nuevo`, `/usuarios/:id/editar` | Personal: listado, alta, edición y reasignación de sede | A (`USUARIO_ADMINISTRAR`) |
@@ -91,7 +91,7 @@ Rutas de `app/App.jsx` (A administrador, B bibliotecario, S socio; entre parént
 | `/parametros` | Parámetros de negocio y tareas del sistema | A (`PARAMETROS_ADMINISTRAR`) |
 | `*` | No encontrado | Autenticado |
 
-`RutaProtegida` redirige a `/login` guardando la ruta de origen (se vuelve a ella tras ingresar) y muestra «sin permiso» si el rol no alcanza. Las rutas se cargan con `React.lazy`.
+`RutaProtegida` redirige a `/login` guardando la ruta de origen (se vuelve a ella tras ingresar) y muestra «sin permiso» si el rol no alcanza. En `/` sin sesión muestra el inicio público, salvo que la sesión se acabe de cerrar con un aviso (venció o no hay conexión): entonces va al login para mostrarlo. Las rutas se cargan con `React.lazy`.
 
 ## Layout base
 
@@ -116,11 +116,18 @@ Estructura de toda pantalla autenticada (`app/AppLayout.jsx`):
 | **Main** | Región `<main>` con salto de contenido, ancho máximo 1200 px y `PageHeader` |
 | **Salir** | Descarta el token, limpia la caché de TanStack Query y lleva a `/login` |
 
-El menú (`app/navegacion.js`) muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
+El menú (`app/navegacion.js`) se divide en secciones (Circulación, Logística, Colección, Red y socios, Gestión), cada una con su nombre; cada opción lleva su ícono (`components/Icono.jsx`, el mismo juego que usan los botones) dentro de un cuadradito del color de su sección, y la actual se pasa a blanco. Muestra cada ítem según el permiso del usuario: Inicio, Sedes, Catálogo, Ejemplares, Préstamos o «Mis préstamos», Reservas o «Mis reservas», Remitos, Multas o «Mis multas», Socios, Reportes, «Mis datos», Usuarios y Parámetros.
+
+## Inicio público
+
+Lo primero que ve cualquiera en `/` antes de ingresar (`features/publico`). Arriba, la marca y el botón «Ingresar»; después, ocupando la primera pantalla, el lema «Pedilo acá. Retiralo allá.» con el botón para ingresar, una biblioteca ilustrada (`components/Biblioteca.jsx`) y las cifras (sedes, títulos y ejemplares en la red) en una franja turquesa; al bajar, «Los más pedidos»: 12 libros (6 y 6 en escritorio) con su puesto, la portada, el título, el autor y cuántas veces se prestaron (los que completan la lista sin préstamos van sin puesto ni cantidad; si el backend no responde se avisa), y al final una silueta de libros que pasa al pie (`components/SiluetaLibros.jsx`). Los datos salen de `GET /publico/inicio`, que no pide token. La página se carga aparte (`React.lazy` en `RutaProtegida`): quien ya ingresó no la descarga.
+
+Las portadas (`components/Portada.jsx`) muestran la imagen de `portada_url`; si el libro no tiene o la imagen no carga, dibujan una tapa de tela con el título y el autor, del color de los lomos. Las imágenes externas se piden sin `Referer` (`referrerPolicy="no-referrer"`). El detalle del libro muestra la portada junto a sus datos y, debajo y a todo el ancho, la disponibilidad por sede.
 
 ## Inicio de sesión
 
-- Campos usuario y contraseña (con mostrar u ocultar), botón «Ingresar» que se deshabilita mientras se procesa.
+- Pantalla en dos mitades centradas: a la izquierda, la red (lema, cifras y tres ventajas); a la derecha, la tarjeta con el formulario y un sello con el logo. Abajo, la misma silueta de libros del inicio. Bajo 960 px queda una sola columna, con el formulario primero.
+- Campos usuario y contraseña (con mostrar u ocultar y el aviso «Bloq Mayús está activado»), botón «Ingresar» que se deshabilita mientras se procesa.
 - Error `CREDENCIALES_INVALIDAS`: aviso general «Usuario o contraseña incorrectos» (no indica cuál). `422`: error por campo. Error de red: «No se pudo conectar. Reintente».
 - Si la sesión vence (`401` en cualquier pantalla), se vuelve al login con el aviso «Su sesión venció. Ingrese de nuevo».
 - Foco inicial en el usuario; `Enter` envía; el formulario es accesible por teclado.

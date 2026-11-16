@@ -499,6 +499,7 @@ erDiagram
         varchar titulo
         varchar titulo_normalizado
         varchar editorial "opcional"
+        varchar portada_url "opcional"
         smallint anio_edicion "opcional"
         bigint categoria_id FK
         varchar tipo_material
@@ -580,6 +581,7 @@ Obra del catálogo. Con ISBN se identifica por él; sin ISBN, por su clave natur
 | `titulo` | VARCHAR(200) | no |  |  |
 | `titulo_normalizado` | VARCHAR(200) | no |  |  |
 | `editorial` | VARCHAR(100) | sí |  |  |
+| `portada_url` | VARCHAR(300) | sí |  |  |
 | `anio_edicion` | SMALLINT | sí |  |  |
 | `categoria_id` | BIGINT | no |  | FK → `categoria` |
 | `tipo_material` | VARCHAR(20) | no |  |  |
@@ -593,6 +595,7 @@ Obra del catálogo. Con ISBN se identifica por él; sin ISBN, por su clave natur
 Restricciones:
 
 - `ck_libro_isbn_o_clave`: `CHECK ((isbn IS NULL) = (clave_natural IS NOT NULL))`
+- `ck_libro_portada_url_valida`: `CHECK (portada_url IS NULL OR portada_url ~ '^(https?://\|/portadas/)[^[:space:]]+$')`
 - `ck_libro_tipo_material_valido`: `CHECK (tipo_material IN ('LIBRO','REVISTA','OBRA_DE_REFERENCIA','OTRO'))`
 
 Índices:

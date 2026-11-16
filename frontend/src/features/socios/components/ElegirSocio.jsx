@@ -11,7 +11,7 @@ export default function ElegirSocio({ elegido, onElegir }) {
     return (
       <p style={{ margin: 0 }}>
         {elegido.apellido}, {elegido.nombre} <span className="mono">{elegido.numero_socio}</span>{' '}
-        <EstadoSocioBadge socio={elegido} />{' '}
+        <EstadoSocioBadge socio={elegido} enLinea />{' '}
         <Button variante="secondary" tamano="sm" onClick={() => onElegir(null)}>
           Cambiar
         </Button>
@@ -37,6 +37,7 @@ export default function ElegirSocio({ elegido, onElegir }) {
     <>
       <BusquedaConEspera
         etiqueta="Buscar socio por número, documento o nombre"
+        ejemplo="00045, 30111222 o Soto"
         valor={q}
         onBuscar={setQ}
       />

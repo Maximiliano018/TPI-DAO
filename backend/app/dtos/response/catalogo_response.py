@@ -37,6 +37,7 @@ class LibroPublicoResponse(BaseModel):
     anio_edicion: int | None
     categoria: CategoriaResponse
     tipo_material: str
+    portada_url: str | None
     ejemplares: int
     disponibles: int
 
@@ -68,6 +69,7 @@ def libro_a_response(libro: Libro, usuario: Usuario) -> LibroResponse:
         "anio_edicion": datos.anio_edicion,
         "categoria": CategoriaResponse.desde(datos.categoria),
         "tipo_material": datos.tipo_material.value,
+        "portada_url": datos.portada_url,
         "ejemplares": libro.cantidad_ejemplares,
         "disponibles": libro.disponibles,
     }

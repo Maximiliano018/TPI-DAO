@@ -1,4 +1,7 @@
+import Icono from './Icono.jsx';
 import estilos from './Alert.module.css';
+
+const ICONOS = { success: 'ok', warning: 'alerta', danger: 'error', info: 'info' };
 
 /**
  * Aviso en línea. Los errores usan `role="alert"`; el resto, `role="status"`.
@@ -12,8 +15,11 @@ export default function Alert({ tono = 'info', titulo, children, ...resto }) {
       role={tono === 'danger' ? 'alert' : 'status'}
       {...resto}
     >
-      {titulo && <strong className={estilos.titulo}>{titulo}</strong>}
-      <div>{children}</div>
+      <Icono nombre={ICONOS[tono]} />
+      <div>
+        {titulo && <strong className={estilos.titulo}>{titulo}</strong>}
+        <div>{children}</div>
+      </div>
     </div>
   );
 }
