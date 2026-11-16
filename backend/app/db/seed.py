@@ -6,7 +6,9 @@ tiene sedes (idempotente: una segunda ejecución no hace nada).
 
 Todo se carga con los casos de uso reales y un reloj que avanza desde hace 90 días hasta hoy
 (ver ``app/db/seed_historia.py``): sedes, personal, parámetros, socios, catálogo, préstamos,
-remitos, reservas, devoluciones, multas y pagos, con sus historiales y su auditoría. Las
+remitos, reservas, devoluciones, multas y pagos, con sus historiales y su auditoría. Sobre esa
+historia, ``app/db/seed_volumen.py`` suma unos 120 libros más con sus ejemplares, 70 socios y
+dos meses de movimiento diario, para que las pantallas y los reportes tengan muchos datos. Las
 provincias, localidades y categorías vienen de las migraciones.
 
 La contraseña de todos los usuarios de demostración es ``SEED_PASSWORD`` (de 10 a 128
@@ -14,6 +16,7 @@ caracteres, con al menos una letra y un número, como cualquier contraseña del 
 """
 
 import sys
+from collections.abc import Callable
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -30,11 +33,22 @@ __all__ = ["LIBROS", "PERSONAL", "SEDES", "SOCIOS", "cargar", "main"]
 ENTORNOS_PERMITIDOS = {"desarrollo", "test"}
 
 
-def cargar(sesion: Session, clave: str) -> bool:
-    """Carga la historia de demostración si la base no tiene sedes. Devuelve si cargó."""
+def cargar(
+    sesion: Session,
+    clave: str,
+    volumen: bool = True,
+    dias_de_movimiento: int = 59,
+    avisar: Callable[[str], None] = lambda _texto: None,
+) -> bool:
+    """Carga la historia de demostración si la base no tiene sedes. Devuelve si cargó.
+
+    ``volumen`` suma el catálogo amplio, más socios y ``dias_de_movimiento`` días de préstamos,
+    envíos, devoluciones, reservas y multas (``seed_volumen``). Sin volumen queda solo la
+    historia contada a mano, que es lo que usan las pruebas rápidas.
+    """
     if sesion.scalar(select(func.count(SedeORM.id))):
         return False
-    Historia(sesion, clave).contar()
+    Historia(sesion, clave).contar(volumen, dias_de_movimiento, avisar)
     sesion.commit()
     return True
 
@@ -52,8 +66,9 @@ def main() -> int:
     except ErrorDeValidacion as error:
         print(f"SEED_PASSWORD no es válida: {error}", file=sys.stderr)
         return 1
+    print("Cargando los datos de demostración (puede tardar unos minutos)...")
     with crear_fabrica_sesiones()() as sesion:
-        cargado = cargar(sesion, settings.seed_password)
+        cargado = cargar(sesion, settings.seed_password, avisar=print)
     print("Datos de demostración cargados." if cargado else "La base ya tenía datos: sin cambios.")
     return 0
 

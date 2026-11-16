@@ -17,6 +17,7 @@ from app.db.models import (
     ProvinciaORM,
     UsuarioORM,
 )
+from app.db.seed_volumen import LIBROS_VOLUMEN
 from tests.factories.datos_orm import crear_admin, crear_sede, franja
 
 
@@ -289,9 +290,9 @@ def _estados(sesion: Session, tabla: str, columna: str = "estado") -> set[str]:
 
 
 def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Session):
-    assert seed.cargar(sesion, CLAVE_DEMO) is True
+    assert seed.cargar(sesion, CLAVE_DEMO, volumen=False) is True
     prestamos = sesion.scalar(text("SELECT count(*) FROM prestamo"))
-    assert seed.cargar(sesion, CLAVE_DEMO) is False
+    assert seed.cargar(sesion, CLAVE_DEMO, volumen=False) is False
 
     assert sesion.scalar(text("SELECT count(*) FROM prestamo")) == prestamos
     usuarios = set(sesion.scalars(select(UsuarioORM.username)))
@@ -303,7 +304,7 @@ def test_el_seed_es_idempotente_y_carga_los_datos_de_demostracion(sesion: Sessio
 
 
 def test_el_seed_recorre_todos_los_estados_con_su_historial(sesion: Session):
-    seed.cargar(sesion, CLAVE_DEMO)
+    seed.cargar(sesion, CLAVE_DEMO, volumen=False)
 
     assert _estados(sesion, "sede") == {"ACTIVA", "BAJA"}
     assert _estados(sesion, "historial_sede", "tipo_evento") == {
@@ -379,6 +380,42 @@ def test_el_seed_recorre_todos_los_estados_con_su_historial(sesion: Session):
     assert sesion.scalar(text("SELECT count(*) FROM historial_parametro")) >= 4
     assert _estados(sesion, "excepcion_horario_sede", "tipo") == {"CIERRE_TOTAL", "CIERRE_PARCIAL"}
     # Todo pasó por los casos de uso: cada préstamo tiene su historial.
+    sin_historial = sesion.scalar(
+        text(
+            "SELECT count(*) FROM prestamo p WHERE NOT EXISTS "
+            "(SELECT 1 FROM movimiento_prestamo m WHERE m.prestamo_id = p.id)"
+        )
+    )
+    assert sin_historial == 0
+
+
+def test_el_seed_con_volumen_suma_catalogo_socios_y_movimiento_diario(sesion: Session):
+    # Pocos días de movimiento: alcanza para recorrer la simulación sin demorar las pruebas.
+    assert seed.cargar(sesion, CLAVE_DEMO, dias_de_movimiento=8) is True
+
+    libros = sesion.scalar(text("SELECT count(*) FROM libro"))
+    assert libros == len(seed.LIBROS) + len(LIBROS_VOLUMEN)
+    socios = sesion.scalar(text("SELECT count(*) FROM socio"))
+    assert socios >= len(seed.SOCIOS) + 60
+    ejemplares = sesion.scalar(
+        text("SELECT count(*) FROM ejemplar WHERE codigo_inventario LIKE '%-V%'")
+    )
+    assert ejemplares >= len(LIBROS_VOLUMEN)
+    # Los socios nuevos piden, devuelven y viajan libros entre sedes como el resto.
+    prestamos_nuevos = sesion.scalar(
+        text(
+            "SELECT count(*) FROM prestamo p JOIN ejemplar e ON e.id = p.ejemplar_id "
+            "WHERE e.codigo_inventario LIKE '%-V%'"
+        )
+    )
+    assert prestamos_nuevos >= 20
+    remitos_nuevos = sesion.scalar(
+        text(
+            "SELECT count(DISTINCT d.remito_id) FROM detalle_remito d "
+            "JOIN ejemplar e ON e.id = d.ejemplar_id WHERE e.codigo_inventario LIKE '%-V%'"
+        )
+    )
+    assert remitos_nuevos >= 3
     sin_historial = sesion.scalar(
         text(
             "SELECT count(*) FROM prestamo p WHERE NOT EXISTS "
