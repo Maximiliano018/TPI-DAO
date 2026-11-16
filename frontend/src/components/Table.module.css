@@ -47,6 +47,19 @@
 .ordenar:focus-visible {
   outline-color: var(--color-brass);
 }
+/* Acciones y celdas con varias piezas, centradas bajo su título */
+.tabla td > div {
+  justify-content: center;
+}
+@media (min-width: 768px) {
+  /* Todos los carteles de una columna con el mismo ancho */
+  .tabla td [data-badge] {
+    display: flex;
+    width: 100%;
+    max-width: 10.5rem;
+    margin-inline: auto;
+  }
+}
 @media (max-width: 767px) {
   .contenedor {
     background: transparent;

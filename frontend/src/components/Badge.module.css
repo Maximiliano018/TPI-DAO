@@ -1,17 +1,30 @@
-/* Etiqueta adhesiva de lomo: texto en versalitas con filete del mismo color */
-/* Todos del mismo ancho (salvo los textos más largos): en una columna quedan parejos */
+/* Etiqueta en píldora con un punto del color del estado; en una tabla todas las de la columna
+   tienen el mismo ancho (ver Table.module.css) */
 .badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   box-sizing: border-box;
   min-width: 7rem;
-  padding: 1px var(--space-2);
-  text-align: center;
-  border: 1px solid currentColor;
-  border-radius: var(--radius-sm);
+  padding: 2px var(--space-3);
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent);
+  border-radius: 999px;
   font-size: var(--text-sm);
   font-weight: 600;
+  line-height: 1.5;
   letter-spacing: 0.02em;
   white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+.badge::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.8;
 }
 .success {
   background: var(--color-success-100);
