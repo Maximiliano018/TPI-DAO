@@ -20,6 +20,7 @@ jobs:
       - name: Validar nombre de rama
         env:
           BRANCH: ${{ github.head_ref }}
+        # Dependabot arma sus ramas solo (dependabot/<ecosistema>/<carpeta>/<paquete>-<versión>).
         run: |
-          echo "$BRANCH" | grep -Eq '^(feature|fix|docs|refactor|chore|claude)/[a-z0-9._-]+$' \
+          echo "$BRANCH" | grep -Eq '^((feature|fix|docs|refactor|chore|claude)/[a-z0-9._-]+|dependabot/[A-Za-z0-9._/-]+)$' \
             || { echo "La rama debe ser prefijo/nombre-en-minusculas, ej: feature/abm-socios"; exit 1; }

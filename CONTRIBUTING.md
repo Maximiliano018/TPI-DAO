@@ -15,7 +15,7 @@ Proyecto académico (UTN FRC 2026). Estas reglas buscan un historial limpio y re
 | `refactor/` | Cambios internos sin alterar comportamiento | `refactor/repositorio-sedes` |
 | `chore/` | Configuración, dependencias, CI | `chore/actualizar-deps` |
 
-Nombres en minúsculas, con guiones, sin espacios ni tildes.
+Nombres en minúsculas, con guiones, sin espacios ni tildes. Las ramas `dependabot/…` las crea Dependabot y el control de PR las acepta tal como vienen.
 
 ## Commits
 
