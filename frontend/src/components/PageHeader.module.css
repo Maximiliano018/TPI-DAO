@@ -21,6 +21,15 @@
   color: var(--color-ink);
   overflow-wrap: anywhere;
 }
+.titulo::after {
+  content: '';
+  display: block;
+  width: 48px;
+  height: 4px;
+  margin-top: var(--space-2);
+  border-radius: 2px;
+  background: var(--color-turquesa);
+}
 .titulo:focus {
   outline: none;
 }

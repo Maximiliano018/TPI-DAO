@@ -1,13 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { obtenerInicioPublico } from '../../../api/publico.js';
-import { Estante, Logo, Portada, Skeleton } from '../../../components/index.js';
+import {
+  Biblioteca,
+  Icono,
+  Logo,
+  Portada,
+  SiluetaLibros,
+  Skeleton,
+} from '../../../components/index.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { MENSAJES } from '../../../utils/mensajes.js';
 import estilos from './InicioPublicoPage.module.css';
-
-// Libros de pie del estante cuando todavía no llegaron los datos (o si el backend no responde).
-const DE_RELLENO = ['Rayuela', 'Ficciones', 'El túnel', 'Facundo', 'Martín Fierro', 'El Aleph'];
 
 /** Marca del sistema: nombre en mayúscula gruesa y la red debajo. */
 export function Marca() {
@@ -31,7 +35,6 @@ export default function InicioPublicoPage() {
     staleTime: 60_000,
   });
   const destacados = data?.destacados ?? [];
-  const titulosEstante = destacados.length ? destacados.map((d) => d.titulo) : DE_RELLENO;
   const cantidad = (n) => n.toLocaleString('es-AR');
 
   return (
@@ -44,40 +47,48 @@ export default function InicioPublicoPage() {
       </header>
 
       <main id="contenido">
-        <section className={estilos.portada} aria-labelledby="titulo-portada">
-          <h1 id="titulo-portada" className={estilos.titulo}>
-            <span>Pedilo acá.</span> <span className={estilos.acento}>Retiralo allá.</span>
-          </h1>
-          <div className={estilos.fila}>
-            <p className={estilos.bajada}>
-              Pedí cualquiera de los {data ? `${cantidad(data.libros)} títulos` : 'títulos'} de la
-              red en la sede que quieras y retiralo en la que te quede más cerca.
-            </p>
-            <div className={estilos.botones}>
-              <Link to="/login" className={estilos.boton}>
-                Ingresar al sistema <span aria-hidden="true">→</span>
-              </Link>
+        <div className={estilos.portadaFondo}>
+          <section className={estilos.portada} aria-labelledby="titulo-portada">
+            <div className={estilos.texto}>
+              <h1 id="titulo-portada" className={estilos.titulo}>
+                <span>Pedilo acá.</span> <span className={estilos.acento}>Retiralo allá.</span>
+              </h1>
+              <p className={estilos.bajada}>
+                Pedí cualquiera de los {data ? `${cantidad(data.libros)} títulos` : 'títulos'} de la
+                red en la sede que quieras y retiralo en la que te quede más cerca.
+              </p>
+              <div className={estilos.botones}>
+                <Link to="/login" className={estilos.boton}>
+                  Ingresar al sistema <span aria-hidden="true">→</span>
+                </Link>
+              </div>
             </div>
-          </div>
-          <p className={estilos.volanta}>El estante de la red</p>
-          <Estante titulos={titulosEstante} />
-          {data && (
-            <dl className={estilos.cifras}>
-              <div>
-                <dt>Sedes conectadas</dt>
-                <dd>{data.sedes_activas}</dd>
-              </div>
-              <div>
-                <dt>Títulos en catálogo</dt>
-                <dd>{cantidad(data.libros)}</dd>
-              </div>
-              <div>
-                <dt>Ejemplares para prestar</dt>
-                <dd>{cantidad(data.ejemplares)}</dd>
-              </div>
-            </dl>
-          )}
-        </section>
+            <div className={estilos.vitrina}>
+              <span className={estilos.mancha} aria-hidden="true" />
+              <span className={estilos.anillo} aria-hidden="true" />
+              <Biblioteca />
+            </div>
+            {data && (
+              <dl className={estilos.cifras}>
+                <div>
+                  <Icono nombre="edificio" />
+                  <dt>Sedes conectadas</dt>
+                  <dd>{data.sedes_activas}</dd>
+                </div>
+                <div>
+                  <Icono nombre="biblioteca" />
+                  <dt>Títulos en catálogo</dt>
+                  <dd>{cantidad(data.libros)}</dd>
+                </div>
+                <div>
+                  <Icono nombre="libro" />
+                  <dt>Ejemplares para prestar</dt>
+                  <dd>{cantidad(data.ejemplares)}</dd>
+                </div>
+              </dl>
+            )}
+          </section>
+        </div>
 
         <section
           id="mas-pedidos"
@@ -122,8 +133,18 @@ export default function InicioPublicoPage() {
         </section>
       </main>
 
+      <SiluetaLibros />
       <footer className={estilos.pie}>
-        {MENSAJES.sistemaCompleto} · UTN FRC 2026. Portadas: Open Library.
+        <p className={estilos.pieMarca}>
+          <span className={estilos.pieLinea} aria-hidden="true" />
+          Red de Bibliotecas Públicas
+          <span className={estilos.pieLinea} aria-hidden="true" />
+        </p>
+        <p className={estilos.pieTexto}>
+          Pedí cualquier libro de la red en la sede que quieras y retiralo en la que te quede más
+          cerca.
+        </p>
+        <p className={estilos.pieCreditos}>{MENSAJES.sistemaCompleto} · UTN FRC 2026</p>
       </footer>
     </div>
   );

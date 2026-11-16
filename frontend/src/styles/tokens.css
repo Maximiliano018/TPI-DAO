@@ -1,71 +1,71 @@
 /*
- * Tokens del design system, «editorial cálido»: papel crema, tinta casi negra, terracota para las
- * acciones y los acentos y mostaza para los detalles; el menú y las franjas oscuras son tinta cálida.
- * Los lomos son un arcoíris apagado, como tapas de tela. Los nombres `--color-primary-*`,
- * `--color-success-*`, etc. son semánticos: el tema se cambia desde este archivo
- * (ver docs/tecnica/10-guia-de-estilos.md).
+ * Tokens del design system: fondo blanco con puntitos, texto gris pizarra, turquesa para los
+ * acentos y las franjas y gris carbón para las acciones principales. Los nombres
+ * `--color-primary-*`, `--color-success-*`, etc. son semánticos: el tema se cambia desde este
+ * archivo (ver docs/tecnica/10-guia-de-estilos.md).
  */
 :root {
-  /* Terracota: acciones principales */
-  --color-primary-700: #b04a27;
-  --color-primary-800: #8f3a1d;
-  --color-primary-100: #f5e1d7;
-  /* Terracota también para los acentos (segunda línea del lema, subrayados) */
-  --color-terracota: #b04a27;
-  --color-terracota-100: #f5e1d7;
-  /* Tinta cálida: menú lateral, franjas oscuras y pie */
-  --color-marino: #1d1a16;
-  --color-marino-700: #27231e;
-  /* Tinta */
-  --color-ink: #1d1b17;
-  --color-text: #1d1b17;
-  --color-text-muted: #5c554b;
-  --color-text-subtle: #6f675b;
-  /* Papel crema, tarjetas un tono más claras */
-  --color-bg: #f4efe7;
-  --color-surface: #fbf8f3;
-  --color-surface-2: #eee7db;
-  --color-border: #e3d9c9;
-  --color-border-strong: #8c8172;
-  /* Portada e ingreso: el mismo papel, casi plano */
-  --degrade-agua: linear-gradient(160deg, #f6f2eb 0%, #f4efe7 60%, #f1ebe1 100%);
-  --color-success-700: #3d6a4c;
-  --color-success-100: #e1ebe2;
-  --color-success-800: #2d5139;
+  /* Gris carbón: acciones principales */
+  --color-primary-700: #43484c;
+  --color-primary-800: #33373a;
+  --color-primary-100: #e8eef0;
+  /* Turquesa: acentos (segunda línea del lema, detalles) */
+  --color-terracota: #3d8f94;
+  --color-terracota-100: #e3f2f2;
+  --color-turquesa: #4ba3a8;
+  /* Turquesa oscuro: menú lateral y franjas (texto blanco) */
+  --color-marino: #2a7075;
+  --color-marino-700: #2e7a7f;
+  /* Tinta y grises */
+  --color-ink: #2d3236;
+  --color-text: #2d3236;
+  --color-text-muted: #5c6368;
+  --color-text-subtle: #6c7378;
+  --color-titulo-fino: #7a8085;
+  /* Blanco con gris claro */
+  --color-bg: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-2: #f3f6f7;
+  --color-border: #e1e7ea;
+  --color-border-strong: #7a8085;
+  --degrade-agua: #ffffff;
+  --color-success-700: #3b7a4f;
+  --color-success-100: #e3f2e7;
+  --color-success-800: #2b5c3a;
   --color-warning-700: #946510;
-  --color-warning-100: #f6e9c9;
+  --color-warning-100: #faf0d2;
   --color-warning-800: #6f4a06;
-  --color-danger-700: #b23f26;
-  --color-danger-100: #f7e0d8;
-  --color-danger-800: #8e3019;
-  --color-info-700: #2c5b7a;
-  --color-info-100: #dfe8ef;
-  --color-info-800: #22465e;
-  --color-neutral-100: #ece5d9;
-  --color-neutral-700: #4d463d;
-  --color-accent-100: #efe1ea;
-  --color-accent-800: #613552;
+  --color-danger-700: #b2402c;
+  --color-danger-100: #fbe6e1;
+  --color-danger-800: #8e311f;
+  --color-info-700: #2a7075;
+  --color-info-100: #e3f2f2;
+  --color-info-800: #1f5559;
+  --color-neutral-100: #eef2f3;
+  --color-neutral-700: #4e5559;
+  --color-accent-100: #eee7f3;
+  --color-accent-800: #5d3f78;
 
   /* Nombres heredados, apuntados a la paleta */
-  --color-wood-900: #1d1a16;
-  --color-wood-800: #27231e;
-  --color-wood-600: #5c554b;
-  --color-wood-400: #8a8073;
-  --color-brass: #d39b34;
-  --color-cream: #fbf8f3;
+  --color-wood-900: #2a7075;
+  --color-wood-800: #2e7a7f;
+  --color-wood-600: #5c6368;
+  --color-wood-400: #7a8085;
+  --color-brass: #3d8f94;
+  --color-cream: #ffffff;
 
-  /* Lomos: arcoíris apagado, como tapas de tela */
-  --lomo-rojo: #b5523f;
-  --lomo-naranja: #d08440;
-  --lomo-amarillo: #d3aa45;
-  --lomo-verde: #7e9c5a;
-  --lomo-turquesa: #357b76;
-  --lomo-azul: #4e79a7;
-  --lomo-indigo: #5e5f9e;
-  --lomo-violeta: #8a5a8a;
-  --lomo-rosa: #c47a8b;
-  --color-marcador: #b04a27;
-  --color-anillo: #b04a27;
+  /* Lomos: colores de tapa variados */
+  --lomo-rojo: #c9483f;
+  --lomo-naranja: #e0823d;
+  --lomo-amarillo: #e8b83a;
+  --lomo-verde: #3f7a5a;
+  --lomo-turquesa: #3d9aa0;
+  --lomo-azul: #2f4f7a;
+  --lomo-indigo: #6fa3c8;
+  --lomo-violeta: #8c3446;
+  --lomo-rosa: #efe4cc;
+  --color-marcador: #4ba3a8;
+  --color-anillo: #3d8f94;
 
   --font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   /* Títulos: el mismo palo seco en su peso más grueso */
@@ -92,8 +92,8 @@
   --radius-md: 10px;
   --radius-lg: 16px;
   --radius-pill: 999px;
-  --shadow-sm: 0 1px 3px rgba(29, 27, 23, 0.06);
-  --shadow-md: 0 10px 30px rgba(29, 27, 23, 0.12);
+  --shadow-sm: 0 1px 3px rgba(45, 50, 54, 0.06);
+  --shadow-md: 0 10px 30px rgba(45, 50, 54, 0.12);
 
   /* Sin texturas: superficies planas */
   --textura-papel: none;
