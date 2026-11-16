@@ -1,47 +1,16 @@
 import { useId, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useSesion } from '../auth/SesionContext.jsx';
+import { Icono } from '../components/index.js';
 import { useAtraparFoco } from '../hooks/useAtraparFoco.js';
 import { SECCIONES_DE_MENU } from './navegacion.js';
 import estilos from './Sidebar.module.css';
 
-// Estantes decorativos bajo la pila: libros de pie (color, alto, ancho, inclinación en grados).
-const ESTANTES = [
-  [
-    ['bosque', 64, 18],
-    ['burdeos', 74, 14],
-    ['ocre', 58, 20],
-    ['marino', 70, 16, -8],
-    ['ciruela', 66, 15],
-  ],
-  [
-    ['petroleo', 70, 17],
-    ['burdeos', 60, 22],
-    ['marino', 76, 13],
-    ['ocre', 64, 18],
-    ['bosque', 72, 15, 7],
-  ],
-  [
-    ['ciruela', 68, 16],
-    ['ocre', 76, 14],
-    ['petroleo', 58, 21],
-    ['burdeos', 72, 15],
-    ['marino', 62, 18],
-  ],
-  [
-    ['bosque', 74, 15],
-    ['marino', 62, 20],
-    ['burdeos', 70, 14, -6],
-    ['ocre', 66, 17],
-    ['petroleo', 76, 14],
-  ],
-];
-
-/** Una sección del menú: cartela de latón, su pila de libros (todos del mismo ancho) y la tabla. */
-function Seccion({ titulo, items, onCerrar }) {
+/** Una sección del menú: su nombre y sus opciones, todas con la franja del color de la sección. */
+function Seccion({ titulo, franja, items, onCerrar }) {
   const id = useId();
   return (
-    <div className={estilos.seccion}>
+    <div className={estilos.seccion} style={{ '--franja': `var(--lomo-${franja})` }}>
       {titulo && (
         <span id={id} className={estilos.cartela}>
           {titulo}
@@ -49,29 +18,28 @@ function Seccion({ titulo, items, onCerrar }) {
       )}
       <ul className={estilos.pila} aria-labelledby={titulo ? id : undefined}>
         {items.map((item) => (
-          <li key={item.texto} className={estilos.libro}>
+          <li key={item.texto}>
             <NavLink
               to={item.to}
               end={item.fin}
-              className={({ isActive }) => `${estilos.lomo} ${isActive ? estilos.activo : ''}`}
+              className={({ isActive }) => `${estilos.enlace} ${isActive ? estilos.activo : ''}`}
               onClick={onCerrar}
             >
-              <span className={estilos.titulo}>{item.texto}</span>
-              <span className={estilos.paginas} aria-hidden="true" />
+              <Icono nombre={item.icono} />
+              {item.texto}
             </NavLink>
           </li>
         ))}
       </ul>
-      <div className={estilos.tabla} aria-hidden="true" />
     </div>
   );
 }
 
 /**
- * Menú lateral con forma de estantería: cada sección es una pila de libros sobre su tabla de
- * madera, con una cartela de latón que la nombra. El libro de la página actual sobresale y lleva
- * un marcador (no depende solo del color).
- * Fijo desde 1024 px; por debajo es un panel que atrapa el foco y cierra con Escape.
+ * Menú lateral de nogal: cada sección con su nombre en latón y cada opción con su ícono y la
+ * franja de color de la sección. La opción actual es una hoja crema con un marcador de cinta (no
+ * depende solo del color). Fijo desde 1024 px; por debajo es un panel que atrapa el foco y cierra
+ * con Escape.
  */
 export default function Sidebar({ abierto, onCerrar }) {
   const { tienePermiso } = useSesion();
@@ -95,31 +63,11 @@ export default function Sidebar({ abierto, onCerrar }) {
           <Seccion
             key={seccion.titulo ?? 'inicio'}
             titulo={seccion.titulo}
+            franja={seccion.franja}
             items={seccion.items}
             onCerrar={onCerrar}
           />
         ))}
-        <div className={estilos.estantes} aria-hidden="true">
-          {ESTANTES.map((libros, fila) => (
-            <div key={fila} className={estilos.estante}>
-              <div className={estilos.fila}>
-                {libros.map(([color, alto, ancho, giro = 0], i) => (
-                  <span
-                    key={i}
-                    className={estilos.parado}
-                    style={{
-                      '--c': `var(--lomo-${color})`,
-                      height: alto,
-                      width: ancho,
-                      transform: giro ? `rotate(${giro}deg)` : undefined,
-                    }}
-                  />
-                ))}
-              </div>
-              <div className={estilos.tabla} />
-            </div>
-          ))}
-        </div>
       </nav>
     </>
   );
