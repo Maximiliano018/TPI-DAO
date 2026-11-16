@@ -19,20 +19,13 @@ export function EstanteriaVacia({ ancho = 160 }) {
         style={{ fill: 'var(--color-brass)', opacity: 0.6 }}
       />
       <g transform="rotate(-14 112 74)">
-        <rect
-          x="98"
-          y="38"
-          width="14"
-          height="40"
-          rx="1.5"
-          style={{ fill: 'var(--lomo-burdeos)' }}
-        />
+        <rect x="98" y="38" width="14" height="40" rx="1.5" style={{ fill: 'var(--lomo-rojo)' }} />
         <rect x="98" y="46" width="14" height="2" style={{ fill: 'var(--color-brass)' }} />
         <rect x="98" y="66" width="14" height="2" style={{ fill: 'var(--color-brass)' }} />
       </g>
-      <rect x="120" y="50" width="12" height="28" rx="1.5" style={{ fill: 'var(--lomo-marino)' }} />
+      <rect x="120" y="50" width="12" height="28" rx="1.5" style={{ fill: 'var(--lomo-azul)' }} />
       <rect x="120" y="56" width="12" height="2" style={{ fill: 'var(--color-brass)' }} />
-      <rect x="22" y="64" width="46" height="14" rx="1.5" style={{ fill: 'var(--lomo-bosque)' }} />
+      <rect x="22" y="64" width="46" height="14" rx="1.5" style={{ fill: 'var(--lomo-verde)' }} />
       <rect x="64" y="64" width="4" height="14" style={{ fill: 'var(--color-cream)' }} />
       <rect x="26" y="68" width="2" height="6" style={{ fill: 'var(--color-brass)' }} />
     </svg>

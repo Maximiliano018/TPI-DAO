@@ -2,15 +2,15 @@ import estilos from './Estante.module.css';
 
 // Colores de lomo en orden y el tono del texto que se lee sobre cada uno.
 const LOMOS = [
+  ['rojo', 'clara'],
+  ['naranja', 'tinta'],
+  ['amarillo', 'tinta'],
+  ['verde', 'tinta'],
+  ['turquesa', 'clara'],
+  ['azul', 'clara'],
+  ['indigo', 'clara'],
+  ['violeta', 'clara'],
   ['rosa', 'tinta'],
-  ['negro', 'clara'],
-  ['ocre', 'tinta'],
-  ['marino', 'clara'],
-  ['crema', 'tinta'],
-  ['ciruela', 'clara'],
-  ['bosque', 'clara'],
-  ['burdeos', 'clara'],
-  ['petroleo', 'tinta'],
 ];
 
 /**
@@ -32,8 +32,8 @@ export default function Estante({ titulos, max = 12 }) {
               style={{
                 '--c': `var(--lomo-${color})`,
                 '--t': tinta === 'tinta' ? 'var(--color-ink)' : '#fff',
-                '--alto': `${Math.min(300, Math.max(190, 120 + titulo.length * 8 + ((i * 23) % 40)))}px`,
-                '--ancho': `${58 + ((i * 17) % 26)}px`,
+                '--alto': `${Math.min(230, Math.max(150, 96 + titulo.length * 6.5 + ((i * 23) % 34)))}px`,
+                '--ancho': `${44 + ((i * 17) % 20)}px`,
               }}
             >
               <span className={estilos.texto}>{titulo}</span>

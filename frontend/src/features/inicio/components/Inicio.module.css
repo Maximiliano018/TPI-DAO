@@ -36,19 +36,19 @@
   bottom: var(--space-4);
   width: 6px;
   border-radius: 2px;
-  background: var(--lomo-burdeos);
+  background: var(--lomo-rojo);
 }
 .elemento:nth-child(5n + 2)::before {
-  background: var(--lomo-marino);
+  background: var(--lomo-azul);
 }
 .elemento:nth-child(5n + 3)::before {
-  background: var(--lomo-ocre);
+  background: var(--lomo-amarillo);
 }
 .elemento:nth-child(5n + 4)::before {
-  background: var(--lomo-bosque);
+  background: var(--lomo-verde);
 }
 .elemento:nth-child(5n + 5)::before {
-  background: var(--lomo-ciruela);
+  background: var(--lomo-violeta);
 }
 .elemento > div > a {
   font-size: var(--text-lg);

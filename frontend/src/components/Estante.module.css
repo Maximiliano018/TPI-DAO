@@ -27,28 +27,28 @@
   position: absolute;
   left: 0;
   right: 0;
-  height: 8px;
-  border-top: 2px solid rgba(0, 0, 0, 0.22);
-  border-bottom: 2px solid rgba(0, 0, 0, 0.22);
+  height: 6px;
+  border-top: 2px solid rgba(0, 0, 0, 0.2);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.2);
 }
 .lomo::before {
-  top: 14px;
+  top: 10px;
 }
 .lomo::after {
-  bottom: 14px;
+  bottom: 10px;
 }
 .texto {
-  max-height: calc(var(--alto) - 70px);
+  max-height: calc(var(--alto) - 56px);
   overflow: hidden;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: 0.85rem;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 .tabla {
-  height: 14px;
+  height: 10px;
   background: #4a3f36;
   border-radius: 2px;
 }

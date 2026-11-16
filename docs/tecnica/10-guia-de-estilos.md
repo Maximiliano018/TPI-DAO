@@ -2,15 +2,15 @@
 
 Design system propio y liviano para el frontend. Es **reemplazable**: todo el aspecto sale de variables CSS (tokens), así que adoptar otro design system implica cambiar los valores de `styles/tokens.css` y revisar los componentes base, sin tocar las pantallas.
 
-## Identidad visual: editorial, con lomos de colores
+## Identidad visual: editorial cálido, con lomos de colores
 
-El aspecto es el de una editorial moderna: papel crema claro, tinta casi negra, títulos de palo seco muy gruesos en mayúscula y el terracota para las acciones principales. El sello de la red son los **lomos de colores planos** (terracota, azul, mostaza, salvia, ciruela, celeste), que aparecen en el estante, las franjas del menú, las fichas y las portadas dibujadas.
+El aspecto es el de una editorial: papel crema, tinta casi negra, títulos de palo seco gruesos en mayúscula, terracota para las acciones principales y mostaza para los detalles. El sello de la red son los **lomos en arcoíris apagado**, como tapas de tela (ladrillo, naranja tostado, mostaza, oliva, verde azulado, azul acero, índigo, ciruela y rosa viejo), que aparecen en el estante, las franjas del menú, las fichas y las portadas dibujadas.
 
 | Elemento | Forma |
 |----------|-------|
 | Fondo y superficies | Papel crema plano; las tarjetas son un tono más claro, con borde fino y esquinas de 16 px |
-| Barra superior | Clara, con el logotipo (tres lomos), «PRÉSTAMOS» y «Red de Bibliotecas Públicas»; a la derecha la sede y la persona, en píldoras |
-| Menú lateral | Claro, con secciones nombradas en versalitas y un lomo de color; cada opción con su ícono; la actual, en tinta con texto blanco |
+| Barra superior | Clara, con el logotipo (libro abierto con marcador), «PRÉSTAMOS» y «Red de Bibliotecas Públicas»; a la derecha, la sede del bibliotecario y el menú de la persona |
+| Menú lateral | Oscuro (tinta cálida), con las secciones nombradas en mostaza; cada opción con su ícono y el lomo de color de su sección; la actual es una hoja crema con un marcador terracota |
 | Títulos | Palo seco en su peso más grueso, en mayúscula y con el interletrado cerrado |
 | `Button` | Píldoras: terracota para la acción principal, contorno de tinta para las demás, contorno terracota oscuro para dar de baja o bloquear |
 | `Table` | Tarjeta con encabezado claro en versalitas grises y filas separadas por un filete |
@@ -19,14 +19,14 @@ El aspecto es el de una editorial moderna: papel crema claro, tinta casi negra, 
 | `Badge` | Píldora con un punto del color del estado; en una tabla, todas las de la columna miden lo mismo |
 | `StatCard` | Rótulo en versalitas, número enorme y tres lomos en la esquina |
 | `Timeline` | Línea punteada con un lomo de color por movimiento |
-| Inicio público e ingreso | El lema «Pedilo acá. Retiralo allá.», el estante de la red con los más pedidos y las cifras; los más pedidos con su portada en una franja oscura |
+| Inicio público e ingreso | El lema «Pedilo acá. Retiralo allá.», el estante de la red con los más pedidos y las cifras, en una primera pantalla de un solo color; los más pedidos con su portada en una franja oscura que aparece al bajar |
 
 La decoración es siempre `aria-hidden` o CSS: no agrega ni quita información, y el estado nunca depende solo del color o de la forma.
 
 ## Principios
 
 1. **Claridad ante todo.** Es un sistema de gestión: la información y el estado van antes que la decoración.
-2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú se invierte (tinta con texto blanco) y lleva `aria-current="page"`.
+2. **El estado no depende solo del color.** Cada estado lleva texto, y el color refuerza. El ítem activo del menú se aclara, lleva un marcador y `aria-current="page"`.
 3. **Accesible por defecto.** Contraste AA, foco visible, objetivos táctiles amplios, teclado completo.
 4. **Consistente.** Un componente, una forma de usarlo; los tokens son la única fuente de valores.
 5. **Editorial y sobria.** Papel, tinta y terracota, con los lomos de colores como único juego; sin imágenes decorativas ni fuentes externas: todo es CSS y SVG en línea.
@@ -59,7 +59,7 @@ Los pares de color que siguen se verificaron con la fórmula de contraste de WCA
 | `--color-neutral-100` / `-700` | `#ECE5D9` / `#4D463D` | Estados neutros o finales |
 | `--color-accent-100` / `-800` | `#EFE1EA` / `#613552` | Estados en proceso logístico (ciruela) |
 
-Lomos (decorativos, no transmiten información): `--lomo-burdeos` (terracota `#AD4F2D`), `--lomo-marino` (azul), `--lomo-ocre` (mostaza), `--lomo-bosque` (salvia), `--lomo-ciruela`, `--lomo-petroleo` (celeste), `--lomo-rosa`, `--lomo-negro` y `--lomo-crema`. Sobre los claros (mostaza, celeste, rosa, crema) el texto va en tinta; sobre los demás, en blanco. Los nombres heredados `--color-wood-*`, `--color-brass` y `--color-cream` apuntan a la paleta nueva.
+Otros tokens: `--color-marino` (`#1D1A16`, tinta cálida del menú, la franja de los más pedidos y el pie), `--color-brass` (`#D39B34`, mostaza de los nombres de sección), `--color-marcador` y `--color-anillo` (terracota). Lomos (decorativos, no transmiten información), en arcoíris apagado: `--lomo-rojo` `#B5523F`, `--lomo-naranja` `#D08440`, `--lomo-amarillo` `#D3AA45`, `--lomo-verde` `#7E9C5A`, `--lomo-turquesa` `#357B76`, `--lomo-azul` `#4E79A7`, `--lomo-indigo` `#5E5F9E`, `--lomo-violeta` `#8A5A8A` y `--lomo-rosa` `#C47A8B`. Sobre naranja, mostaza, oliva y rosa el texto va en tinta; sobre los demás, en blanco. Los nombres heredados `--color-wood-*` y `--color-cream` apuntan a la paleta.
 
 Contrastes verificados:
 
@@ -75,8 +75,9 @@ Contrastes verificados:
 | Etiqueta de éxito, atención, peligro, información | 7,3:1 / 6,6:1 / 6,4:1 / 8,0:1 |
 | Etiqueta neutra / primaria / de proceso | 7,4:1 / 6,0:1 / 7,8:1 |
 | Blanco y gris claro sobre tinta (franja de los más pedidos) | 17,2:1 / 9,6:1 |
-| Tinta sobre lomos claros (mostaza, celeste, rosa, crema) | de 6,8:1 a 12,6:1 |
-| Blanco sobre lomos oscuros (terracota, salvia, azul, ciruela) | de 5,3:1 a 8,8:1 |
+| Tinta sobre lomos claros (naranja, mostaza, oliva, rosa) | de 4,6:1 a 7,2:1 |
+| Blanco sobre lomos oscuros (ladrillo, verde azulado, azul, índigo, ciruela) | de 4,6:1 a 5,8:1 |
+| Mostaza / crema sobre el menú | 7,0:1 / 13,4:1 |
 
 Todas cumplen AA. Como jest-axe no mide contraste en jsdom, estos valores se calcularon aparte: al cambiar un token hay que volver a verificarlos. Los campos usan `--color-border-strong`; `--color-border` queda solo para separadores y tarjetas, que no son necesarios para identificar un control. En foco el borde pasa a tinta con un halo terracota.
 
@@ -87,8 +88,8 @@ Todas cumplen AA. Como jest-axe no mide contraste en jsdom, estos valores se cal
 | `--font-sans` | `Inter`, `Segoe UI`, `system-ui`, `sans-serif` (texto; sin descargas: usa la del sistema) |
 | `--font-titulo` | La misma familia en su peso más grueso (800 y 900), en mayúscula y con interletrado cerrado (títulos, cifras, lema) |
 | `--font-mono` | `ui-monospace`, `Consolas`, `monospace` (códigos de inventario, números de remito) |
-| Escala (`--text-xs` … `--text-3xl`) | 12, 14, 16, 18, 20, 24 y 30 px; los títulos de pantalla van de 32 a 50 px y el lema de la portada, hasta 136 px |
-| Cuerpo | 16 px, interlineado 1,5 |
+| Escala (`--text-xs` … `--text-3xl`) | 12, 14, 16, 18, 20, 24 y 30 px; los títulos de pantalla van de 24 a 32 px y el lema de la portada, hasta 70 px |
+| Cuerpo | 15 px, interlineado 1,55 |
 | Pesos | 400 (texto), 600 (botones, etiquetas), 800 y 900 (títulos y cifras) |
 | Versalitas | Rótulos de tablas, secciones del menú e indicadores: 12 px, mayúscula y 0,1–0,16 em de interletrado |
 
@@ -103,12 +104,12 @@ Los números de remito, préstamo y código de inventario se muestran en tipogra
 | `--shadow-sm` | `0 1px 2px rgba(29,27,23,.05)` (tarjetas, casi planas) |
 | `--shadow-md` | `0 12px 32px rgba(29,27,23,.12)` (menús, modales y la tarjeta de ingreso) |
 | Puntos de corte | 640, 768, 1024 y 1280 px |
-| Ancho de contenido | Máximo 1240 px |
+| Ancho de contenido | Máximo 1180 px |
 
 ### Foco e interacción
 
 - Anillo de foco: 3 px de `--color-primary-700` con 2 px de separación; en los campos, borde de tinta con un halo terracota. Nunca se elimina el contorno sin reemplazarlo.
-- Altura mínima de controles: 42 px (el criterio AA de objetivos táctiles pide 24 px).
+- Altura mínima de controles: 40 px (el criterio AA de objetivos táctiles pide 24 px).
 - Estados de cada control: normal, hover, foco, presionado, deshabilitado y, si corresponde, error.
 - Se respeta `prefers-reduced-motion`: las transiciones duran 150 ms y se desactivan si el usuario lo pide.
 
@@ -191,9 +192,9 @@ Si se cambia un tono o un texto, se cambia en `utils/estados.js` y esta tabla se
 
 ## Estructura de pantallas autenticadas
 
-- **Menú lateral** de 260 px, claro y separado del contenido por un filete. Cada sección tiene su nombre en versalitas con un lomo de color; cada opción, su ícono. La opción actual se invierte (tinta con texto blanco) y lleva `aria-current="page"`. Por debajo de 1024 px es un panel deslizable que atrapa el foco.
-- **AppBar** de 72 px, clara: logotipo de tres lomos, «PRÉSTAMOS» con «Red de Bibliotecas Públicas» debajo, la sede del usuario en una píldora con un ícono de ubicación y la persona en otra, con su inicial en un círculo.
-- Contenido principal con márgenes amplios (48 px en escritorio, 16 px en pantallas chicas) y ancho máximo de 1240 px. Cada pantalla abre con un `PageHeader`: título enorme en mayúscula, bajada en gris y las acciones a la derecha.
+- **Menú lateral** de 236 px, oscuro (tinta cálida). Cada sección tiene su nombre en mostaza; cada opción, su ícono y el lomo de color de su sección en el borde. La opción actual es una hoja crema con un marcador terracota y `aria-current="page"`. Por debajo de 1024 px es un panel deslizable que atrapa el foco.
+- **AppBar** de 64 px, clara: logotipo (libro abierto con marcador), «PRÉSTAMOS» con «Red de Bibliotecas Públicas» debajo, la sede del bibliotecario (el administrador no tiene una) y el menú de la persona.
+- Contenido principal con márgenes de 32 px en escritorio (16 px en pantallas chicas) y ancho máximo de 1180 px. Cada pantalla abre con un `PageHeader`: título en mayúscula gruesa, bajada en gris y las acciones a la derecha.
 - Indicador «abierta ahora»: `Badge` de éxito con el texto «Abierta» o neutro con «Cerrada» (siempre con texto).
 
 ## Voz y contenido

@@ -6,7 +6,7 @@
   align-items: center;
   justify-content: center;
   padding: var(--space-4);
-  background: rgba(29, 27, 23, 0.55);
+  background: rgba(29, 27, 23, 0.5);
 }
 /* Hoja clara de esquinas redondeadas */
 .caja {
@@ -18,7 +18,7 @@
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
-  padding: var(--space-8);
+  padding: var(--space-6);
 }
 .caja:has(table) {
   max-width: 860px;

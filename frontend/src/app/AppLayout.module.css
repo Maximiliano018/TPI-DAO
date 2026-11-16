@@ -19,6 +19,6 @@
 @media (min-width: 1024px) {
   .principal {
     margin-left: var(--sidebar-width);
-    padding: var(--space-12) var(--space-12) var(--space-8);
+    padding: var(--space-8) var(--space-8) var(--space-8);
   }
 }

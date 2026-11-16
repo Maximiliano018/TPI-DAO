@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { obtenerInicioPublico } from '../../../api/publico.js';
-import { Estante, Portada, Skeleton } from '../../../components/index.js';
+import { Estante, Logo, Portada, Skeleton } from '../../../components/index.js';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { MENSAJES } from '../../../utils/mensajes.js';
 import estilos from './InicioPublicoPage.module.css';
@@ -13,8 +13,8 @@ const DE_RELLENO = ['Rayuela', 'Ficciones', 'El túnel', 'Facundo', 'Martín Fie
 export function Marca() {
   return (
     <span className={estilos.marca}>
-      <span className={estilos.sistema}>Préstamos</span>
-      <span className={estilos.red}>Red de Bibliotecas Públicas</span>
+      <Logo tamano={30} />
+      <span className={estilos.sistema}>Red de Bibliotecas Públicas</span>
     </span>
   );
 }
@@ -38,14 +38,9 @@ export default function InicioPublicoPage() {
     <div className={estilos.pagina}>
       <header className={estilos.barra}>
         <Marca />
-        <nav className={estilos.navegacion} aria-label="Accesos">
-          <a href="#mas-pedidos" className={estilos.enlace}>
-            Más pedidos
-          </a>
-          <Link to="/login" className={estilos.ingresar}>
-            Ingresar
-          </Link>
-        </nav>
+        <Link to="/login" className={estilos.ingresar}>
+          Ingresar
+        </Link>
       </header>
 
       <main id="contenido">
@@ -62,9 +57,6 @@ export default function InicioPublicoPage() {
               <Link to="/login" className={estilos.boton}>
                 Ingresar al sistema <span aria-hidden="true">→</span>
               </Link>
-              <a href="#mas-pedidos" className={estilos.botonContorno}>
-                Ver los más pedidos
-              </a>
             </div>
           </div>
           <p className={estilos.volanta}>El estante de la red</p>
