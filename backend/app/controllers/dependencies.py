@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings, get_settings
 from app.db.session import sesion_por_solicitud
-from app.exceptions import TokenInvalido
+from app.exceptions import TokenInvalido, UsuarioSoloLectura
 from app.models.policies.verificacion_baja_sede import VerificadorBajaSede
 from app.models.usuario import Permiso, Usuario
 from app.repositories.unit_of_work import SqlAlchemyUnitOfWork, UnitOfWork
@@ -42,6 +42,10 @@ from app.services.verificadores_baja_sede import (
 from app.utils.reloj import Reloj, RelojSistema
 
 _esquema_bearer = HTTPBearer(auto_error=False)
+
+# Métodos que no modifican nada: los únicos que puede usar un usuario de solo lectura.
+METODOS_DE_LECTURA = frozenset({"GET", "HEAD", "OPTIONS"})
+MENSAJE_SOLO_LECTURA = "Usuario de demostración (solo lectura): los cambios no se guardan."
 
 
 def get_reloj(settings: Settings = Depends(get_settings)) -> Reloj:
@@ -159,16 +163,21 @@ def usuario_actual(
     request: Request,
     credenciales: HTTPAuthorizationCredentials | None = Depends(_esquema_bearer),
     auth: AuthService = Depends(get_auth_service),
+    settings: Settings = Depends(get_settings),
 ) -> Usuario:
     """Usuario autenticado de la solicitud (recargado de la base).
 
     Deja su id en ``request.state`` para la línea de log de la solicitud
-    (``app/utils/registro.py``).
+    (``app/utils/registro.py``). A un usuario de solo lectura (``USUARIOS_SOLO_LECTURA``) le
+    rechaza toda solicitud que no sea de lectura: como todo endpoint que modifica algo depende de
+    esta función, el control cubre la API entera.
     """
     if credenciales is None:
         raise TokenInvalido("Falta iniciar sesión.")
     usuario = auth.autenticar(credenciales.credentials)
     request.state.usuario_id = usuario.id
+    if request.method not in METODOS_DE_LECTURA and settings.es_solo_lectura(usuario.username):
+        raise UsuarioSoloLectura(MENSAJE_SOLO_LECTURA)
     return usuario
 
 

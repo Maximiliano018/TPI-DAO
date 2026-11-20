@@ -32,9 +32,11 @@ class UsuarioSesionResponse(BaseModel):
     sede: SedeResumenResponse | None
     socio_id: int | None = None
     permisos: list[str]
+    # Usuario de demostración: puede ver todo, pero la API le rechaza los cambios.
+    solo_lectura: bool = False
 
     @classmethod
-    def desde(cls, usuario: Usuario) -> "UsuarioSesionResponse":
+    def desde(cls, usuario: Usuario, solo_lectura: bool = False) -> "UsuarioSesionResponse":
         assert usuario.id is not None
         sede = (
             SedeResumenResponse(
@@ -51,6 +53,7 @@ class UsuarioSesionResponse(BaseModel):
             sede=sede,
             socio_id=usuario.socio_id,
             permisos=sorted(p.value for p in usuario.permisos),
+            solo_lectura=solo_lectura,
         )
 
 

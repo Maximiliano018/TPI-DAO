@@ -1,0 +1,46 @@
+/* Cartel del acceso de demostración: turquesa claro con borde punteado, como una nota aparte */
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  max-width: 460px;
+  padding: var(--space-4);
+  background: var(--color-info-100);
+  border: 1px dashed var(--color-turquesa);
+  border-radius: var(--radius-lg);
+  text-align: left;
+}
+.titulo {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 800;
+  color: var(--color-ink);
+}
+.texto {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.datos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+}
+.datos div {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.datos dt {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+.datos dd {
+  margin: 0;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.demo > button {
+  align-self: flex-start;
+}

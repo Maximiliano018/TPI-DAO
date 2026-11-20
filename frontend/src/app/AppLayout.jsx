@@ -1,12 +1,14 @@
 import { Suspense, useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { Spinner } from '../components/index.js';
+import { useSesion } from '../auth/SesionContext.jsx';
+import { Alert, Spinner } from '../components/index.js';
 import AppBar from './AppBar.jsx';
 import Sidebar from './Sidebar.jsx';
 import estilos from './AppLayout.module.css';
 
 /** Estructura de toda pantalla autenticada: barra superior, menú lateral y `<main>`. */
 export default function AppLayout() {
+  const { usuario } = useSesion();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const { pathname } = useLocation();
 
@@ -25,6 +27,13 @@ export default function AppLayout() {
       <Sidebar abierto={menuAbierto} onCerrar={() => setMenuAbierto(false)} />
       <main id="contenido" className={estilos.principal} tabIndex={-1}>
         <div className={estilos.contenido}>
+          {usuario?.solo_lectura && (
+            <div className={estilos.demo}>
+              <Alert tono="info" titulo="Modo demostración">
+                Podés recorrer todo el sistema, pero los cambios no se guardan.
+              </Alert>
+            </div>
+          )}
           <Suspense fallback={<Spinner />}>
             <Outlet />
           </Suspense>

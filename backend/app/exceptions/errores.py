@@ -269,6 +269,12 @@ class PermisoDenegado(ErrorDeNegocio):
     codigo = "FORBIDDEN"
 
 
+class UsuarioSoloLectura(PermisoDenegado):
+    """Usuario de demostración que intenta un cambio (ver ``USUARIOS_SOLO_LECTURA``)."""
+
+    codigo = "SOLO_LECTURA"
+
+
 class CredencialesInvalidas(ErrorDeNegocio):
     codigo = "CREDENCIALES_INVALIDAS"
 

@@ -41,6 +41,10 @@
   max-width: var(--content-max);
   margin: 0 auto;
 }
+/* Aviso del usuario de demostración (solo lectura), arriba de cada pantalla */
+.demo {
+  margin-bottom: var(--space-4);
+}
 @media (min-width: 640px) {
   .principal {
     padding: var(--space-8) var(--space-6);

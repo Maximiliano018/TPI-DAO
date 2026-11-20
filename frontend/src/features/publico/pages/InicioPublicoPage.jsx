@@ -9,6 +9,7 @@ import {
   SiluetaLibros,
   Skeleton,
 } from '../../../components/index.js';
+import AccesoDemo from '../../../auth/AccesoDemo.jsx';
 import { useTituloDePagina } from '../../../hooks/useTituloDePagina.js';
 import { MENSAJES } from '../../../utils/mensajes.js';
 import estilos from './InicioPublicoPage.module.css';
@@ -62,6 +63,7 @@ export default function InicioPublicoPage() {
                   Ingresar al sistema <span aria-hidden="true">→</span>
                 </Link>
               </div>
+              <AccesoDemo />
             </div>
             <div className={estilos.vitrina}>
               <span className={estilos.mancha} aria-hidden="true" />

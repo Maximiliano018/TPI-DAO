@@ -221,6 +221,7 @@ Variables de entorno leídas con `pydantic-settings`:
 | `ENTORNO` | `desarrollo`, `test` o `produccion`; el seed solo corre en los dos primeros |
 | `SEED_PASSWORD` | Contraseña de los usuarios de demostración (solo seed) |
 | `LOG_LEVEL` | Nivel del registro de la aplicación (`INFO` por defecto) |
+| `USUARIOS_SOLO_LECTURA` | Usuarios de demostración, separados por coma: ven lo que su rol permite, pero `usuario_actual` les rechaza toda solicitud que no sea `GET` (`403 SOLO_LECTURA`). Vacío por defecto |
 
 Los parámetros de negocio (plazos, límites, monto de multa) **no** son variables de entorno sino filas de la tabla `parametro`, editables por el administrador sin redesplegar.
 

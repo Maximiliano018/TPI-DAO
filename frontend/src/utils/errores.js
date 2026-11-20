@@ -4,6 +4,7 @@ export const MENSAJES_DE_ERROR = {
   CREDENCIALES_INVALIDAS: 'Usuario o contraseña incorrectos',
   TOKEN_INVALIDO: 'Su sesión venció. Ingrese de nuevo.',
   FORBIDDEN: 'No tiene permiso para realizar esta acción.',
+  SOLO_LECTURA: 'Estás en modo demostración: podés ver todo, pero los cambios no se guardan.',
   SEDE_CODIGO_DUPLICADO: 'Ya existe una sede con ese código',
   SEDE_NOMBRE_DUPLICADO: 'Ya existe una sede con ese nombre',
   SEDE_EN_BAJA: 'La sede está dada de baja. Reactívela para continuar',

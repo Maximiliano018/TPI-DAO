@@ -16,6 +16,7 @@ import {
 } from '../components/index.js';
 import { erroresPorCampo, mensajeDeError } from '../utils/errores.js';
 import { MENSAJES } from '../utils/mensajes.js';
+import AccesoDemo from './AccesoDemo.jsx';
 import { useSesion } from './SesionContext.jsx';
 import estilos from './LoginPage.module.css';
 
@@ -163,6 +164,7 @@ export default function LoginPage() {
             <Button type="submit" cargando={isSubmitting} className={estilos.enviar}>
               Ingresar <span aria-hidden="true">→</span>
             </Button>
+            <AccesoDemo />
             <p className={estilos.ayuda}>
               ¿Olvidó su contraseña? Pídala en el mostrador de su sede.
             </p>
